@@ -1,0 +1,5 @@
+.sidebar-item {
+  padding: 6px 0px 0px 10px;
+  color: var(--sidebar-color);
+  cursor: pointer;
+}

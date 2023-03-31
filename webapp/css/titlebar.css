@@ -1,0 +1,30 @@
+.titlebar-title {
+  margin: 5px 0px 0px 15px;
+  color: var(--titlebar-color);
+  display: flex;
+  align-items:center;
+  font-size: 24px;
+  font-weight: bold; 
+}
+.titlebar-control {
+    position: absolute; 
+    top: 15px;
+    right: 15px;   
+}
+.titlebar-control-img {
+    margin-right: 5px;
+    width: 30px;
+    cursor: pointer;
+}
+.titlebar-dropdown {
+    position: absolute;
+    top: var(--titlebar-height);
+    width: 140px;
+    z-index: 80;
+    background: var(--sidebar-background);
+}
+.titlebar-dropdown-item {
+  padding: 4px 0px 4px 10px;
+  color: var(--sidebar-color);
+  cursor: pointer;
+}
