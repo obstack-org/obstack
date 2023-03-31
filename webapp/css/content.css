@@ -1,0 +1,108 @@
+:root {
+  --content-header-height: 40px;
+}
+.content-header, .content-wrapper  {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  right: 0px;
+}
+.content-header {    
+  height: var(--content-header-height);
+  background: #dadada;
+  padding: 10px;
+}
+.content-wrapper {
+  top: var(--content-header-height);
+  bottom: 0px;
+  background: #fafafa;
+  padding: 10px 10px;
+}
+.content-popup-wrapper {
+  position: absolute;  
+  top: 20px;  
+  bottom: 40px;     
+  left: 50%;
+  margin-left: -400px;
+  width: 760px;
+  background: #fcfcfc;
+  border-radius: 4px;
+  box-shadow: 0 0 5px 5px rgba(34,34,340, 0.3);
+  -moz-box-shadow: 0 0 5px 5px rgba(34,34,34, 0.3);
+  -webkit-box-shadow: 0 0 5px 5px rgba(34,34,34, 0.3);
+  padding: 20px;
+  overflow-y: auto;
+  z-index: 32;
+}
+.content-popup-wrapper_small {
+  top: 140px;
+  height: 80px;
+}
+.content-popup-wrapper_medium {
+  top: 100px;
+  height: 155px;
+}
+.content-popup-wrapper-control {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  padding: 8px 16px;
+}
+.content-popup-overlay {
+  position: absolute;
+  top: 0px;
+  bottom: 0px;
+  left: 0px;
+  right: 0px;
+  width: 100%;
+  background: rgba(255,255,255,0.5);
+  backdrop-filter: blur(2px);
+  cursor: default;
+  z-index: 31;
+}
+.content-tab {
+  position: absolute; 
+  top: 0px; 
+  bottom: 0px; 
+  left: 10px; 
+  right: 10px;
+}
+.content-tab-wrapper {
+  position: absolute; 
+  top: 70px; 
+  bottom: 20px; 
+  left: 10px; 
+  right: 10px;
+  overflow-y: auto;
+}
+.content-wrapper-control {
+  position: absolute; 
+  top: 10px;  
+  left: 10px;
+}
+.content-wrapper-control-right {
+  position: absolute; 
+  top: 0px;  
+  right: 20px;
+}
+.content-wrapper-tab-control {
+  position: absolute; 
+  top: 0px;  
+  left: 0px;
+}
+.log-table {
+  border-collapse: collapse;
+}
+.log-th {
+  text-align: left;
+  border-bottom: 1px solid #444;
+  border-collapse: collapse;
+  padding: 0px 0px 2px 2px;
+}
+.log-td {
+  border-top: 1px solid #edd;
+  border-collapse: collapse;
+  padding: 5px 15px 5px 2px;
+  white-space: break-spaces;
+  vertical-align: top;
+}

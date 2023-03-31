@@ -1,0 +1,25 @@
+.sTabs-tabs {
+    display: inline-block;  
+    margin: 0px;
+    padding: 0px;
+    width: 100%;  
+    min-width: 600px;
+    border-bottom: 1px solid #444;
+}
+.sTabs-tabs .sTabs-tab {
+    float: left;
+    padding: 10px 20px;
+    cursor: pointer;
+}
+.sTabs-tabs .active {
+    border-bottom: 5px solid #125090;
+}
+.sTabs-content {
+    padding: 20px 10px;    
+}
+.sTabs-content .sTabs-tab-content {
+    display: none;
+}
+.sTabs-content .active {
+    display: block;
+}

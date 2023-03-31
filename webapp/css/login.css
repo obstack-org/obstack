@@ -1,0 +1,41 @@
+.overlay-login {
+  position : absolute;
+  top: 160px;
+  left: 50%;
+  margin-left: -250px;
+  width: 500px;
+  height: 250px;
+  border-radius: 4px;
+  box-shadow: 0 0 5px 5px rgba(34,34,340, 0.3);
+  -moz-box-shadow: 0 0 5px 5px rgba(34,34,34, 0.3);
+  -webkit-box-shadow: 0 0 5px 5px rgba(34,34,34, 0.3);  
+  background-color: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
+  z-index: 61;
+}
+.overlay-login-inner {
+  position : absolute;
+  top: 25px;
+  left: 50%;
+  margin-left: -200px;
+  width: 400px;
+  height: 200px;  
+  z-index: 62;
+}
+.overlay-login-inner-message {
+  position : absolute;
+  top: 148px;
+  left: 190px;
+  height: 40px;
+  padding: 20px 0 0 0;
+  font-size: 14px;
+  color: #b10707;
+  z-index: 62;
+}
+.btn {
+  width: 80px;
+  height: 30px;
+  padding: 6px;
+  margin-left: 10px;
+  cursor: pointer;
+}

@@ -1,0 +1,133 @@
+:root {
+  --titlebar-height: 60px;
+  --titlebar-color: #ddeeee;
+  --titlebar-background: #1b5f98;
+  --sidebar-width: 180px;
+  --sidebar-color: #bfcad0;
+  --sidebar-background: #1c1c1c;  
+  --content-color: #111111;
+  --content-background: #ffffee;
+}
+* {
+  margin: 0px;
+  padding: 0px;
+  color: #444;
+  font-size: 16px;
+  font-family: 'Trebuchet MS', serif;
+}
+input, select, textarea {
+  display: inline-block;
+  width: 400px;
+  margin: 8px 0;
+  padding: 10px 12px;  
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+input[type='checkbox'] {
+  width: 30px;
+}
+info {
+  font-size: 14px;
+  font-style: bold;
+  vertical-align: super;
+  cursor: help;
+}
+move {
+  padding-left: 5px;
+  cursor: move;
+}
+.titlebar, .sidebar, .content {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+}
+.titlebar {
+  width: 100%;
+  height: var(--titlebar-height);
+  color: var(--titlebar-color);
+  background: var(--titlebar-background);
+  z-index: 40;
+}
+.sidebar {
+  top: var(--titlebar-height);
+  width: var(--sidebar-width);
+  color: var(--sidebar-color);
+  background: var(--sidebar-background);
+  bottom: 0px;
+  z-index: 40;
+}
+.content {
+  top: var(--titlebar-height);
+  left: var(--sidebar-width);
+  right: 0px;
+  bottom: 0px;
+  min-width: 820px;
+  min-height: 450px;
+  color: var(--content-color);
+  background: var(--content-background);
+}
+.overlay {
+  position: absolute;  
+  width: 100%;
+  height: 100%;
+  top: 0px;
+  left: 0px;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  z-index: 60;
+}
+.overlay-load {
+  position : absolute;
+  top: 200px;
+  left: 50%;
+  margin-left: -30px;
+  width: 60px;
+  height: 60px;
+  z-index: 60;
+}
+.pointer {
+  cursor: pointer;  
+}
+.link {
+  text-decoration: underline;
+  cursor: pointer;  
+}
+.center {
+  display: block;
+  margin-top: 40px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 50%;
+}
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  50% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.fadein {
+  animation: fadeIn 0.5s;
+}
+.hidden {
+  display: none;
+}
+.delete {
+  color: rgb(140, 0, 0);
+  font-style: italic;
+  text-decoration-line: line-through;
+  text-decoration-style: double;
+}
+.jsonform-errortext {
+  color: rgb(140, 0, 0);
+  font-weight: bold;
+  font-style: italic;
+  font-size: 12px;
+  padding-left: 30px;
+  padding-bottom: 10px;
+}
+.float-left {
+  float: left !important;
+}
+.float-right {
+  float: right !important;
+}
