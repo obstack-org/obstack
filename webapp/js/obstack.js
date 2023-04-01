@@ -10,7 +10,7 @@ const apibase = 'api.php';
 
 // Development options
 const debug = false;
-const build = '230401.1021'
+const build = '230401.1231'
 
 // Frame elements
 var titlebar;
@@ -106,38 +106,6 @@ function api(httpmethod, path, data) {
   });
   return xhr;
 }
-
-// API function - OLD
-/*
-function api(httpmethod, path, data) {
-  var result = [];  
-  $.ajax({
-    url: 'api.php/v2/'+path,
-    type: httpmethod,
-    async: false,
-    dataType: 'json',
-    contentType: 'application/json; charset=utf-8',
-    data: JSON.stringify(data),
-    error: function (response) {
-      // On error 401 (unauthorized) reload to login screen
-      if (response.status == 401) {
-        location.reload(true);
-      }
-      else {
-        if (debug) {
-          console.log({Request:`${httpmethod}: ${path}`, data:data});
-          console.log(response.responseText);
-          //console.log({data:data, error:response.responseText});
-        }
-      }
-    },
-    success: function (data) {
-      result = data;
-    }
-  });
-  return result;
-}
-*/
 
 // HTML Boolean display shorthand
 function htbool(bool) {
