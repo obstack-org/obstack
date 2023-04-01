@@ -1,6 +1,8 @@
 # Installation
 
-As one of ObStack's goals the installation is easy to setup using a basic linux webserver setup with PostgreSQL, as described below.\Obstack also supplies a <a href="https://github.com/obstack-org/obstack-docker" target="_blank">docker</a> image and a docker-compose script for easy deployment.
+As one of ObStack's goals the installation is easy to setup using a basic linux webserver setup with PostgreSQL, as described below.
+
+Obstack also supplies a <a href="https://github.com/obstack-org/obstack-docker" target="_blank">docker</a> image and a docker-compose script for easy deployment.
 
 ## Requirements
 

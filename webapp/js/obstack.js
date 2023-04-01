@@ -10,7 +10,7 @@ const apibase = 'api.php';
 
 // Development options
 const debug = false;
-const build = '230331.2117'
+const build = '230401.1017'
 
 // Frame elements
 var titlebar;

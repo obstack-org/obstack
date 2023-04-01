@@ -13,11 +13,14 @@ For more information visit <a href="https://www.obstack.org" target="_blank">htt
 
 There are a lot of great open source tools available for CMDB, Asset management and so on, capable of creating complex systems and supplying advanced features. However, in some cases an advanced and complex system is not required, and all you need is a simple and straight forward tool. The goal of the *ObStack* project is to try and fill a gap between spreadsheet sharing and the available more advanced solutions, and providing an interface for other solutions as suited along the way.
 
-![ObStack](../img/os-ob1.png)
+[![](./img/os-yt1.png)](https://youtu.be/H8jDNsbyuf4)
+
 
 # Installation
 
-As one of ObStack's goals the installation is easy to setup using a basic linux webserver setup with PostgreSQL, as described below.\Obstack also supplies a <a href="https://github.com/obstack-org/obstack-docker" target="_blank">docker</a> image and a docker-compose script for easy deployment.
+As one of ObStack's goals the installation is easy to setup using a basic linux webserver setup with PostgreSQL, as described below.
+
+Obstack also supplies a <a href="https://github.com/obstack-org/obstack-docker" target="_blank">docker</a> image and a docker-compose script for easy deployment.
 
 ## Requirements
 
