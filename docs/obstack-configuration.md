@@ -32,7 +32,7 @@ $sessman_config = [
     'userdn'        => 'cn=users,cn=accounts,dc=example,dc=local',
     'group-auth'    => 'cn=obstack-auth,cn=groups,cn=accounts,dc=example,dc=local',
     'group-sa'      => 'cn=obstack-sa,cn=groups,cn=accounts,dc=example,dc=local'
-  ], 
+  ],
 
   'radius'  => [
     'enabled'       => false,

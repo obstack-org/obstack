@@ -14,7 +14,7 @@ Obstack also supplies a <a href="https://github.com/obstack-org/obstack-docker" 
 ## Basic example (AlmaLinux8/Rocky8)
 
 _(The database security used in this example is for demo purposes only)_
- 
+
 ```
 # Install packages
 sudo dnf -y module disable php postgresql

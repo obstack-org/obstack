@@ -1,0 +1,18 @@
+
+ CHANGES
+*********
+
+10-05-2023:
+- Polish module structure
+- Replace datatables plugin
+- Restructure tabs
+- Update Build identifier (remove time)
+- Polish source files (trim, permissions)
+- Table sorting
+- Add ChangeLog
+
+01-04-2023:
+- Comments & Documentation
+
+31-03-2023:
+- Initial commit

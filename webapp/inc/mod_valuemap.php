@@ -1,6 +1,6 @@
 <?php
 /******************************************************************
- * 
+ *
  * api_valuemap($db)
  *  -> list($id)
  *  -> save($id, $data)
@@ -8,10 +8,10 @@
  *  -> value_list($vmid, $id)
  *  -> value_save($vmid, $id, $data)
  *  -> value_delete($vmid, $id)
- * 
+ *
  ******************************************************************/
 
-class mod_valuemap { 
+class mod_valuemap {
 
   private $db;
 
@@ -41,7 +41,7 @@ class mod_valuemap {
     }
     else {
       return $this->db->query('SELECT name, prio FROM valuemap WHERE id=:id', [':id'=>$id])[0];
-    }    
+    }
   }
 
   /******************************************************************
@@ -57,13 +57,13 @@ class mod_valuemap {
       $id = $this->db->query('INSERT INTO valuemap (name, prio) VALUES (:name, :prio) RETURNING id', $dbparams)[0]->id;
       $result = $id;
     }
-    else {      
+    else {
       $dbparams[':id'] = $id;
       $result = $this->db->query('UPDATE valuemap SET name=:name, prio=:prio WHERE id=:id', $dbparams);
     }
     // Valuemap values
     if (isset($data['value'])) {
-      // Values from HTTP request      
+      // Values from HTTP request
       $prio = 1;
       $htlist = [];
       foreach ($data['value'] as $rec) {
@@ -74,7 +74,7 @@ class mod_valuemap {
         array_push($htlist, $rec['id']);
         $prio++;
       }
-      // Values from database 
+      // Values from database
       $dblist = [];
       foreach ($this->db->query('SELECT id FROM valuemap_value WHERE valuemap=:id', [':id'=>$id]) as $dbrec) {
         array_push($dblist, $dbrec->id);
@@ -85,7 +85,7 @@ class mod_valuemap {
       foreach (array_diff($dblist, $htlist) as $rec) {
         $this->value_delete($id, $rec);
       }
-    }   
+    }
     return $result;
   }
 
@@ -121,7 +121,7 @@ class mod_valuemap {
   function value_save($vmid, $id, $data) {
     $dbqprio = '';
     $dbparams = [':vmid'=>$vmid, ':name'=>$data['name']];
-    if ($id == null) {      
+    if ($id == null) {
       if (array_key_exists('prio', $data)) {
         $dbqprio1 = 'prio,';
         $dbqprio2 = ':prio,';

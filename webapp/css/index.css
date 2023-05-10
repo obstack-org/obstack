@@ -4,7 +4,7 @@
   --titlebar-background: #1b5f98;
   --sidebar-width: 180px;
   --sidebar-color: #bfcad0;
-  --sidebar-background: #1c1c1c;  
+  --sidebar-background: #1c1c1c;
   --content-color: #111111;
   --content-background: #ffffee;
 }
@@ -19,7 +19,7 @@ input, select, textarea {
   display: inline-block;
   width: 400px;
   margin: 8px 0;
-  padding: 10px 12px;  
+  padding: 10px 12px;
   border: 1px solid #ccc;
   border-radius: 4px;
   box-sizing: border-box;
@@ -68,7 +68,7 @@ move {
   background: var(--content-background);
 }
 .overlay {
-  position: absolute;  
+  position: absolute;
   width: 100%;
   height: 100%;
   top: 0px;
@@ -87,11 +87,11 @@ move {
   z-index: 60;
 }
 .pointer {
-  cursor: pointer;  
+  cursor: pointer;
 }
 .link {
   text-decoration: underline;
-  cursor: pointer;  
+  cursor: pointer;
 }
 .center {
   display: block;

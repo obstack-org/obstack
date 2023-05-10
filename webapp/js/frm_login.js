@@ -1,9 +1,9 @@
 /******************************************************************
- * 
+ *
  * frm
  *  .login
  *    .show()           Function
- * 
+ *
  ******************************************************************/
 
 frm['login'] = {
@@ -28,12 +28,12 @@ frm['login'] = {
       )
     );
     loginform.jsonForm({
-      schema: { 
+      schema: {
         'username': { type: 'string', title: 'Username' },
         'password': { type: 'password', title: 'Password' }
       },
-      onSubmit: function (errors, values) {          
-        $.when( 
+      onSubmit: function (errors, values) {
+        $.when(
           api('post', 'auth', {'username':values.username, 'password':values.password })
         ).fail(function() {
           loginmessage.html('Incorrect username or password');
@@ -42,7 +42,7 @@ frm['login'] = {
           if (apidata.active) {
             location.reload(true);
           }
-        });        
+        });
       }
     });
   }

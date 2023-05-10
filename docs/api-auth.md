@@ -20,7 +20,7 @@ For authentication using an API token use the _X-API-Key_ header.
 | HTTP Request Header |
 |---|
 | _X-API-Key: [token]_ |
-  
+
 ```javascript
 curl -X POST -H 'X-API-Key: nLO0v3OxbsRVyq6w58CyU8NZp1' 'https://myserver.fqdn/php.api/v2/path/to/example/000001'
 ```
@@ -43,9 +43,9 @@ GET:
 POST:
 ```javascript
 // Payload
-{ 
-  "username": "myusername", 
-  "password": "myPa%%w0rD" 
+{
+  "username": "myusername",
+  "password": "myPa%%w0rD"
 }
 
 // Response
@@ -76,7 +76,7 @@ _Only allowed by SuperAdmin_
 | GET | List users |
 | POST | Create new user |
 
-GET:  
+GET:
 ```javascript
 // Response
 [
@@ -92,10 +92,10 @@ GET:
 ]
 ```
 
-POST:  
+POST:
 ```javascript
 // Payload
-{    
+{
   "username": "myusername",
   "password": "myPa%%w0rD",
   "firstname": "John",
@@ -111,7 +111,7 @@ POST:
 ### /auth/user/{user}
 
 Since the user id remains hidden for the user itself, actions for the active user can be accessed by requesting **self** instead of the id (so: _**/auth/user/self**_). This can be used to e.g. gather the display name using GET, or resetting the password using POST.
-  
+
 _/auth/user/self is allowed for all users_
 
 _Others only allowed by SuperAdmin_
@@ -122,7 +122,7 @@ _Others only allowed by SuperAdmin_
 | PUT | Update user info |
 | DELETE | Delete user |
 
-GET:  
+GET:
 ```javascript
 // Response
 {
@@ -134,10 +134,10 @@ GET:
 }
 ```
 
-PUT:  
+PUT:
 ```javascript
 // Payload
-{    
+{
   "username": "myusername",
   "password": "myPa%%w0rD",
   "firstname": "John",
@@ -150,7 +150,7 @@ PUT:
 []
 ```
 
-DELETE:  
+DELETE:
 ```javascript
 // Response
 { "delete": true }
@@ -165,7 +165,7 @@ _Only allowed by SuperAdmin_
 | GET | List user group membership |
 | POST | Add user group membership |
 
-GET:  
+GET:
 ```javascript
 // Response
 [
@@ -179,10 +179,10 @@ GET:
 ]
 ```
 
-POST:  
+POST:
 ```javascript
 // Payload
-{ 
+{
   "groupname": "Testgroup",
   "ldapcn": "cn=testgroup,cn=groups,cn=accounts,dc=example,dc=local",
   "radiusattr": "testgroup"
@@ -201,17 +201,17 @@ _Only allowed by SuperAdmin_
 | GET | Get group info |
 | DELETE | Remove group membership |
 
-GET:  
+GET:
 ```javascript
 // Response
-{ 
+{
   "groupname": "Testgroup",
   "ldapcn": "cn=testgroup,cn=groups,cn=accounts,dc=example,dc=local",
   "radiusattr": "testgroup"
 }
 ```
 
-DELETE:  
+DELETE:
 ```javascript
 // Response
 { "delete": true }
@@ -226,11 +226,11 @@ _Only allowed by Self and SuperAdmin_
 | GET | List API tokens |
 | POST | Create API token |
 
-GET:  
+GET:
 ```javascript
 // Response
 [
-  { 
+  {
     "id": "efd34367-5aa6-49e6-bd99-fb6c5543ca4c",
     "name": "myTokenName",
     "expiry": "2024-01-01 12:00"
@@ -239,10 +239,10 @@ GET:
 ]
 ```
 
-POST:  
+POST:
 ```javascript
 // Payload
-{ 
+{
   "name": "myTokenName",
   "expiry": "2024-01-01 12:00"
 }
@@ -261,7 +261,7 @@ _Only allowed by Self and SuperAdmin_
 | PUT | Update API token |
 | DELETE | Delete API token |
 
-GET:  
+GET:
 ```javascript
 // Response
 {
@@ -270,7 +270,7 @@ GET:
 }
 ```
 
-PUT:  
+PUT:
 ```javascript
 // Payload
 {
@@ -282,7 +282,7 @@ PUT:
 []
 ```
 
-DELETE:  
+DELETE:
 ```javascript
 // Response
 { "delete": true }
@@ -297,7 +297,7 @@ _Only allowed by SuperAdmin_
 | GET | List group |
 | POST | Create new group |
 
-GET:  
+GET:
 ```javascript
 // Response
 [
@@ -311,7 +311,7 @@ GET:
 ]
 ```
 
-POST:  
+POST:
 ```javascript
 // Payload
 {
@@ -334,7 +334,7 @@ _Only allowed by SuperAdmin_
 | PUT | Update group info |
 | DELETE | Delete group |
 
-GET:  
+GET:
 ```javascript
 // Response
 {
@@ -344,7 +344,7 @@ GET:
 }
 ```
 
-PUT:  
+PUT:
 ```javascript
 // Payload
 {
@@ -357,7 +357,7 @@ PUT:
 []
 ```
 
-DELETE:  
+DELETE:
 ```javascript
 // Response
 { "delete": true }

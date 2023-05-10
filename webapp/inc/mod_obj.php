@@ -1,9 +1,9 @@
 <?php
 /******************************************************************
- * 
+ *
  * api_obj($db, $otid)
  *  -> open($otid, $id)
- *  -> save($otid, $id, $data)    
+ *  -> save($otid, $id, $data)
  *  -> delete($otid, $id)
  *  -> relation_list($id)
  *  -> relation_list_available($otid, $id)
@@ -11,13 +11,13 @@
  *  -> relation_delete($id, $id_ref)
  *  -> log_list($otid, $id)
  *  -> log_save($otid, $id, $action, $detail)
- * 
+ *
  ******************************************************************/
 
-class mod_obj { 
+class mod_obj {
 
   private $db;
-  private $objtype;  
+  private $objtype;
   private $format = null;
   private $logstate = [];
   private $datatype  = [ 1=>'varchar', 2=>'decimal', 3=>'uuid', 4=>'uuid', 5=>'decimal', 6=>'text', 7=>'varchar', 8=>'timestamp', 9=>'timestamp' ];
@@ -57,9 +57,9 @@ class mod_obj {
       $dbqvaluemap = ['vo.name', 'LEFT JOIN valuemap_value vo ON vo.id = vu.value'];
     }
     $dbquery = "
-      SELECT 
+      SELECT
         op.id AS id,
-        op.type AS type, 
+        op.type AS type,
         op.name AS label,
         CASE op.type
           WHEN 1 THEN vv.value
@@ -72,9 +72,9 @@ class mod_obj {
           WHEN 8 THEN TO_CHAR(vt.value,'YYYY-MM-DD')
           WHEN 9 THEN TO_CHAR(vt.value,'YYYY-MM-DD HH24:MI')
         END AS value
-      FROM obj o 
-      LEFT JOIN objtype ot 			    ON ot.id = o.objtype 
-      LEFT JOIN objproperty op 		  ON op.objtype = ot.id 
+      FROM obj o
+      LEFT JOIN objtype ot 			    ON ot.id = o.objtype
+      LEFT JOIN objproperty op 		  ON op.objtype = ot.id
       LEFT JOIN value_decimal vd 	  ON vd.objproperty = op.id AND vd.obj = o.id
       LEFT JOIN value_text vx 		  ON vx.objproperty = op.id AND vx.obj = o.id
       LEFT JOIN value_timestamp vt  ON vt.objproperty = op.id AND vt.obj = o.id
@@ -100,7 +100,7 @@ class mod_obj {
     }
     else {
       $result = $this->db->query($dbquery, [':otid'=>$otid, ':id'=>$id]);
-    } 
+    }
     return $result;
   }
 
@@ -120,18 +120,18 @@ class mod_obj {
     foreach ($this->db->query('SELECT * FROM objproperty WHERE objtype=:objtype', [':objtype'=>$otid]) as $rec) {
       $objproperty[$rec->id] = ['type'=>$rec->type, 'type_objtype'=>$rec->type_objtype, 'type_valuemap'=>$rec->type_valuemap, 'required'=>$rec->required];
     }
-    // Process values 
+    // Process values
     $tmplog = '';
     foreach ($data as $key => $value) {
       if ($key != 'relations') {
         $table = $this->datatype[$objproperty[$key]['type']];
         $dbquery = "
           select
-            op.name AS name, 
+            op.name AS name,
             op.type AS type,
             v.value AS value
           FROM obj o
-          LEFT JOIN objtype ot ON ot.id = o.objtype 
+          LEFT JOIN objtype ot ON ot.id = o.objtype
           LEFT JOIN objproperty op ON op.objtype = ot.id
           LEFT JOIN value_$table v ON ((v.objproperty = op.id) AND (v.obj = o.id))
           WHERE o.id=:obj AND op.id=:objproperty
@@ -149,7 +149,7 @@ class mod_obj {
           if ($value != '*****') {
             $value   = password_hash($value, PASSWORD_BCRYPT );
             $current = password_hash($current, PASSWORD_BCRYPT );
-          } 
+          }
           else {
             // Do not save
             $value = $current;
@@ -165,7 +165,7 @@ class mod_obj {
     }
     if (strlen($tmplog) > 0) {
       $this->log_save($otid, $id, 2, substr($tmplog, 2));
-    }  
+    }
     // Process relations
     $dbobjects = [];
     $qrobjects = [];
@@ -219,7 +219,7 @@ class mod_obj {
     $dbquery = "
       SELECT
         o.id AS objid,
-        ot.id AS ObjTypeId,  
+        ot.id AS ObjTypeId,
         ot.\"name\" AS ObjTypeName,
         op.\"name\" AS label,
         op.prio AS prio,
@@ -241,8 +241,8 @@ class mod_obj {
         END AS value
       FROM obj_obj oo
       LEFT JOIN obj o on (o.id = oo.obj) or (o.id = oo.obj_ref)
-      LEFT JOIN objtype ot ON ot.id = o.objtype 
-      LEFT JOIN objproperty op ON op.objtype = ot.id 
+      LEFT JOIN objtype ot ON ot.id = o.objtype
+      LEFT JOIN objproperty op ON op.objtype = ot.id
       LEFT JOIN value_decimal		vd ON vd.objproperty = op.id AND vd.obj = o.id
       LEFT JOIN value_text 		  vx ON vx.objproperty = op.id AND vx.obj = o.id
       LEFT JOIN value_timestamp vt ON vt.objproperty = op.id AND vt.obj = o.id
@@ -259,7 +259,7 @@ class mod_obj {
     foreach ($this->db->query($dbquery, [':id'=>$id]) as $rec) {
       if ($tmpid != $rec->objid) {
         if ($tmpid != null) {
-          array_push($result, $cache);              
+          array_push($result, $cache);
         }
         $tmpid = $rec->objid;
         $cache = ['id'=>$rec->objid, 'objtype'=>$rec->objtypeid, 'objtype_name'=>$rec->objtypename];
@@ -315,7 +315,7 @@ class mod_obj {
    ******************************************************************/
   function relation_save($id, $id_ref) {
     $dbparams = [':obj'=>$id, ':obj_ref'=>$id_ref];
-    if ($id < $id_ref) { 
+    if ($id < $id_ref) {
       $dbparams = [':obj'=>$id_ref, ':obj_ref'=>$id];
     }
     $count = count($this->db->query('INSERT INTO obj_obj VALUES (:obj,:obj_ref) RETURNING *', $dbparams));
@@ -327,7 +327,7 @@ class mod_obj {
    ******************************************************************/
   function relation_delete($id, $id_ref) {
     $dbparams = [':obj'=>$id, ':obj_ref'=>$id_ref];
-    if ($id < $id_ref) { 
+    if ($id < $id_ref) {
       $dbparams = [':obj'=>$id_ref, ':obj_ref'=>$id];
     }
     $count = count($this->db->query('DELETE FROM obj_obj WHERE obj=:obj AND obj_ref=:obj_ref RETURNING *', $dbparams));

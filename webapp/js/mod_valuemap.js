@@ -1,5 +1,5 @@
 /******************************************************************
- * 
+ *
  * mod
  *  .valuemap
  *    .list()           Function
@@ -8,7 +8,7 @@
  *    .save()           Function
  *    .value           Array
  *      .open()         Function
- * 
+ *
  ******************************************************************/
 
  mod['valuemap'] = {
@@ -19,40 +19,60 @@
    * List value maps
    ******************************************************************/
   list: function() {
+
     // Generate HTML with loader
-    var controlbar = $('<div/>', { class: 'content-wrapper-control' });
-    var dtobjtypes = new datatable();
+    let vmlist = {
+      control:  $('<div/>', { class: 'tblwrap-control' }),
+      content:  $('<div/>', { class: 'tblwrap-table' }),
+      footer:   $('<div/>', { class: 'tblwrap-footer' }),
+      table:    null
+    };
+    let ctwrap = {
+      name:     $('<div/>'),
+      control:  $('<div/>', { class: 'content-wrapper-control' })
+    }
     content.empty().append(
-      $('<div/>', { class: 'content-header' }).html('Value maps'),
+      $('<div/>', { class: 'content-header' }).html('Object types'),
       $('<div/>', { class: 'content-wrapper' }).append(
-        dtobjtypes.html(),
-        controlbar
+        vmlist.control,
+        vmlist.content,
+        vmlist.footer,
+        ctwrap.control
       )
     );
-    content.append(loader);
 
     // Load and display data
-    $.when( 
+    content.append(loader.removeClass('fadein').addClass('fadein'));
+
+    // Load and display data
+    $.when(
       api('get','valuemap')
-    ).done(function(apidata) {
-      dtobjtypes.apidata(apidata);
-      dtobjtypes.options({
-        aaSorting: [],
-        columns: [{title:'[id]'}, {title:'Value map'}],
-        columnDefs: [...dtobjtypes.getoptions().columnDefs, { targets:[1], orderable:false }]
+    ).done(function(api_valuemap) {
+      vmlist.table = new obTable({
+        id: 'ee166cbe41ceee1a5b6a1b7cc814ef6ad7e0b4c4',
+        data: api_valuemap,
+        columns: [{ id: 'name', name:'Value map', orderable: true }],
+        columns_resizable: false,
+        columns_hidden: ['id']
       });
-      dtobjtypes.create();   
-      dtobjtypes.html().on('click', 'tr', function () {
-        if (typeof dtobjtypes.table().row(this).data() != 'undefined') {
-          mod.valuemap.open(dtobjtypes.table().row(this).data()[0]);
-        }
+      vmlist.control.append( $('<input/>', { width: 300, class: 'tblwrap-control-search' }).on('keyup', function() { objlist.table.search(this.value); }) );
+      vmlist.content.append(vmlist.table.html());
+      vmlist.footer.append(`Value maps: ${api_valuemap.length}`);
+      vmlist.table.html().on('click', 'td', function () {
+        content.empty().append(loader);
+        mod.valuemap.open(JSON.parse($(this).parent().attr('hdt')).id);
       });
-      controlbar.append(
+
+      ctwrap.control.append(
         $('<input/>', { class: 'btn', type: 'submit', value: 'Add' })
-          .on('click', function(event) {
+          .on('click', function() {
             mod.valuemap.open(null);
           })
       );
+
+      $.each(content.find('.obTable-tb'), function() {
+        $(this).obTableRedraw();
+      });
       loader.remove();
     });
   },
@@ -88,22 +108,70 @@
    *   api_..   : API data
    ******************************************************************/
   open_htgen: function(id, api_conf, api_value) {
-    // Generate HTML with loader
-    var stabs = $('<div/>', { class: 'content-tab' });
-    var cname = $('<div/>');
-    var controlbar = $('<div/>', { class: 'content-wrapper-control-right' });
-    var config = $('<form/>');
-    var log = $('<table/>', { class: 'log-table' });
-    var value = new datatable();  
-    var value_controls = $('<div/>', { class: 'content-wrapper-tab-control' });
-    content.empty().append(
-      $('<div/>', { class: 'content-header' }).html(cname),
-      $('<div/>', { class: 'content-wrapper' }).append(stabs, controlbar)
-    );
-    content.append(loader);
 
-    // Load and display data
-    cname.empty().append(
+    // Generate HTML
+    let vmap = {
+      config:     $('<form/>', { class: 'content-form' }),
+    }
+    let vallist = {
+      control:  $('<div/>', { class: 'tblwrap-control' }),
+      content:  $('<div/>', { class: 'tblwrap-table' }),
+      footer:   $('<div/>', { class: 'tblwrap-footer' }),
+      table:    null
+    };
+    let ctwrap = {
+      name:     $('<div/>'),
+      tabs:     $('<div/>', { class: 'content-tab' }),
+      control:  $('<div/>', { class: 'content-wrapper-control-right' })
+    }
+
+    vallist.table = new obTable({
+      id: '9a6a3494b2d1aabc999e07bb13cb7a6f0fd0e14c',
+      data: api_value,
+      columns: [{ id: 'name', name:'Name' }],
+      columns_resizable: false,
+      columns_hidden: ['id'],
+      sortable: api_conf.prio
+    });
+    vallist.control.append( $('<input/>', { width: 300, class: 'tblwrap-control-search' }).on('keyup', function() { vallist.table.search(this.value); }) );
+    vallist.content.append(vallist.table.html());
+    vallist.footer.append(`Values: ${api_value.length}`);
+    vallist.table.html().on('click', 'td', function () {
+      tr = $(this).parent();
+      if (tr.hasClass('delete')) {
+        if (confirm('Do you want to remove the deletion mark?')) {
+          tr.removeClass('delete');
+        }
+      }
+      else {
+        mod.valuemap.value.open(vallist.table.html(), tr, api_conf.prio);
+      }
+    });
+    vallist.control.append(
+      $('<input/>', { class: 'btn', type: 'submit', value: 'Add' })
+        .on('click', function(event) {
+          mod.valuemap.value.open(vallist.table.html(), null, api_conf.prio);
+        })
+    );
+
+    content.empty().append(
+      $('<div/>', { class: 'content-header' }).html(ctwrap.name),
+      $('<div/>', { class: 'content-wrapper' }).append(
+        ctwrap.tabs,
+        ctwrap.control
+      )
+    );
+    let ctabs = [
+      { title: 'Value map',  html: $('<div/>', { class: 'content-tab-wrapper' }).append( vmap.config ) },
+      { title: 'Values',   html: $('<div/>', { class: 'content-tab-wrapper' }).append(
+        vallist.control,
+        vallist.content,
+        vallist.footer,
+        vallist.control
+      )}
+    ];
+
+    ctwrap.name.append(
       $('<a/>', {
         class: 'link',
         html: 'Value maps',
@@ -111,14 +179,13 @@
       }),
       ` / ${api_conf.name}`
       );
-    stabs.simpleTabs({
-      tabs: [      
-        { title: 'Value map', html: $('<div/>', { class: 'content-tab-wrapper' }).append(config) }, 
-        { title: 'values',   html: $('<div/>', { class: 'content-tab-wrapper' }).append(value.html(), value_controls ) }
-      ]
+
+    ctwrap.tabs.obTabs({
+      tabs: ctabs
     });
-    config.jsonForm({
-      schema: { 
+
+    vmap.config.jsonForm({
+      schema: {
         name: { title: 'Name',  type: 'string', default: api_conf.name },
         prio: { title: 'Sorting by <info title="Applied after save">&#x1F6C8;</info>', type: 'select', enum: [] }
       },
@@ -126,7 +193,7 @@
     });
 
     // Set Order by value and for table
-    prio = config.find(`select[name=prio]`);
+    prio = vmap.config.find(`select[name=prio]`);
     prio.append($('<option/>').text('Order').val(1));
     prio.append($('<option/>').text('Name').val(0));
     let dstmp = 0;
@@ -139,70 +206,34 @@
     }
     prio.val(dstmp);
 
-    // Add value buttons
-    value_controls.append(
-      $('<input/>', { class: 'btn', type: 'submit', value: 'Add' })
-        .on('click', function(event) {
-            mod.valuemap.value.open(value);
-        })
-    );
-
     // Load, prepare and fill value table
     var prio = 0;
     $.each(api_value, function(index, value) {
       prio = prio + 1;
-      api_value[index] = { 
+      api_value[index] = {
         prio: prio,
         '[data]': value,
         '':'<move>&#8645;</move>',
         label: value.name
       };
     });
-    
-    value.apidata(api_value);
-    value.options({
-      rowReorder: value_rowReorder,
-      columns: [{title:'[prio]'}, {title:'[data]'}, {title:''}, {title:'Name'}],
-      columnDefs: [
-        { targets: '_all',  className:  'dt-head-left', orderable: false },            
-        { targets: value_hidecolumns,  visible: false },
-        { targets: [0,1,2],  searchable: false },
-        { targets: [2], width: '10px' }
-      ],
-    });
-    value.create();
-
-    // Click event for value table
-    value.html().on('click', 'tr', function () {
-      const rnode = $(value.table().row(this).node())
-      if (rnode.hasClass('delete')) {
-        if (confirm('Do you want to remove the deletion mark?')) {
-          rnode.removeClass('delete');
-        }
-      }
-      else {
-        if (typeof value.table().row(this).data() != 'undefined') {
-          mod.valuemap.value.open(value.table().row(this));
-        }
-      }
-    });
 
     // Add object type buttons
-    controlbar.append(
-      $('<input/>', { class: 'btn', type: 'submit', value: 'Save'  }).on('click', function(event) { mod.valuemap.save(id, config, value); })
+    ctwrap.control.append(
+      $('<input/>', { class: 'btn', type: 'submit', value: 'Save'  }).on('click', function(event) { mod.valuemap.save(id, vmap.config, vallist.table); })
     );
     if (id != null) {
-      controlbar.append(
-        $('<input/>', { class: 'btn', type: 'submit', value: 'Delete'  }).on('click', function(event) { 
+      ctwrap.control.append(
+        $('<input/>', { class: 'btn', type: 'submit', value: 'Delete'  }).on('click', function(event) {
           if (confirm('WARNING!: This action wil permanently delete this valuemap, affecting all concerning objects. Are you sure you want to continue?'))
             if (confirm('WARNING!: Deleting valuemap. This can NOT be undone, are you really really sure?')) {
               $.when( api('delete',`valuemap/${id}`) ).always(function() { mod.valuemap.list(); });
-            }          
+            }
           }
         )
       );
     }
-    controlbar.append(
+    ctwrap.control.append(
       $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function(event) { mod.valuemap.list(); })
     );
 
@@ -217,8 +248,10 @@
    *   config    : Config fields (first tab)
    *   vtable    : value table (second tab)
    ******************************************************************/
-   save: function(id, config, vtable) {
-    // Prepare data formats 
+   save: function(id, config, vallist) {
+    vallist = vallist.html();
+
+    // Prepare data formats
     dtsave = { value: [] };
     dtdel  = { value: [] };
 
@@ -228,12 +261,15 @@
     });
 
     // Gather data from table
-    vtable.table().rows().every(function() {
-      if ($(this.node()).hasClass('delete')) {
-        dtdel.value = [...dtdel.value, { id: this.data()[1].id }];
+    $.each(vallist.find('tbody').children('tr'), function(){
+      let tr = $(this);
+      let dt = JSON.parse(tr.attr('hdt'));
+      if (tr.hasClass('delete')) {
+        dtdel.value = [...dtdel.value];
       }
       else {
-        dtsave.value = [...dtsave.value, this.data()[1]];
+        dt.name = tr.find('td:not(.obTable-drag)').text();
+        dtsave.value = [...dtsave.value, dt ];
       }
     });
 
@@ -243,7 +279,7 @@
       if (confirm('WARNING!: This action wil permanently delete one or more values, affecting all concerning objects. Are you sure you want to continue?')) {
         save = true;
       }
-    } 
+    }
     else {
       save = true;
     }
@@ -261,99 +297,111 @@
    * mod.valuemap.value
    * ==================
    * Array of functions and subarrays for editing values
-   ******************************************************************/ 
+   ******************************************************************/
   value: {
-    
+
     /******************************************************************
      * mod.valuemap.value.open(vtable)
      * ==================
      * Open the value form
      *   vtable   : Value as selected in the table
      ******************************************************************/
-    open: function(vtable) {
-      let frmnewrec = (vtable.constructor.name == 'datatable');
+    open: function(table, row, rowsort) {
+      let frmnewrec = (row == null);
+
+      // Generate HTML
+      let popup = {
+        overlay:  $('<div/>'),
+        wrapper:  $('<div/>', { class: 'content-popup-wrapper content-popup-wrapper_small' }),
+        control:  $('<div/>', { class: 'content-popup-wrapper-control' }),
+        form:     $('<form/>')
+      };
+      $('#_obTab1-content').append(
+        popup.overlay.append(
+          $('<div/>', { class: 'content-popup-overlay' }).append(
+            popup.wrapper.append(
+              popup.form,
+              popup.control
+            )
+          )
+        )
+      );
 
       // Generate HTML with loader
       let btnsubmit = 'Ok';
       if (frmnewrec) {
         btnsubmit = 'Create';
       }
-      let vform = $('<form/>');      
-      var overlay = $('<div/>');
-      let popup_control = $('<div/>', { class: 'content-popup-wrapper-control' });
-      $('#_sTab1').append(overlay);
-      overlay.append(
-        $('<div/>', { class: 'content-popup-overlay' }).append(
-          $('<div/>', { class: 'content-popup-wrapper content-popup-wrapper_small' }).append(popup_control, vform)
-        )
-      );
 
       // Ok/Create button
-      popup_control.append(        
+      popup.control.append(
         $('<input/>', { class: 'btn', type: 'submit', value: btnsubmit }).on('click', function(event) {
           // Prepare form data
           let fdata = {};
-          vform.find(':input').each(function() {
+          popup.form.find(':input').each(function() {
             fdata[$(this).prop('name')] = $(this).prop('value');
           });
-          // Prepare internal data (stored inside row)
-          let idata = {
-            id: null, 
-            name: fdata.name
-          };
-          // Prepare row data
-          let rdata = [
-            idata, 
-            '&nbsp;⇅', 
-            fdata.name
-          ];
           if (frmnewrec) {
-            vtable.addrow([9999, ...rdata]);
+            row = $('<tr/>')
+              .attr('id', null)
+              .attr('hdt', JSON.stringify({ id:null }));
+            if (rowsort) {
+              row.append($('<td/>', { class:'obTable-drag' }).append('⇅'));
+            }
+            row.append($('<td/>').append(fdata.name));
+            table.find('.obTable-tb').append(row);
           }
           else {
-            rdata[0].id = vtable.data()[1].id;
-            vtable.data([vtable.data()[0], ...rdata]).draw(false);
+            row.empty();
+            if (rowsort) {
+              row.append($('<td/>', { class:'obTable-drag' }).append('⇅'));
+            }
+            row
+              .append($('<td/>').append(fdata.name))
+              .addClass('save');
           }
-          if (!frmnewrec) {
-            $(vtable.node()).addClass('save');
+
+          if (!rowsort) {
+            table.find('.obTable-tb').obTableSort(0);
           }
-          overlay.remove();
+          table.find('.obTable-tb').obTableRedraw();
+          popup.overlay.remove();
         })
       );
 
       // Delete button
       if (!frmnewrec) {
-        popup_control.append( 
+        popup.control.append(
           $('<input/>', { class: 'btn', type: 'submit', value: 'Delete' }).on('click', function(event) {
             // Mark for deletion
-            if (vtable.data()[1].id != null) {
-              if (confirm('Are you sure you want to mark this item for deletion?')) {
-                $(vtable.node()).addClass('delete');
-                overlay.remove();
-              }
+            if (typeof row.attr('id') == 'undefined') {
+              row.remove();
+              popup.overlay.remove();
             }
             else {
-              vtable.remove().draw();
-              overlay.remove();
-            }                
+              if (confirm('Are you sure you want to mark this item for deletion?')) {
+                row.addClass('delete');
+                popup.overlay.remove();
+              }
+            }
           })
         );
       }
 
       // Close button
-      popup_control.append( 
-        $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function(event) { overlay.remove(); })
+      popup.control.append(
+        $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function(event) { popup.overlay.remove(); })
       );
 
       // Generate form
-      vform.jsonForm({
+      popup.form.jsonForm({
         schema: { 'name':  {title:'Name', type:'string'} },
         form: ['*']
-      });      
+      });
 
       // Load data into form for editing
       if (!frmnewrec) {
-        vform.find('input[name=name]').val(vtable.data()[1].name);        
+        popup.form.find('input[name=name]').val(row.find('td:not(.obTable-drag)').text());
       }
     }
   }
