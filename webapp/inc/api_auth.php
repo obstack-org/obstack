@@ -13,13 +13,13 @@ if (isset($_SERVER['HTTP_X_API_KEY'])) {
 /******************************************************************
  * auth
  ******************************************************************/
-  
+
 // --> /auth
 if ($api->route('/auth')) {
   if ($api->method("GET"))      { $result = ['active'=>$sessman->authorized()]; }
   if ($api->method("POST"))     { $result = ['active'=>$sessman->login($payload['username'], $payload['password'])]; }
   if ($api->method("PUT"))      { $result = ['active'=>$sessman->authorized()]; }
-  if ($api->method("DELETE"))   { $sessman->logout(); $result = ['active'=>false]; }    
+  if ($api->method("DELETE"))   { $sessman->logout(); $result = ['active'=>false]; }
 }
 
 // HTTP error 403 when not authorized

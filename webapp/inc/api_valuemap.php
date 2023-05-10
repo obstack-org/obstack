@@ -6,7 +6,7 @@
 
 $valuemap = new mod_valuemap($db);
 
-// --> /valuemap 
+// --> /valuemap
 if ($api->route('/valuemap')) {
   if ($api->method('GET'))      { $result = $valuemap->list(); }
   if ($api->method('POST'))     { checkSA(); $result = $valuemap->save(null, $api->payload()); }
@@ -21,7 +21,7 @@ if ($api->route('/valuemap/{valuemap}')) {
 
 // --> /valuemap/[valuemap]/value
 if ($api->route('/valuemap/{valuemap}/value')) {
-  if ($api->method('GET'))      { $result = $valuemap->value_list($api->param('valuemap')); }  
+  if ($api->method('GET'))      { $result = $valuemap->value_list($api->param('valuemap')); }
   if ($api->method('POST'))     { checkSA(); $result = $valuemap->value_save($api->param('valuemap'), null, $api->payload())[0]; }
 }
 

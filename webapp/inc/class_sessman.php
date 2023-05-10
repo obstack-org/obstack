@@ -1,13 +1,13 @@
 <?php
 /******************************************************************
- * 
+ *
  * sessman($db, $sessionname)
  *  Config
  *  -> $config_ldap = false
  *  -> $config_radius = false
  *  -> function settimeout($timeout)
  *  Session / Authentication:
- *  -> function login($username, $secret) 
+ *  -> function login($username, $secret)
  *  -> function login_token($token)
  *  -> function authorized()
  *  -> function SA()
@@ -27,9 +27,9 @@
  *  -> function usertoken_delete($userid, $tokenid)
  *  Group management:
  *  -> function group_list($id = null)
- *  -> function group_save($id, $data) 
+ *  -> function group_save($id, $data)
  *  -> function group_delete($id)
- * 
+ *
  ******************************************************************/
 
 class sessman {
@@ -73,7 +73,7 @@ class sessman {
     $this->db = $db;
     $this->sessionname = $sessionname;
     $this->settimeout(600);
-    session_name($sessionname);    
+    session_name($sessionname);
     session_start();
     //header('Set-Cookie: '.$this->sessionname.'='.$_COOKIE[$this->sessionname].'; SameSite=Strict', time()+43200);
   }
@@ -119,11 +119,11 @@ class sessman {
   }
 
   /******************************************************************
-   * General login using username/password 
+   * General login using username/password
    *   (tries LDAP and/or Radius login when enabled)
    ******************************************************************/
-  function login($username, $secret) { 
-    // auth_ldap  
+  function login($username, $secret) {
+    // auth_ldap
     if ($this->config_ldap != false) {
       if ($this->config_ldap['enabled']) {
         if ($this->auth_ldap($username, $secret)) {
@@ -151,15 +151,15 @@ class sessman {
     $dbqtoken = ($this->db->driver() == 'mysql') ? 'PASSWORD(:token)' : 'crypt(:token, ut.token)';
     // Determine session state
     $user = $this->db->query("
-      SELECT 
-        u.id AS id, 
+      SELECT
+        u.id AS id,
         u.username AS username,
-        u.firstname AS firstname, 
+        u.firstname AS firstname,
         u.lastname AS lastname,
         u.tokens AS tokens,
-        u.sa AS sa 
+        u.sa AS sa
       FROM sessman_user u
-      LEFT JOIN sessman_usertokens ut ON ut.smuser = u.id 
+      LEFT JOIN sessman_usertokens ut ON ut.smuser = u.id
       WHERE u.active = true
       AND u.tokens = true
       AND ut.token = $dbqtoken
@@ -194,8 +194,8 @@ class sessman {
     }
     // Unauthorized, reset session id
     session_destroy();
-    session_id($this->rndString(128));    
-    session_start();  
+    session_id($this->rndString(128));
+    session_start();
     //header('Set-Cookie: '.$this->sessionname.'='.$_COOKIE[$this->sessionname].'; SameSite=Strict', time()+43200);
     return false;
   }
@@ -293,7 +293,7 @@ class sessman {
         }
         if ($ldapgroup == $this->config_ldap['group-auth'])   { $auth = true; }
         if ($ldapgroup == $this->config_ldap['group-sa'])     { $user->sa = true; }
-      }    
+      }
     }
     // Session state
     if ($auth) {
@@ -322,7 +322,7 @@ class sessman {
     $user->ext = true;
     $user->groups = [];
     // Radius connection
-    $radconn = radius_auth_open();    
+    $radconn = radius_auth_open();
     radius_add_server($radconn, $this->config_radius['host'], $this->config_radius['port'], $this->config_radius['secret'], 5, 3);
     radius_create_request($radconn, RADIUS_ACCESS_REQUEST);
     radius_put_attr($radconn, RADIUS_USER_NAME, $username);
@@ -347,11 +347,11 @@ class sessman {
             if (trim($group) == $this->config_radius['group-auth'])   { $auth = true; }
             if (trim($group) == $this->config_radius['group-sa'])     { $user->sa = true; }
           }
-        }      
+        }
       }
     }
     // Session state
-    if ($auth) {      
+    if ($auth) {
       $this->session_create($user);
       return true;
     }
@@ -397,7 +397,7 @@ class sessman {
       }
     }
     // Prepare response
-    $list = $this->db->query('SELECT id, username, firstname, lastname, active, tokens, sa FROM sessman_user WHERE id=:id', ['id'=>$id]); 
+    $list = $this->db->query('SELECT id, username, firstname, lastname, active, tokens, sa FROM sessman_user WHERE id=:id', ['id'=>$id]);
     if ($self) {
       unset($list[0]->id);
       unset($list[0]->active);
@@ -457,7 +457,7 @@ class sessman {
         else {
           $dbparams[$key] = $data[$key];
         }
-      }   
+      }
     }
     // Create new user
     if ($id == null) {
@@ -518,7 +518,7 @@ class sessman {
   }
 
   /******************************************************************
-   * List user token 
+   * List user token
    *    $userid = ......      User by UUID
    *    $tokenid = null       All tokens
    *    $tokenid = ......     Token by UUID
@@ -583,12 +583,12 @@ class sessman {
       // Register token
       $token = $this->rndString(mt_rand(24, 32));
       $result = $this->db->query(
-        "INSERT INTO sessman_usertokens (smuser, token, name, expiry) VALUES (:smuser, $dbqtoken, :name, :expiry) RETURNING id", 
+        "INSERT INTO sessman_usertokens (smuser, token, name, expiry) VALUES (:smuser, $dbqtoken, :name, :expiry) RETURNING id",
         [':smuser'=>$userid, ':token'=>$token, ':name'=>$name, ':expiry'=>$expiry]
       );
       if (count($result) > 0) {
         return [ 'id'=>$result[0]->id, 'token'=>$token ];
-      }      
+      }
     }
     else {
       // Update token
@@ -657,7 +657,7 @@ class sessman {
    *    ldapcn        when matching LDAP group
    *  	radiusattr    when in group list (radius attribute, comma seperated)
    ******************************************************************/
-  function group_save($id, $data) { 
+  function group_save($id, $data) {
     if (!$this->SA())  { return false; }
     // Prepare SQL statement (MySQL/pSQL)
     $dbqcol = '';
@@ -671,7 +671,7 @@ class sessman {
         $dbqval .= ", :$key";
         $dbqupd .= ", $key=:$key";
         $dbparams[$key] = $data[$key];
-      }   
+      }
     }
     // Create new group
     if ($id == null) {
@@ -691,7 +691,7 @@ class sessman {
   /******************************************************************
    * Delete group (SA only)
    ******************************************************************/
-  function group_delete($id) { 
+  function group_delete($id) {
     if (!$this->SA())  { return false; }
     // delete group
     $this->db->query('DELETE FROM sessman_usergroups WHERE smgroup=:id', [':id'=>$id]);

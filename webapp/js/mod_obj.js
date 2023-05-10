@@ -1,5 +1,5 @@
 /******************************************************************
- * 
+ *
  * mod
  *  .obj
  *    .jftypes          Array
@@ -9,7 +9,7 @@
  *    .save()           Function
  *    .relations        Array
  *      .open()         Function
- * 
+ *
  ******************************************************************/
 
 mod['obj'] = {
@@ -30,38 +30,75 @@ mod['obj'] = {
    ******************************************************************/
   list: function(type) {
     // Generate HTML with loader
-    let cname = $('<div/>');
-    var controlbar = $('<div/>', { class: 'content-wrapper-control' });
-    var objecttable = new datatable();
+    let objlist = {
+      control:  $('<div/>', { class: 'tblwrap-control' }),
+      content:  $('<div/>', { class: 'tblwrap-table' }),
+      footer:   $('<div/>', { class: 'tblwrap-footer' }),
+      table:    null
+    };
+    let ctwrap = {
+      name:     $('<div/>'),
+      control:  $('<div/>', { class: 'content-wrapper-control' })
+    }
     content.empty().append(
-      $('<div/>', { class: 'content-header' }).html(cname),
+      $('<div/>', { class: 'content-header' }).html(ctwrap.name),
       $('<div/>', { class: 'content-wrapper' }).append(
-        objecttable.html(),
-        controlbar
+        objlist.control,
+        objlist.content,
+        objlist.footer,
+        ctwrap.control
       )
-    );  
+    );
+
     // Load and display data
-    content.append(loader.removeClass('fadein').addClass('fadein'));    
+    content.append(loader.removeClass('fadein').addClass('fadein'));
     $.when(
       api('get',`objecttype/${type}`),
       api('get',`objecttype/${type}/property`),
       api('get',`objecttype/${type}/object?format=gui`)
     ).done(function(apidata_type, apidata_properties, apidata_objects) {
-      cname.append(apidata_type[0].name);
-      objecttable.apidata(apidata_objects[0]);
-      objecttable.apicolumns(apidata_properties[0]);
-      objecttable.create();  
-      objecttable.html().on('click', 'tr', function () {
-        if (typeof objecttable.table().row(this).data() != 'undefined') {
-          mod.obj.open(type, objecttable.table().row(this).data()[0]);
+      ctwrap.name.append(apidata_type[0].name);
+
+      let columns = [];
+      let columns_remove = [];
+      $.each(apidata_properties[0], function(id, column) {
+        if (column.tbl_visible) {
+          columns = [...columns, { id:column.id, name:column.name, orderable:column.tbl_orderable}];
+        }
+        else {
+          columns_remove = [...columns_remove, column.name];
         }
       });
-      controlbar.append(
+      for (let i=0; i<apidata_objects[0].length; i++) {
+        $.each(columns_remove, function(idx, name) {
+          delete apidata_objects[0][i][name];
+        });
+      }
+      objlist.table = new obTable({
+        id: type,
+        data: apidata_objects[0],
+        columns: columns,
+        columns_resizable: true,
+        columns_hidden: ['id']
+      });
+      objlist.control.append( $('<input/>', { width: 300, class: 'tblwrap-control-search' }).on('keyup', function() { objlist.table.search(this.value); }) );
+      objlist.content.append(objlist.table.html());
+      objlist.footer.append(`Objects: ${apidata_objects[0].length}`);
+      objlist.table.html().on('click', 'td', function () {
+        content.empty().append(loader);
+        mod.obj.open(type, JSON.parse($(this).parent().attr('hdt')).id);
+      });
+
+      ctwrap.control.append(
         $('<input/>', { class: 'btn', type: 'submit', value: 'Add' })
-          .on('click', function(event) {
+          .on('click', function() {
             mod.obj.open(type, 'create');
           })
       );
+
+      $.each(content.find('.obTable-tb'), function() {
+        $(this).obTableRedraw();
+      });
       loader.remove();
     });
   },
@@ -75,7 +112,7 @@ mod['obj'] = {
    ******************************************************************/
   open: function(type, id) {
     if (id == 'create') {
-      $.when( 
+      $.when(
         api('get',`objecttype/${type}`),
         api('get',`objecttype/${type}/property`)
       ).done(function(api_objtype, api_objproperty) {
@@ -83,15 +120,15 @@ mod['obj'] = {
       });
     }
     else {
-      $.when( 
+      $.when(
         api('get',`objecttype/${type}`),
         api('get',`objecttype/${type}/property`),
         api('get',`objecttype/${type}/object/${id}`),
         api('get',`objecttype/${type}/object/${id}?format=short`),
         api('get',`objecttype/${type}/object/${id}/relation`),
         api('get',`objecttype/${type}/object/${id}/log`)
-      ).done(function(api_objtype, api_objproperty, api_obj, api_obj_short, api_relation, api_log) {
-        mod.obj.open_htgen(type, id, api_objtype[0], api_objproperty[0], api_obj[0], api_obj_short[0], api_relation[0], api_log[0]);
+      ).done(function(api_objtype, api_objproperty, api_obj, api_obj_short, api_relations, api_log) {
+        mod.obj.open_htgen(type, id, api_objtype[0], api_objproperty[0], api_obj[0], api_obj_short[0], api_relations[0], api_log[0]);
       });
     }
   },
@@ -104,30 +141,89 @@ mod['obj'] = {
    *    id      : Object UUID
    *    api_..  : API data
    ******************************************************************/
-  open_htgen: function(type, id, api_objtype, api_objproperty, api_obj, api_obj_short, api_relation, api_log) {
-    // Generate HTML with loader
-    var stabs = $('<div/>', { class: 'content-tab' });
-    var cname = $('<div/>');
-    var controlbar = $('<div/>', { class: 'content-wrapper-control-right' });
-    var properties = $('<form/>'); 
-    var relations = new datatable();
-    var relations_controls = $('<div/>', { class: 'content-wrapper-tab-control' });
-    let logtable = $('<table/>', { class: 'log-table' });
-    content.empty().append(
-      $('<div/>', { class: 'content-header' }).html(cname), 
-      $('<div/>', { class: 'content-wrapper' }).append(stabs, controlbar)
-    );
-    var stabs_tabs = [
-      { title: 'Properties',  html: $('<div/>', { class: 'content-tab-wrapper' }).append(properties) }, 
-      { title: 'Relations',   html: $('<div/>', { class: 'content-tab-wrapper' }).append(relations.html(), relations_controls ) },
-    ];
-    content.append(loader);
-
-    // Load and display data    
-    if (api_objtype.log) {
-      stabs_tabs = [...stabs_tabs, { title: 'Log',   html: $('<div/>', { class: 'content-tab-wrapper' }).append(logtable) }];
+  open_htgen: function(type, id, api_objtype, api_objproperty, api_obj, api_obj_short, api_relations, api_log) {
+    // Generate HTML
+    let object = {
+      properties: $('<form/>', { class: 'content-form' }),
+      logs:       $('<table/>', { class: 'log-table' })
     }
-    cname.append(
+    let rellist = {
+      control:  $('<div/>', { class: 'tblwrap-control' }),
+      content:  $('<div/>', { class: 'tblwrap-table' }),
+      footer:   $('<div/>', { class: 'tblwrap-footer' }),
+      table:    null
+    };
+    let ctwrap = {
+      name:     $('<div/>'),
+      tabs:     $('<div/>', { class: 'content-tab' }),
+      control:  $('<div/>', { class: 'content-wrapper-control-right' })
+    }
+
+    // Populate relations table
+    $.each(api_relations, function(idx, rec) {
+      let colnr = 0;
+      $.each(rec, function(key, value) {
+        if (colnr > 6) {
+          delete api_relations[idx][key];
+        }
+        colnr++;
+      });
+      for (let i=colnr; i<=6; i++) {
+        api_relations[idx][`dmy${i}`] = null;
+      }
+
+    });
+
+    rellist.table = new obTable({
+      id: `${type}_relations`,
+      data: api_relations,
+      columns: [
+        { id: 'relations_type', name:'Type', orderable: true },
+        { id: 'relations_field1', name:'Field', orderable: true },
+        { id: 'relations_field2', name:'', orderable: false },
+        { id: 'relations_field3', name:'', orderable: false },
+        { id: 'relations_field4', name:'', orderable: false }
+      ],
+      columns_resizable: true,
+      columns_hidden: ['id', 'objtype']
+    });
+    rellist.control.append( $('<input/>', { width: 300, class: 'tblwrap-control-search' }).on('keyup', function() { rellist.table.search(this.value); }) );
+    rellist.content.append(rellist.table.html());
+    rellist.footer.append(`Relations: ${api_relations.length}`);
+    rellist.table.html().on('click', 'td', function () {
+      tr = $(this).parent();
+      if (tr.hasClass('delete')) {
+        if (confirm('Do you want to remove the unassign mark?')) {
+          tr.removeClass('delete');
+        }
+      }
+      else {
+        mod.obj.relations.open(type, id, rellist.table, tr);
+      }
+    });
+
+    content.empty().append(
+      $('<div/>', { class: 'content-header' }).html(ctwrap.name),
+      $('<div/>', { class: 'content-wrapper' }).append(
+        ctwrap.tabs,
+        ctwrap.control
+      )
+    );
+    let ctabs = [
+      { title: 'Properties',  html: $('<div/>', { class: 'content-tab-wrapper' }).append(object.properties) },
+      { title: 'Relations',   html: $('<div/>', { class: 'content-tab-wrapper' }).append(
+        rellist.control,
+        rellist.content,
+        rellist.footer,
+        rellist.control
+      )}
+    ];
+
+    // Load and display data
+    if (api_objtype.log) {
+      ctabs = [...ctabs, { title: 'Log',   html: $('<div/>', { class: 'content-tab-wrapper' }).append(object.logs) }];
+    }
+    ctwrap.name.append(
         $('<a/>', {
           class: 'link',
           html: api_objtype.name,
@@ -135,8 +231,8 @@ mod['obj'] = {
         }),
         ` / ${api_obj_short[0].name}`
       );
-    stabs.simpleTabs({
-      tabs: stabs_tabs
+    ctwrap.tabs.obTabs({
+      tabs: ctabs
     });
 
     // Format and load form fields
@@ -158,7 +254,7 @@ mod['obj'] = {
         });
         formfield = { key: cfg_value.id };
         // Select field for object types (prepare options)  -->> TO SHORT !!!
-        if (cfg_value.type == def.prop.select_objtype.id) { 
+        if (cfg_value.type == def.prop.select_objtype.id) {
           objtypes[cfg_value.id] = {
             value: value,
             srcid: cfg_value.type_objtype
@@ -177,28 +273,28 @@ mod['obj'] = {
         if (cfg_value.type == def.prop.checkbox.id) { checkboxdata[cfg_value.id] = { value: value, readonly: cfg_value.frm_readonly }; }
         if (cfg_value.type == def.prop.date.id)     { formfield['type'] = 'date'; }
         if (cfg_value.type == def.prop.datetime.id) { formfield['type'] = 'datetime-local'; }
-        // Prepare data for jsonForm        
+        // Prepare data for jsonForm
         usedata[cfg_value.id]  = { type: mod.obj.jftypes[cfg_value.type], title: cfg_value.name, default: value, required: cfg_value.required, readonly: cfg_value.frm_readonly };
         formdata = [...formdata, formfield];
       }
     });
-    properties.jsonForm({
+    object.properties.jsonForm({
       schema: usedata,
       form: formdata
     });
 
     // Add error field
-    properties.find(':input').each(function() {
+    object.properties.find(':input').each(function() {
       $('<span class="jsonform-errortext"></span>').insertBefore($(this).parent());
     });
-    
+
     // Select population counter
     let selectfilled = 0;
 
     // Populate objtype fields
     $.each(objtypes, function(tindex,tvalue) {
-      let ptype = properties.find(`select[name=${tindex}]`);
-      $.when( 
+      let ptype = object.properties.find(`select[name=${tindex}]`);
+      $.when(
         api('get',`objecttype/${tvalue.srcid}/object?format=short`)
       ).done(function(apidata) {
         $.each(apidata, function(index,value) {
@@ -214,8 +310,8 @@ mod['obj'] = {
 
     // Populate valuemap fields
     $.each(valuemaps, function(tindex,tvalue) {
-      let ptype = properties.find(`select[name=${tindex}]`);
-      $.when( 
+      let ptype = object.properties.find(`select[name=${tindex}]`);
+      $.when(
         api('get',`valuemap/${tvalue.srcid}/value`)
       ).done(function(apidata) {
         $.each(apidata, function(index,value) {
@@ -225,13 +321,13 @@ mod['obj'] = {
         selectfilled++;
         if (selectfilled >= selectcount) {
           loader.remove();
-        }        
+        }
       });
     });
 
     // Populate checkbox fields
     $.each(checkboxdata, function(tindex,tvalue) {
-      let ptype = properties.find(`input[name=${tindex}]`);
+      let ptype = object.properties.find(`input[name=${tindex}]`);
       ptype.prop('checked', (tvalue.value == 1));
       if (tvalue.readonly) {
         $(ptype).on('click', function () { return false; });
@@ -239,56 +335,34 @@ mod['obj'] = {
     });
 
     // Add relations buttons
-    relations_controls.append(
+    rellist.control.append(
       $('<input/>', { class: 'btn', type: 'submit', value: 'Add' })
-        .on('click', function(event) {
-            mod.obj.relations.open(type, id, relations);
+        .on('click', function() {
+            mod.obj.relations.open(type, id, rellist.table, null);
         })
     );
 
-    // Populate relations table
-    $.fn.dataTable.ext.errMode = 'none';
-    relations.apidata(api_relation);
-    relations.options({
-        columns: [{title:'[id]'}, {title:'[objtype]'}, {title:'Type'}, {title:'Fields'}, {title:''}, {title:''},  {title:''}], 
-        columnDefs: [...relations.getoptions().columnDefs, { targets: [0,1], visible: false }, { targets:[4,5,6], orderable:false }]
-      }); 
-    relations.create();   
-    relations.html().on('click', 'tr', function () {
-      if (typeof relations.table().row(this).data() != 'undefined') {
-        const rnode = $(relations.table().row(this).node());
-        if (rnode.hasClass('delete')) {
-          if (confirm('Do you want to remove the unassign mark?')) {
-            rnode.removeClass('delete');
-          }
-        }
-        else {
-          mod.obj.relations.open(type, id, relations.table().row(this));
-        }          
-      }
-    });
-
     // Add object type buttons
-    controlbar.append(
-      $('<input/>', { class: 'btn', type: 'submit', value: 'Save'  }).on('click', function(event) { mod.obj.save(type, id, properties, relations); }),
-      $('<input/>', { class: 'btn', type: 'submit', value: 'Delete'  }).on('click', function(event) { 
+    ctwrap.control.append(
+      $('<input/>', { class: 'btn', type: 'submit', value: 'Save'  }).on('click', function() { mod.obj.save(type, id, object.properties, rellist.table); }),
+      $('<input/>', { class: 'btn', type: 'submit', value: 'Delete'  }).on('click', function() {
         if (confirm('WARNING!: This action wil permanently delete this object and its values. Are you sure you want to continue?')) {
           $.when( api('delete',`objecttype/${type}/object/${id}`) ).always(function() { mod.obj.list(type); });
         }
       }),
-      $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function(event) { mod.obj.list(type); })
+      $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function() { mod.obj.list(type); })
     );
 
     // Populate log field
     if (api_objtype.log) {
-      logtable.append(
+      object.logs.append(
         $('<th/>', { class: 'log-th', width: 160}).text('Date/Time'),
         $('<th/>', { class: 'log-th', width: 100 }).text('User'),
         $('<th/>', { class: 'log-th', width: 100 }).text('Action'),
         $('<th/>', { class: 'log-th', width: 450 }).text('Details')
       );
       $.each(api_log, function(tindex,tvalue) {
-        logtable.append(
+        object.logs.append(
           $('<tr/>').append(
             $('<td/>', { class: 'log-td' }).text(tvalue.timestamp),
             $('<td/>', { class: 'log-td' }).text(tvalue.username),
@@ -339,9 +413,10 @@ mod['obj'] = {
     });
 
     // Gather data from the relations table
-    relations.table().rows().every(function() {
-      if (!$(this.node()).hasClass('delete')) {
-        dtsave.relations = [...dtsave.relations, this.data()[0]];
+    $.each(relations.html().children('tbody').find('tr'), function(idx, tr) {
+      tr = $(tr);
+      if (!tr.hasClass('delete')) {
+        dtsave.relations = [...dtsave.relations, JSON.parse(tr.attr('hdt')).id];
       }
     });
 
@@ -351,7 +426,7 @@ mod['obj'] = {
       $('.sTabs-tab-content').hide();
       $('#_sTab0').addClass('active');
       $('#_sTab0-content').show();
-      $($.fn.dataTable.tables(true)).DataTable().columns.adjust();      
+      $($.fn.dataTable.tables(true)).DataTable().columns.adjust();
     }
     else {
       if (id == 'create') {
@@ -366,7 +441,7 @@ mod['obj'] = {
   /******************************************************************
    * mod.obj.relations
    * ==================
-   * Array of relations and subarrays for adding and removing 
+   * Array of relations and subarrays for adding and removing
    * related objects
    ******************************************************************/
   relations: {
@@ -377,80 +452,126 @@ mod['obj'] = {
      * Open the relations form
      *    type    : Object type UUID
      *    id      : Object UUID
-     *   rtable   : Relation as selected in the table
+     *    table   : Relations table
+     *    row     : Relation as selected in the table
      ******************************************************************/
-    open: function(type, id, rtable) {
-      let tblnewrec = (rtable.constructor.name == 'datatable');
+    open: function(type, id, table, row) {
+      let tblnewrec = (row == null);
 
       // Generate HTML
-      let overlay = $('<div/>');
-      let wrapper = $('<div/>', { class: 'content-popup-wrapper' });
-      let controlbar = $('<div/>', { class: 'content-popup-wrapper-control' });
-      $('#_sTab1').append(overlay);
-      overlay.append(
-        $('<div/>', { class: 'content-popup-overlay' }).append(
-          wrapper
+      let popup = {
+        overlay:  $('<div/>'),
+        wrapper:  $('<div/>', { class: 'content-popup-wrapper' }),
+        control:  $('<div/>', { class: 'content-popup-wrapper-control' })
+      };
+      $('#_obTab1-content').append(
+        popup.overlay.append(
+          $('<div/>', { class: 'content-popup-overlay' }).append(
+            popup.wrapper
+          )
         )
       );
 
       // Load and display data
-      wrapper.append(loader);
+      popup.wrapper.append(loader);
       if (tblnewrec) {
         // Add relation -> show list
-        $.fn.dataTable.ext.errMode = 'none';
-        let objecttable = new datatable();
-        wrapper.append(
-          objecttable.html(),
-          controlbar.append(
-            $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function(event) { overlay.remove(); })
-          )
-        );
-        $.when( 
-          api('get',`/objecttype/${type}/object/${id}/relation/available?format=gui`)          
+        $.when(
+          api('get',`/objecttype/${type}/object/${id}/relation/available?format=gui`)
         ).done(function(relations) {
           // Filter out selected
           let relations_selected = [];
-          $.each(rtable.table().rows().data(), function( index, value ) {
-            relations_selected = [...relations_selected, value[0]];
+          $.each(table.html().children('tbody').find('tr'), function(idx, tr) {
+            relations_selected = [...relations_selected, JSON.parse($(tr).attr('hdt')).id];
           });
-          $.each(relations, function( index, value ) {
-            if (value.id == id) {
-              delete relations[index];
+          $.each(relations, function( idx, rec ) {
+            if (rec.id == id) {
+              delete relations[idx];
             }
-            if ( relations_selected.indexOf(value.id) != -1) {
-              delete relations[index];
+            else {
+              if ( relations_selected.indexOf(relations[idx].id) != -1) {
+                delete relations[idx];
+              }
+              else {
+                let colnr = 0;
+                $.each(rec, function(key, value) {
+                  if (colnr > 5) {
+                    delete relations[idx][key];
+                  }
+                  colnr++;
+                });
+                for (let i=colnr; i<=5; i++) {
+                  relations[idx][`dmy${i}`] = null;
+                }
+              }
             }
           });
+
           // Clean up empty slots created by delete action
           relations = relations.flat();
+
           // Generate table
-          objecttable.apidata(relations);
-          objecttable.options({
-            aaSorting: [],
-            columns: [{title:'[id]'}, {title:'[objtype]'}, {title:'Type'}, {title:'Fields'}, {title:''}, {title:''},  {title:''}], 
-            columnDefs: [...objecttable.getoptions().columnDefs, { targets: [0,1], visible: false }, { targets:[4,5,6], orderable:false }]
-          }); 
-          objecttable.create();   
-          objecttable.html().on('click', 'tr', function () {
-            rtable.addrow(objecttable.table().row(this).data());
-            overlay.remove();            
+          let objlist = {
+            control:  $('<div/>', { class: 'tblwrap-control' }),
+            content:  $('<div/>', { class: 'tblwrap-table' }),
+            footer:   $('<div/>', { class: 'tblwrap-footer' }),
+            table:    null
+          };
+          objlist.table = new obTable({
+            id: '1eba292da5c6bd11e8b501c462cbf896ba76ee6a',
+            data: relations,
+            columns: [
+              { id: 'relations_type', name:'Type', orderable: true },
+              { id: 'relations_field1', name:'Field', orderable: true },
+              { id: 'relations_field2', name:'', orderable: false },
+              { id: 'relations_field3', name:'', orderable: false },
+              { id: 'relations_field4', name:'', orderable: false }
+            ],
+            columns_resizable: true,
+            columns_hidden: ['id','objtype']
           });
-          wrapper.find('.dataTables_filter').addClass('float-left');
+          objlist.control.append( $('<input/>', { class: 'tblwrap-control-search-left' }).on('keyup', function() { objlist.table.search(this.value); }) );
+          objlist.content.append(objlist.table.html());
+          objlist.footer.append(`Objects: ${relations.length}`);
+          objlist.table.html().on('click', 'tr', function () {
+            rellist = { table: $(table.html()) };
+            rellist.table.find('tbody').append($(this));
+            rellist.table.find('.obTable-tb').obTableRedraw();
+            cnt = 0;
+            $.each(rellist.table.find('tbody').find('tr'), function() {
+              cnt++;
+            });
+            rellist.table.parent('div').parent('div').find('.tblwrap-footer').html(`Relations: ${cnt}`);
+            popup.overlay.remove();
+          });
+
+          popup.wrapper.append(
+            objlist.control,
+            objlist.content,
+            objlist.footer,
+            popup.control.append(
+              $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function() { popup.overlay.remove(); })
+            )
+          );
+
+          popup.wrapper.find('.dataTables_filter').addClass('float-left');
           loader.remove();
         });
       }
       else {
         // Open relation -> show form
-        let properties = $('<form/>');          
-        wrapper.append(
-          controlbar.append(              
-            $('<input/>', { class: 'btn', type: 'submit', value: 'Unassign' }).on('click', function(event) { $(rtable.node()).addClass('delete'); overlay.remove(); }),
-            $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function(event) { overlay.remove(); })
+        let properties = $('<form/>');
+        popup.wrapper.append(
+          popup.control.append(
+            $('<input/>', { class: 'btn', type: 'submit', value: 'Unassign' }).on('click', function() { row.addClass('delete'); popup.overlay.remove(); }),
+            $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function() { popup.overlay.remove(); })
           ),
-          properties         
+          properties
         );
-        $.when( 
-          api('get',`objecttype/${rtable.data()[1]}/object/${rtable.data()[0]}?format=gui`)
+
+        let hdt = JSON.parse(row.attr('hdt'));
+        $.when(
+          api('get',`objecttype/${hdt.objtype}/object/${hdt.id}?format=gui`)
         ).done(function(apidata) {
           let usedata = {};
           $.each(apidata, function(key, value) {
@@ -461,7 +582,7 @@ mod['obj'] = {
             form: ['*']
           });
           loader.remove();
-        });        
+        });
       }
     }
   }

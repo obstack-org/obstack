@@ -34,12 +34,12 @@ GET:
 POST:
 ```javascript
 // Payload
-{ 
-  "name": "My ValueMap", 
+{
+  "name": "My ValueMap",
   "prio": true,
   "value": [
     {
-      "id": null,      
+      "id": null,
       "name": "My first value"
     },
     {..}
@@ -63,8 +63,8 @@ By default the values configured in a value map are ordered by name. When settin
 GET:
 ```javascript
 // Response
-{ 
-  "name": "My ValueMap", 
+{
+  "name": "My ValueMap",
   "prio": true
 }
 ```
@@ -72,8 +72,8 @@ GET:
 PUT:
 ```javascript
 // Payload
-{ 
-  "name": "My ValueMap", 
+{
+  "name": "My ValueMap",
   "prio": true,
   "value": [
     {
@@ -92,7 +92,7 @@ PUT:
 []
 ```
 
-DELETE:  
+DELETE:
 ```javascript
 // Response
 { "delete": true }
@@ -149,7 +149,7 @@ PUT:
 []
 ```
 
-DELETE:  
+DELETE:
 ```javascript
 // Response
 { "delete": true }

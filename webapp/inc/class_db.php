@@ -1,17 +1,17 @@
 <?php
 /******************************************************************
- * 
+ *
  * api_obj($dbconn [,$username ,$password])
  *  -> query($dbquery, $dbparams)
- * 
+ *
  * Examples:
  *    $dbconn = ['mysql:host=localhost;dbname=src', 'root', 'n0t\$0S#cr#T'];
  *    $dbconn = 'pgsql:host=dev-psql;dbname=test;user=postgres;password=n0t\$0S#cr#T';
  *    $dbconn = 'sqlite:../db/src.db';
- * 
+ *
  *    $db     = new db($dbconn);
  *    $result = $db->query('select * from example where id=:id limit 1', ['id'=>$id]);
- * 
+ *
  ******************************************************************/
 
 class db {
@@ -38,11 +38,11 @@ class db {
       if ($this->debug) {
         $this->dbconn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
       }
-    } 
+    }
     catch (PDOException $e) {
       print 'Error!: ' . $e->getMessage() . '<br/>';
       die();
-    }      
+    }
   }
 
   /******************************************************************
@@ -54,7 +54,7 @@ class db {
 
   /******************************************************************
    * Perform SQL query
-   *  $query    : SQL query 
+   *  $query    : SQL query
    *  $params   : Array of parameters for PDO
    ******************************************************************/
   function query($query, $params) {
@@ -65,11 +65,11 @@ class db {
       }
       $dbquery->execute();
       return $dbquery->fetchall(PDO::FETCH_CLASS);
-    } 
+    }
     catch (PDOException $e) {
       print 'Error!: ' . $e->getMessage() . '<br/>';
       die();
     }
   }
-  
+
 }

@@ -1,9 +1,9 @@
 /******************************************************************
- * 
+ *
  * frm
  *  .sidebar
  *    .show()           Function
- * 
+ *
  ******************************************************************/
 
 frm['sidebar'] = {
@@ -18,10 +18,10 @@ frm['sidebar'] = {
     sidebar.empty();
     $.each(val, function(index, type) {
       sidebar.append(
-        $('<div/>', { 
-          class: "sidebar-item", 
+        $('<div/>', {
+          class: "sidebar-item",
           html: type.name,
-          click: function() { mod.obj.list(type.id); } 
+          click: function() { mod.obj.list(type.id); }
         })
       );
     });

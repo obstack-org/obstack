@@ -39,8 +39,8 @@ GET:
 POST:
 ```javascript
 // Payload
-{ 
-  "name": "My ObjectType", 
+{
+  "name": "My ObjectType",
   "log": true,
   "short": 2
 }
@@ -60,8 +60,8 @@ POST:
 GET:
 ```javascript
 // Response
-{ 
-  "name": "My ObjectType", 
+{
+  "name": "My ObjectType",
   "log": true,
   "short": 2
 }
@@ -70,8 +70,8 @@ GET:
 PUT:
 ```javascript
 // Payload
-{ 
-  "name": "My ObjectType", 
+{
+  "name": "My ObjectType",
   "log": true,
   "short": 2
 }
@@ -80,7 +80,7 @@ PUT:
 []
 ```
 
-DELETE:  
+DELETE:
 ```javascript
 // Response
 { "delete": true }
@@ -107,7 +107,7 @@ Object type property key/value explanation:
 | tbl&#95;visible | Set _true_ when visible on web GUI table |
 | tbl&#95;orderable | Set _true_ when orderable on web GUI table |
 
-Each object property has a type, that determines both the internal data type and the type of field that is displayed in the web GUI. 
+Each object property has a type, that determines both the internal data type and the type of field that is displayed in the web GUI.
 
 | Type | Description |
 |---|---|
@@ -203,7 +203,7 @@ PUT:
 []
 ```
 
-DELETE:  
+DELETE:
 ```javascript
 // Response
 { "delete": true }
@@ -235,7 +235,7 @@ GET:
 POST:
 ```javascript
 // Payload
-{    
+{
   "19dc6465-4668-4e8d-a3f5-9ae7576c4a39": "My Object",
   "e8dd76d7-ed02-449f-aadf-6977c6a0b277": "88",
   "relations" [

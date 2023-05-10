@@ -1,11 +1,11 @@
 /******************************************************************
- * 
+ *
  * Global constants
- * 
+ *
  ******************************************************************/
 
 // Content for loader screen
-const loader =  
+const loader =
   $('<div/>', { class: 'content-wrapper', style: 'z-index: 20' }).append(
     $('<img/>', { src: 'img/sqbf.gif', class: 'center', width: 40 })
   )

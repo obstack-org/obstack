@@ -1,7 +1,7 @@
 /******************************************************************
- * 
- * ObjMan App
- * 
+ *
+ * ObStack App
+ *
  ******************************************************************/
 
 // Configuration options
@@ -10,7 +10,7 @@ const apibase = 'api.php';
 
 // Development options
 const debug = false;
-const build = '230401.1231'
+const build = '230510'
 
 // Frame elements
 var titlebar;
@@ -24,8 +24,8 @@ $(document).ready( function () {
   content  = $('<div/>', { class: 'content'});
   overlay  = $('<div/>', { class: 'overlay'});
   $('body').append(
-    titlebar, 
-    sidebar, 
+    titlebar,
+    sidebar,
     content,
     overlay.append(
       $('<div/>', { class: 'overlay-load fadein'}).append(
@@ -35,9 +35,9 @@ $(document).ready( function () {
   );
 
   bsload(htinit);
-  $.when( 
+  $.when(
     api('get', 'auth')
-  ).fail(function(auth) {    
+  ).fail(function(auth) {
     // Show login
     overlay.remove();
     frm.login.show();
@@ -70,7 +70,7 @@ $(document).ready( function () {
   });
 });
 
-// global default onclick 
+// global default onclick
 $(document).on('click', function(event) {
   if (event.target.className != 'titlebar-control-img') {
     if (event.target.className == 'titlebar-dropdown-item') {

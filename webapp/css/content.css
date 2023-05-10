@@ -7,7 +7,7 @@
   left: 0px;
   right: 0px;
 }
-.content-header {    
+.content-header {
   height: var(--content-header-height);
   background: #dadada;
   padding: 10px;
@@ -19,9 +19,9 @@
   padding: 10px 10px;
 }
 .content-popup-wrapper {
-  position: absolute;  
-  top: 20px;  
-  bottom: 40px;     
+  position: absolute;
+  top: 20px;
+  bottom: 40px;
   left: 50%;
   margin-left: -400px;
   width: 760px;
@@ -32,7 +32,7 @@
   -webkit-box-shadow: 0 0 5px 5px rgba(34,34,34, 0.3);
   padding: 20px;
   overflow-y: auto;
-  z-index: 32;
+  z-index: 102;
 }
 .content-popup-wrapper_small {
   top: 140px;
@@ -50,48 +50,96 @@
 }
 .content-popup-overlay {
   position: absolute;
-  top: 0px;
+  top: 45px;
   bottom: 0px;
   left: 0px;
   right: 0px;
   width: 100%;
-  background: rgba(255,255,255,0.5);
+  background: rgba(250,250,250,0.5);
   backdrop-filter: blur(2px);
   cursor: default;
-  z-index: 31;
+  z-index: 101;
 }
 .content-tab {
-  position: absolute; 
-  top: 0px; 
-  bottom: 0px; 
-  left: 10px; 
+  position: absolute;
+  top: 0px;
+  bottom: 0px;
+  left: 10px;
   right: 10px;
 }
 .content-tab-wrapper {
-  position: absolute; 
-  top: 70px; 
-  bottom: 20px; 
-  left: 10px; 
-  right: 10px;
+  position: absolute;
+  top: 45px;
+  bottom: 0px;
+  left: 0px;
+  right: 0px;
   overflow-y: auto;
 }
 .content-wrapper-control {
-  position: absolute; 
-  top: 10px;  
+  position: absolute;
+  top: 10px;
   left: 10px;
 }
 .content-wrapper-control-right {
-  position: absolute; 
-  top: 0px;  
+  position: absolute;
+  top: 0px;
   right: 20px;
 }
 .content-wrapper-tab-control {
-  position: absolute; 
-  top: 0px;  
+  position: absolute;
+  top: 0px;
   left: 0px;
+}
+.content-form {
+  margin: 22px 18px;
+}
+.tblwrap-control {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  right: 0px;
+  height: 55px;
+}
+.tblwrap-control input {
+  margin-top: 18px;
+}
+.tblwrap-control-search {
+  position: absolute;
+  top: 0px;
+  right: 20px;
+  height: 30px;
+}
+.tblwrap-control-search-left {
+  position: absolute;
+  top: 0px;
+  left: 20px;
+  width: 300px;
+  height: 30px;
+}
+.tblwrap-table {
+  position: absolute;
+  top: 55px;
+  bottom: 45px;
+  left: 0px;
+  right: 0px;
+  margin: 10px 10px 0px 10px;
+}
+.tblwrap-footer {
+  position: absolute;
+  bottom: 0px;
+  left: 0px;
+  right: 0px;
+  height: 37px;
+  margin: 0px 10px;
+  padding-top: 10px;
+  padding-left: 10px;
+  border-top: 1px solid #000;
+  font-weight: bold;
+  font-style: italic;
 }
 .log-table {
   border-collapse: collapse;
+  margin: 22px 18px;
 }
 .log-th {
   text-align: left;

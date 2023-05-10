@@ -1,5 +1,5 @@
 /******************************************************************
- * 
+ *
  * mod
  *  .user
  *    .self           Object
@@ -9,7 +9,7 @@
  *    .save()         Function
  *    .token          Object
  *      .open()       Function
- * 
+ *
  ******************************************************************/
 
 mod['user'] = {
@@ -27,50 +27,71 @@ mod['user'] = {
    * List users
    ******************************************************************/
   list: function() {
+
     // Generate HTML with loader
-    var controlbar = $('<div/>', { class: 'content-wrapper-control' });
-    var dtobjtypes = new datatable();
+    let usrlist = {
+      control:  $('<div/>', { class: 'tblwrap-control' }),
+      content:  $('<div/>', { class: 'tblwrap-table' }),
+      footer:   $('<div/>', { class: 'tblwrap-footer' }),
+      table:    null
+    };
+    let ctwrap = {
+      name:     $('<div/>').append('Users'),
+      control:  $('<div/>', { class: 'content-wrapper-control' })
+    }
     content.empty().append(
-      $('<div/>', { class: 'content-header' }).html('Users'),
+      $('<div/>', { class: 'content-header' }).html(ctwrap.name),
       $('<div/>', { class: 'content-wrapper' }).append(
-        dtobjtypes.html(),
-        controlbar
+        usrlist.control,
+        usrlist.content,
+        usrlist.footer,
+        ctwrap.control
       )
     );
-    content.append(loader);
 
     // Load and display data
-    $.when( 
+    content.append(loader.removeClass('fadein').addClass('fadein'));
+    $.when(
       api('get','auth/user')
-    ).done(function(apidata) {
-      $.each(apidata, function(index, value) {
-        apidata[index]['active'] = '&nbsp;&nbsp;&nbsp;&nbsp;'+htbool(apidata[index]['active']);
-        apidata[index]['tokens'] = '&nbsp;&nbsp;&nbsp;&nbsp;'+htbool(apidata[index]['tokens']);
-        apidata[index]['sa'] = '&nbsp;&nbsp;&nbsp;&nbsp;'+htbool(apidata[index]['sa']);
-      }); 
-      dtobjtypes.apidata(apidata);
-      dtobjtypes.options({
-        aaSorting: [],
-        columns: [{title:'[id]'}, {title:'Username'}, {title:'First name'}, {title:'Last name'}, {title:'Active'}, {title:'Tokens'}, {title:'Admin'}],
-        columnDefs: [
-          { targets: '_all',  className:  'dt-head-left', orderable: true },            
-          { targets: [0], visible: false },
-          { targets: [0], searchable: false },
-          { targets: [4,5,6], width: '40px' }
-        ]
+    ).done(function(api_user) {
+      for (let i=0; i<api_user.length; i++) {
+        api_user[i].sa = htbool(api_user[i].sa);
+        api_user[i].active = htbool(api_user[i].active);
+        api_user[i].tokens = htbool(api_user[i].tokens);
+      }
+      usrlist.table = new obTable({
+        id: 'e1d79a905880b70f7cb789a9060cda9c23d7f87e',
+        data: api_user,
+        columns: [
+          { id: 'username', name:'Username', orderable: true },
+          { id: 'firstname', name:'First name', orderable: true },
+          { id: 'lastname', name:'Last name', orderable: true },
+          { id: 'active', name:'Active', orderable: true },
+          { id: 'tokens', name:'Tokens', orderable: true },
+          { id: 'admin', name:'Admin', orderable: true }
+        ],
+        columns_orderable: true,
+        columns_resizable: true,
+        columns_hidden: ['id']
       });
-      dtobjtypes.create();   
-      dtobjtypes.html().on('click', 'tr', function () {
-        if (typeof dtobjtypes.table().row(this).data() != 'undefined') {
-          mod.user.open(dtobjtypes.table().row(this).data()[0]);
-        }
+      usrlist.control.append( $('<input/>', { width: 300, class: 'tblwrap-control-search' }).on('keyup', function() { usrlist.table.search(this.value); }) );
+      usrlist.content.append(usrlist.table.html());
+      usrlist.footer.append(`Objects: ${api_user.length}`);
+      usrlist.table.html().on('click', 'td', function () {
+        content.empty().append(loader);
+        mod.user.open(JSON.parse($(this).parent().attr('hdt')).id);
       });
-      controlbar.append(
+
+      ctwrap.control.append(
         $('<input/>', { class: 'btn', type: 'submit', value: 'Add' })
-          .on('click', function(event) {
+          .on('click', function() {
             mod.user.open(null);
           })
       );
+
+      $.each(content.find('.obTable-tb'), function() {
+        $(this).obTableRedraw();
+      });
       loader.remove();
     });
   },
@@ -105,28 +126,90 @@ mod['user'] = {
    *    api_..  : API data
    ******************************************************************/
   open_htgen: function(id, api_user, api_tokens) {
-    // Generate HTML with loader
-    var stabs = $('<div/>', { class: 'content-tab' });
-    var cname = $('<div/>');
-    var controlbar = $('<div/>', { class: 'content-wrapper-control-right' });
-    var settings = $('<form/>');
-    var tokens = new datatable();
-    var tokens_controls = $('<div/>', { class: 'content-wrapper-tab-control' });
-    content.empty().append(
-      $('<div/>', { class: 'content-header' }).html(cname), 
-      $('<div/>', { class: 'content-wrapper' }).append(stabs, controlbar)
-    );
-    var stabs_tabs = [
-      { title: 'Profile',  html: $('<div/>', { class: 'content-tab-wrapper' }).append(settings) }
-    ];
 
-    // Load and display data
+    // Generate HTML
+    let user = {
+      config:     $('<form/>', { class: 'content-form' }),
+    }
+    let tknlist = {
+      control:  $('<div/>', { class: 'tblwrap-control' }),
+      content:  $('<div/>', { class: 'tblwrap-table' }),
+      footer:   $('<div/>', { class: 'tblwrap-footer' }),
+      table:    null
+    };
+    let ctwrap = {
+      name:     $('<div/>'),
+      tabs:     $('<div/>', { class: 'content-tab' }),
+      control:  $('<div/>', { class: 'content-wrapper-control-right' })
+    }
+
+    tknlist.table = new obTable({
+      id: 'f51ce9052efad7f2933a13ca75792c875a63514f',
+      data: api_tokens,
+      columns: [
+        { id: 'name', name:'Name' },
+        { id: 'expiry', name:'Expires' }
+      ],
+      columns_resizable: true,
+      columns_hidden: ['id']
+    });
+    tknlist.control.append( $('<input/>', { width: 300, class: 'tblwrap-control-search' }).on('keyup', function() { tknlist.table.search(this.value); }) );
+    tknlist.content.append(tknlist.table.html());
+    tknlist.footer.append(`Tokens: ${api_tokens.length}`);
+    tknlist.table.html().on('click', 'td', function () {
+      if (!$(this).hasClass('obTable-drag')) {
+        tr = $(this).parent();
+        if (tr.hasClass('delete')) {
+          if (confirm('Do you want to remove the deletion mark?')) {
+            tr.removeClass('delete');
+          }
+        }
+        else {
+          let tokenid = JSON.parse(tr.attr('hdt')).id;
+          $.when(
+            api('get',`auth/user/${id}/token/${tokenid}`)
+          ).done(function(api_token) {
+            api_token.id = tokenid;
+            mod.user.token.open(id, tknlist.table.html(), tr, api_token);
+          });
+        }
+      }
+    });
+    tknlist.control.append(
+      $('<input/>', { class: 'btn', type: 'submit', value: 'Add' })
+        .on('click', function(event) {
+          mod.user.token.open(id, tknlist.table.html(), null, null);
+        })
+    );
+
+    content.empty().append(
+      $('<div/>', { class: 'content-header' }).html(ctwrap.name),
+      $('<div/>', { class: 'content-wrapper' }).append(
+        ctwrap.tabs,
+        ctwrap.control
+      )
+    );
+    let ctabs = [
+      { title: 'Profile',  html: $('<div/>', { class: 'content-tab-wrapper' }).append( user.config ) }
+    ];
+    if (api_user.tokens) {
+      ctabs = [
+        ...ctabs,
+        { title: 'Tokens',   html: $('<div/>', { class: 'content-tab-wrapper' }).append(
+          tknlist.control,
+          tknlist.content,
+          tknlist.footer,
+          tknlist.control
+        )}
+      ];
+    }
+
     let self = (id == 'self');
     if (self) {
-      cname.append('Profile');
+      ctwrap.name.append('Profile');
     }
     else {
-      cname.append(
+      ctwrap.name.append(
         $('<a/>', {
           class: 'link',
           html: 'Users',
@@ -135,11 +218,8 @@ mod['user'] = {
         ` / ${api_user.username}`
         );
     }
-    if (api_user.tokens) {
-      stabs_tabs = [...stabs_tabs, { title: 'Tokens',   html: $('<div/>', { class: 'content-tab-wrapper' }).append(tokens.html(), tokens_controls) }];
-    }
-    stabs.simpleTabs({
-      tabs: stabs_tabs
+    ctwrap.tabs.obTabs({
+      tabs: ctabs
     });
 
     // Format and load form fields
@@ -147,7 +227,7 @@ mod['user'] = {
     if (id != null) {
       jfpasswd = '•••••••';
     }
-    jfschema = { 
+    jfschema = {
       username: { title: 'Name',  type: 'string', default: api_user.username, readonly:(id!=null) },
       password: { title: 'Password', type: 'password', default:jfpasswd },
       passvrfy: { title: 'Password (verify)', type: 'password', default:jfpasswd }
@@ -159,15 +239,15 @@ mod['user'] = {
       jfschema['tokens']    = { title: 'Tokens',      type: 'boolean', default: api_user.tokens };
       jfschema['sa']        = { title: 'Admin',       type: 'boolean', default: api_user.sa };
     }
-    settings.jsonForm({
+    user.config.jsonForm({
       schema: jfschema,
       form: ['*']
     });
 
     // Add onclick for empty password field
-    settings.find(':input').each(function() {
+    user.config.find(':input').each(function() {
       if ($(this).prop('name').substring(0,4) == 'pass') {
-        $(this).on('click', function(event) { 
+        $(this).on('click', function(event) {
           if ($(this).val() == '•••••••') {
             $(this).val('');
           }
@@ -176,39 +256,15 @@ mod['user'] = {
     });
 
     // Add object type buttons
-    controlbar.append( $('<input/>', { class: 'btn', type: 'submit', value: 'Save'  }).on('click', function(event) { mod.user.save(id, settings); }) );
+    ctwrap.control.append( $('<input/>', { class: 'btn', type: 'submit', value: 'Save'  }).on('click', function(event) { mod.user.save(id, user.config); }) );
     if ((id != null) && (id != 'self')) {
-      controlbar.append( $('<input/>', { class: 'btn', type: 'submit', value: 'Delete'  }).on('click', function(event) { 
+      ctwrap.control.append( $('<input/>', { class: 'btn', type: 'submit', value: 'Delete'  }).on('click', function(event) {
         if (confirm('Are you sure you want to delete this user?')) {
           $.when( api('delete',`auth/user/${id}`) ).always(function() { mod.user.close(); });
         }
       }));
     }
-    controlbar.append( $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function(event) { mod.user.close(id); }) );
-
-    // Populate tokens table
-    $.fn.dataTable.ext.errMode = 'none';
-    tokens.apidata(api_tokens);
-    tokens.options({ 
-      columns: [{title:'[id]'}, {title:'Name'}, {title:'Expires'}],
-      columnDefs: [...tokens.getoptions().columnDefs, { targets:[0], visible:false }]
-    }); 
-    tokens.create();
-
-    // Click event for value table
-    tokens.html().on('click', 'tr', function () {
-      if (typeof tokens.table().row(this).data() != 'undefined') {
-        mod.user.token.open(id, tokens.table().row(this));
-      }
-    });
-
-    // Add properties buttons
-    tokens_controls.append(
-      $('<input/>', { class: 'btn', type: 'submit', value: 'Add' })
-        .on('click', function(event) {
-            mod.user.token.open(id, tokens);
-        })
-    );
+    ctwrap.control.append( $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function(event) { mod.user.close(id); }) );
   },
 
   /******************************************************************
@@ -219,7 +275,7 @@ mod['user'] = {
    *    settings  : Form data
    ******************************************************************/
   save: function(id, settings) {
-    // Prepare data formats 
+    // Prepare data formats
     let dtsave = {};
     let frmpassword = null;
     let frmpassvrfy = null;
@@ -259,7 +315,7 @@ mod['user'] = {
       $('#_sTab0-content').show();
     }
 
-    // Send to API    
+    // Send to API
     if (save) {
       delete dtsave.passvrfy;
       if (dtsave.password == '•••••••') { delete dtsave.password }
@@ -279,7 +335,7 @@ mod['user'] = {
         api('get','objecttype')
       ).done(function(objecttypes) {
         if (objecttypes.length >= 1) {
-          mod.obj.list(objecttypes[0].id);
+          mod.user.list(objecttypes[0].id);
         }
       });
     }
@@ -292,81 +348,104 @@ mod['user'] = {
    * mod.user.token
    * ==============
    * Array of functions and subarrays for editing tokens
-   ******************************************************************/ 
+   ******************************************************************/
   token: {
-    
+
     /******************************************************************
-     * mod.user.token.open(id, vtable)
+     * mod.user.token.open(id, table)
      * ===============================
      * Open the value form
      *   id       : User UUID, null for own profile
-     *   vtable   : Value/Token as selected in the table
+     *   table   : Value/Token as selected in the table
      ******************************************************************/
-    open: function(id, vtable) {
-      let frmnewrec = (vtable.constructor.name == 'datatable');
+    open: function(id, table, row, token) {
+      let frmnewrec = (row == null);
 
-      // Generate HTML with loader
-      let btnsubmit = 'Ok';
-      if (frmnewrec) {
-        btnsubmit = 'Create';
-      }
-      let vform = $('<form/>');      
-      var overlay = $('<div/>');
-      let popup_wrapper = $('<div/>', { class: 'content-popup-wrapper content-popup-wrapper_medium' });
-      let popup_control = $('<div/>', { class: 'content-popup-wrapper-control' });
-      $('#_sTab1').append(overlay);
-      overlay.append(
-        $('<div/>', { class: 'content-popup-overlay' }).append(
-          popup_wrapper.append(popup_control, vform)
+      // Generate HTML
+      let popup = {
+        overlay:  $('<div/>'),
+        wrapper:  $('<div/>', { class: 'content-popup-wrapper content-popup-wrapper_medium' }),
+        control:  $('<div/>', { class: 'content-popup-wrapper-control' }),
+        form:     $('<form/>')
+      };
+      $('#_obTab1-content').append(
+        popup.overlay.append(
+          $('<div/>', { class: 'content-popup-overlay' }).append(
+            popup.wrapper.append(
+              popup.form,
+              popup.control
+            )
+          )
         )
       );
 
       // Ok/Create button
-      popup_control.append(        
+      let btnsubmit = 'Ok';
+      if (frmnewrec) {
+        btnsubmit = 'Create';
+      }
+      popup.control.append(
         $('<input/>', { class: 'btn', type: 'submit', value: btnsubmit }).on('click', function(event) {
           // Prepare form data
           let fdata = {};
-          vform.find(':input').each(function() {
+          popup.form.find(':input').each(function() {
             fdata[$(this).prop('name')] = $(this).prop('value');
           });
           // Prepare row data
           let rdata = [
-            fdata.name, 
+            fdata.name,
             fdata.expiry.replace('T',' ')
           ];
 
           // Check date format and submit
           if (!rdata[1].match(/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}$/)) {
-            vform.find(':input').each(function() {
+            popup.form.find(':input').each(function() {
               if ($(this).prop('name') == 'expiry') {
                 $(this).prop('style', 'box-shadow: 0 0 5px red');
               }
-            });            
+            });
           }
           else {
             if (frmnewrec) {
               // Create token
-              $.when( 
-                api('post',`auth/user/${id}/token`, { name:rdata[0], expiry:rdata[1] }) 
-              ).done(function(token) {
-                vtable.addrow([token.id, ...rdata]);
-                popup_wrapper.removeClass('content-popup-wrapper_medium').addClass('content-popup-wrapper_small');
-                vform.empty().jsonForm({
-                  schema: { 'token':   {title:'Token: (only provided once)', type:'string', default:token.token, readonly:true } },
+              $.when(
+                api('post',`auth/user/${id}/token`, { name:rdata[0], expiry:rdata[1] })
+              ).done(function(api_token) {
+                table.append(
+                  $('<tr/>')
+                    .attr('id', null)
+                    .attr('hdt', JSON.stringify({ id:api_token.id }))
+                    .append(
+                      $('<td/>').append(rdata[0]),
+                      $('<td/>').append(rdata[1])
+                    )
+                );
+                table.find('.obTable-tb').obTableRedraw();
+                popup.wrapper.removeClass('content-popup-wrapper_medium').addClass('content-popup-wrapper_small');
+                popup.form.empty().jsonForm({
+                  schema: { 'token':   {title:'Token: (only provided once)', type:'string', default:api_token.token, readonly:true } },
                   form: ['*']
                 });
-                popup_control.empty().append(
-                  $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function(event) { overlay.remove(); })
+                popup.control.empty().append(
+                  $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function(event) {
+                    popup.overlay.remove();
+                  })
                 );
               });
             }
             else {
               // Update token
-              $.when( 
-                api('put',`auth/user/${id}/token/${vtable.data()[0]}`, { name:rdata[0], expiry:rdata[1] }) 
+              $.when(
+                api('put',`auth/user/${id}/token/${token.id}`, { name:rdata[0], expiry:rdata[1] })
               ).done(function() {
-                vtable.data([vtable.data()[0], ...rdata]);
-                overlay.remove();                
+                row
+                  .empty()
+                  .append(
+                    $('<td/>').append(rdata[0]),
+                    $('<td/>').append(rdata[1])
+                  );
+                table.find('.obTable-tb').obTableRedraw();
+                popup.overlay.remove();
               });
             }
           }
@@ -375,14 +454,14 @@ mod['user'] = {
 
       // Delete button
       if (!frmnewrec) {
-        popup_control.append( 
+        popup.control.append(
           $('<input/>', { class: 'btn', type: 'submit', value: 'Delete' }).on('click', function(event) {
             if (confirm('WARNING!: Token will be deleted instantly. Are you sure you want to continue?')) {
-              $.when( 
-                api('delete',`auth/user/${id}/token/${vtable.data()[0]}`) 
+              $.when(
+                api('delete',`auth/user/${id}/token/${token.id}`)
               ).done(function() {
-                vtable.remove().draw();
-                overlay.remove();                
+                row.remove();
+                popup.overlay.remove();
               });
             }
           })
@@ -390,23 +469,23 @@ mod['user'] = {
       }
 
       // Close button
-      popup_control.append( 
-        $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function(event) { overlay.remove(); })
+      popup.control.append(
+        $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function(event) { popup.overlay.remove(); })
       );
 
       // Generate form
-      vform.jsonForm({
-        schema: { 
+      popup.form.jsonForm({
+        schema: {
           'name':   {title:'Name', type:'string'},
           'expiry': {title:'Expires', type:'datetime-local'}
         },
         form: ['*']
-      });      
+      });
 
       // Load data into form for editing
       if (!frmnewrec) {
-        vform.find('input[name=name]').val(vtable.data()[1]);
-        vform.find('input[name=expiry]').val(vtable.data()[2]);
+        popup.form.find('input[name=name]').val(token.name);
+        popup.form.find('input[name=expiry]').val(token.expiry);
       }
     }
   }
