@@ -495,12 +495,12 @@ mod['obj'] = {
               else {
                 let colnr = 0;
                 $.each(rec, function(key, value) {
-                  if (colnr > 5) {
+                  if (colnr > 6) {
                     delete relations[idx][key];
                   }
                   colnr++;
                 });
-                for (let i=colnr; i<=5; i++) {
+                for (let i=colnr; i<=6; i++) {
                   relations[idx][`dmy${i}`] = null;
                 }
               }
