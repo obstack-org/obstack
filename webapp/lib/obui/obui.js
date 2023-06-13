@@ -416,6 +416,9 @@ var obTable = function(coptions) {
     $.each(options.data, function (rowkey, rowdata) {
       tbrow(tbody, rowkey, rowdata);
     });
+    setTimeout(function() { 
+      $.each(options.element.find('.obTable-tb'), function() { $(this).obTableRedraw(); }); 
+    }, 0);
   }
 
   // Build table
