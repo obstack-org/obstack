@@ -378,16 +378,12 @@ var obTable = function(coptions) {
               if (typeof data[i] == 'boolean') {
                 data[i] = (data[i]) ? '0' : '1';
               }
-              if (typeof data[i] != 'object') {
-                if (data[i].match(/^\d*(\s|$)/)) {
-                  data[i] = tbpad(data[i].slice(0, data[i].search(/[a-zA-Z\-\s_]/)),12) + data[i].slice(data[i].search(/[a-zA-Z\-\s_]/))
-                }
+              if (data[i].match(/^\d*(\s|$)/)) {
+                data[i] = tbpad(data[i].slice(0, data[i].search(/[a-zA-Z\-\s_]/)),12) + data[i].slice(data[i].search(/[a-zA-Z\-\s_]/))
               }
             }
           }
-          if ((typeof data[0] != 'object') && (typeof data[1] != 'object'))  {
-            if (data[0]) return data[1] ? data[0].localeCompare(data[1]) : -1;
-          }
+          if (data[0]) return data[1] ? data[0].localeCompare(data[1]) : -1;
         });
       };
     });
@@ -420,8 +416,8 @@ var obTable = function(coptions) {
     $.each(options.data, function (rowkey, rowdata) {
       tbrow(tbody, rowkey, rowdata);
     });
-    setTimeout(function() {
-      $.each(options.element.find('.obTable-tb'), function() { $(this).obTableRedraw(); });
+    setTimeout(function() { 
+      $.each(options.element.find('.obTable-tb'), function() { $(this).obTableRedraw(); }); 
     }, 0);
   }
 

@@ -125,16 +125,29 @@ mod['obj'] = {
       });
     }
     else {
-      $.when(
-        api('get',`objecttype/${type}?format=gui`),
-        api('get',`objecttype/${type}/property`),
-        api('get',`objecttype/${type}/object/${id}`),
-        api('get',`objecttype/${type}/object/${id}?format=short`),
-        api('get',`objecttype/${type}/object/${id}/relation`),
-        api('get',`objecttype/${type}/object/${id}/log`)
-      ).done(function(api_objtype, api_objproperty, api_obj, api_obj_short, api_relations, api_log) {
-        mod.obj.open_htgen(type, id, api_objtype[0], api_objproperty[0], api_obj[0], api_obj_short[0], api_relations[0], api_log[0]);
-      });
+      if (mod.user.self.sa) {
+        $.when(
+          api('get',`objecttype/${type}?format=gui`),
+          api('get',`objecttype/${type}/property`),
+          api('get',`objecttype/${type}/object/${id}`),
+          api('get',`objecttype/${type}/object/${id}?format=short`),
+          api('get',`objecttype/${type}/object/${id}/relation`),
+          api('get',`objecttype/${type}/object/${id}/log`)
+        ).done(function(api_objtype, api_objproperty, api_obj, api_obj_short, api_relations, api_log) {
+          mod.obj.open_htgen(type, id, api_objtype[0], api_objproperty[0], api_obj[0], api_obj_short[0], api_relations[0], api_log[0]);
+        });
+      }
+      else {
+        $.when(
+          api('get',`objecttype/${type}?format=gui`),
+          api('get',`objecttype/${type}/property`),
+          api('get',`objecttype/${type}/object/${id}`),
+          api('get',`objecttype/${type}/object/${id}?format=short`),
+          api('get',`objecttype/${type}/object/${id}/relation`)
+        ).done(function(api_objtype, api_objproperty, api_obj, api_obj_short, api_relations) {
+          mod.obj.open_htgen(type, id, api_objtype[0], api_objproperty[0], api_obj[0], api_obj_short[0], api_relations[0], []);
+        });
+      }
     }
   },
 
