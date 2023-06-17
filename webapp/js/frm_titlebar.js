@@ -29,6 +29,7 @@ frm['titlebar'] = {
     }],
     'iccnf': [45, {
       "Users"       : function() { mod.user.list(); },
+      "Groups"      : function() { mod.group.list(); },
       "Value maps"  : function() { mod.valuemap.list(); },
       "Object types": function() { mod.objconf.list(); }
     }],

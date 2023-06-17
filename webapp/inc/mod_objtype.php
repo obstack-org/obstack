@@ -48,14 +48,61 @@ class mod_objtype {
   }
 
   /******************************************************************
+   * Active permissions
+   ******************************************************************/
+  private function acl($otid) {
+    if ($_SESSION['sessman']['sa']) {
+      return (object)[ 'read'=>true, 'create'=>true, 'update'=>true, 'delete'=>true ];
+    }
+    else {
+      $groups = str_replace('"','\'',substr(json_encode($_SESSION['sessman']['groups']),1,-1));
+      $dbquery = "
+        SELECT
+          CAST(MAX(CAST(read AS int)) AS bool) AS read,
+          CAST(MAX(CAST(\"create\" AS int)) AS bool) AS \"create\",
+          CAST(MAX(CAST(update AS int)) AS bool) AS update,
+          CAST(MAX(CAST(delete AS int)) AS bool) AS delete
+        FROM objtype_acl AS ota
+        WHERE ota.smgroup IN ($groups)
+        AND ota.objtype = :otid
+      ";
+      return $this->db->query($dbquery, [':otid'=>$otid])[0];
+    }
+  }
+
+  /******************************************************************
    * List object types
    ******************************************************************/
   function list($id = null) {
+    // Process list
     if ($id == null) {
-      return $this->db->query('SELECT id, name FROM objtype ORDER BY name COLLATE "C" ASC', []);
+      if ($_SESSION['sessman']['sa']) {
+        return $this->db->query('SELECT id, name FROM objtype ORDER BY name', []);
+      }
+      else {
+        $groups = str_replace('"','\'',substr(json_encode($_SESSION['sessman']['groups']),1,-1));
+        $dbquery = "
+          SELECT
+            ot.id AS id,
+            ot.name AS name
+          FROM objtype AS ot
+          LEFT JOIN objtype_acl AS ota ON ota.objtype = ot.id
+          WHERE ota.smgroup IN ($groups)
+          AND ota.read
+        ";
+        return $this->db->query($dbquery, []);
+      }
     }
     else {
-      return $this->db->query('SELECT name, log, short FROM objtype WHERE id=:id', [':id'=>$id])[0];
+      // Process ACL
+      $acl = $this->acl($id);
+      if (!$acl->read) { return null; }
+      // Process list
+      $result = $this->db->query('SELECT name, log, short FROM objtype WHERE id=:id', [':id'=>$id])[0];
+      if ($this->format('gui')) {
+        $result->acl = $acl;
+      }
+      return $result;
     }
   }
 
@@ -173,6 +220,14 @@ class mod_objtype {
    * Open object type
    ******************************************************************/
   function open($otid) {
+    // Process ACL
+    $acl = $this->acl($otid);
+    if (!$acl->read) {
+      if ($this->format('short')) {
+        return [ [ 'id'=>null, 'name'=>'🛇' ] ];
+      }
+      return null;
+    }
     // Handle formats
     if ($this->format('short'))   { return $this->list_short($otid, null); }
     //if ($this->format('config'))  { return $this->config_open($otid); }
@@ -262,15 +317,15 @@ class mod_objtype {
    * Save object type
    ******************************************************************/
   function save($id, $data) {
-    $dbparams = [];
     // Objtype configuration
+    $dbparams = [];
     if (isset($data['name']))   { $dbparams['name'] = $data['name']; }
     if (isset($data['log']))    { $dbparams['log'] = $this->bool2str($data['log']); }
     if (isset($data['short']))  { $dbparams['short'] = $data['short']; }
     // Objtype create / update
     if ($id == null) {
       $id = $this->db->query('INSERT INTO objtype (name, log, short) VALUES (:name, :log, :short) RETURNING id', $dbparams)[0]->id;
-      $result = $id;
+      $result = [ 'id'=>$id ];
     }
     else {
       if (isset($data['log'])) {
@@ -324,6 +379,7 @@ class mod_objtype {
     }
     $this->db->query('DELETE FROM obj WHERE objtype=:otid', $dbparams);
     $this->db->query('DELETE FROM objproperty WHERE objtype=:otid', $dbparams);
+    $this->db->query('DELETE FROM objtype_acl WHERE objtype=:otid', $dbparams);
     $count = count($this->db->query('DELETE FROM objtype WHERE id=:otid RETURNING *', $dbparams));
     return ($count > 0);
   }
@@ -332,6 +388,10 @@ class mod_objtype {
    * List object type properties
    ******************************************************************/
   function property_list($otid, $id = null) {
+    // Process ACL
+    $acl = $this->acl($otid);
+    if (!$acl->read) { return null; }
+    // Process list
     $dbparams = [':otid'=>$otid];
     $dbqid = 'op.id AS id,';
     $dbqproperty = '';
@@ -344,15 +404,15 @@ class mod_objtype {
       SELECT
         $dbqid
         op.name AS name,
-        op.type as type,
-        op.type_objtype as type_objtype,
-        op.type_valuemap as type_valuemap,
-        op.required as required,
-        op.frm_readonly as frm_readonly,
-        op.frm_visible as frm_visible,
-        op.tbl_visible as tbl_visible,
-        op.tbl_orderable as tbl_orderable
-      FROM objproperty op
+        op.type AS type,
+        op.type_objtype AS type_objtype,
+        op.type_valuemap AS type_valuemap,
+        op.required AS required,
+        op.frm_readonly AS frm_readonly,
+        op.frm_visible AS frm_visible,
+        op.tbl_visible AS tbl_visible,
+        op.tbl_orderable AS tbl_orderable
+      FROM objproperty AS op
       LEFT JOIN objtype ot ON ot.id = op.objtype
       WHERE ot.id = :otid
       $dbqproperty

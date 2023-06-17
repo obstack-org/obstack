@@ -7,21 +7,20 @@
   font-weight: bold;
 }
 .titlebar-control {
-    position: absolute;
-    top: 15px;
-    right: 15px;
+  position: absolute;
+  top: 15px;
+  right: 15px;
 }
 .titlebar-control-img {
-    margin-right: 5px;
-    width: 30px;
-    cursor: pointer;
+  margin-right: 5px;
+  width: 30px;
+  cursor: pointer;
 }
 .titlebar-dropdown {
-    position: absolute;
-    top: var(--titlebar-height);
-    width: 140px;
-    z-index: 80;
-    background: var(--sidebar-background);
+  position: absolute;
+  top: var(--titlebar-height);
+  width: 140px;
+  background: var(--sidebar-background);
 }
 .titlebar-dropdown-item {
   padding: 4px 0px 4px 10px;

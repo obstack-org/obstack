@@ -26,6 +26,7 @@ const htapp = [
   "js/frm_sidebar.js",
   "js/mod_obj.js",
   "js/mod_user.js",
+  "js/mod_group.js",
   "js/mod_objconf.js",
   "js/mod_valuemap.js"
 ];

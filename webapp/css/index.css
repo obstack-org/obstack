@@ -26,6 +26,7 @@ input, select, textarea {
 }
 input[type='checkbox'] {
   width: 30px;
+  cursor: pointer;
 }
 info {
   font-size: 14px;
@@ -87,7 +88,7 @@ move {
   z-index: 60;
 }
 .pointer {
-  cursor: pointer;
+  cursor: pointer !important;
 }
 .link {
   text-decoration: underline;
@@ -99,6 +100,9 @@ move {
   margin-left: auto;
   margin-right: auto;
   width: 50%;
+}
+.nomrg {
+  margin: 0px;
 }
 @keyframes fadeIn {
   0% { opacity: 0; }

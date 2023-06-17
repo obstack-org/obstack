@@ -53,7 +53,7 @@ mod['obj'] = {
     // Load and display data
     content.append(loader.removeClass('fadein').addClass('fadein'));
     $.when(
-      api('get',`objecttype/${type}`),
+      api('get',`objecttype/${type}?format=gui`),
       api('get',`objecttype/${type}/property`),
       api('get',`objecttype/${type}/object?format=gui`)
     ).done(function(apidata_type, apidata_properties, apidata_objects) {
@@ -88,13 +88,18 @@ mod['obj'] = {
         content.empty().append(loader);
         mod.obj.open(type, JSON.parse($(this).parent().attr('hdt')).id);
       });
+      $(objlist.table.html()).find('tbody').children('tr').each(function() {
+        $(this).addClass('pointer');
+      });
 
-      ctwrap.control.append(
-        $('<input/>', { class: 'btn', type: 'submit', value: 'Add' })
-          .on('click', function() {
-            mod.obj.open(type, 'create');
-          })
-      );
+      if (apidata_type[0].acl.create) {
+        ctwrap.control.append(
+          $('<input/>', { class: 'btn', type: 'submit', value: 'Add' })
+            .on('click', function() {
+              mod.obj.open(type, 'create');
+            })
+        );
+      }
 
       $.each(content.find('.obTable-tb'), function() {
         $(this).obTableRedraw();
@@ -113,7 +118,7 @@ mod['obj'] = {
   open: function(type, id) {
     if (id == 'create') {
       $.when(
-        api('get',`objecttype/${type}`),
+        api('get',`objecttype/${type}?format=gui`),
         api('get',`objecttype/${type}/property`)
       ).done(function(api_objtype, api_objproperty) {
         mod.obj.open_htgen(type, id, api_objtype[0], api_objproperty[0], { id: type }, [{ name:'[new]' }], {}, {});
@@ -121,7 +126,7 @@ mod['obj'] = {
     }
     else {
       $.when(
-        api('get',`objecttype/${type}`),
+        api('get',`objecttype/${type}?format=gui`),
         api('get',`objecttype/${type}/property`),
         api('get',`objecttype/${type}/object/${id}`),
         api('get',`objecttype/${type}/object/${id}?format=short`),
@@ -198,8 +203,11 @@ mod['obj'] = {
         }
       }
       else {
-        mod.obj.relations.open(type, id, rellist.table, tr);
+        mod.obj.relations.open(type, id, rellist.table, tr, api_objtype.acl.update);
       }
+    });
+    $(rellist.table.html()).find('tbody').children('tr').each(function() {
+      $(this).addClass('pointer');
     });
 
     content.empty().append(
@@ -220,7 +228,7 @@ mod['obj'] = {
     ];
 
     // Load and display data
-    if (api_objtype.log) {
+    if (mod.user.self.sa && api_objtype.log) {
       ctabs = [...ctabs, { title: 'Log',   html: $('<div/>', { class: 'content-tab-wrapper' }).append(object.logs) }];
     }
     ctwrap.name.append(
@@ -269,6 +277,10 @@ mod['obj'] = {
           }
           selectcount++;
         }
+        // Overwrite readonly
+        if (!api_objtype.acl.update && (id != 'create')) {
+          cfg_value.frm_readonly = true;
+        }
         // Remaining 'low config' fields (checkbox, datetime etc)
         if (cfg_value.type == def.prop.checkbox.id) { checkboxdata[cfg_value.id] = { value: value, readonly: cfg_value.frm_readonly }; }
         if (cfg_value.type == def.prop.date.id)     { formfield['type'] = 'date'; }
@@ -300,7 +312,14 @@ mod['obj'] = {
         $.each(apidata, function(index,value) {
           ptype.append($('<option/>').text(value.name).val(value.id));
         });
-        ptype.val(tvalue.value);
+        if (apidata.length == 1) {
+          if (apidata[0].id == null) {
+            ptype.val('');
+          }
+        }
+        else {
+          ptype.val(tvalue.value);
+        }
         selectfilled++;
         if (selectfilled >= selectcount) {
           loader.remove();
@@ -335,26 +354,36 @@ mod['obj'] = {
     });
 
     // Add relations buttons
-    rellist.control.append(
-      $('<input/>', { class: 'btn', type: 'submit', value: 'Add' })
-        .on('click', function() {
-            mod.obj.relations.open(type, id, rellist.table, null);
-        })
-    );
+    if (api_objtype.acl.update || (api_objtype.acl.create && id=='create')) {
+      rellist.control.append(
+        $('<input/>', { class: 'btn', type: 'submit', value: 'Add' })
+          .on('click', function() {
+              mod.obj.relations.open(type, id, rellist.table, null);
+          })
+      );
+    }
 
     // Add object type buttons
+    if (api_objtype.acl.update || (id == 'create')) {
+      ctwrap.control.append(
+        $('<input/>', { class: 'btn', type: 'submit', value: 'Save'  }).on('click', function() { mod.obj.save(type, id, object.properties, rellist.table); })
+      );
+    }
+    if (api_objtype.acl.delete) {
+      ctwrap.control.append(
+        $('<input/>', { class: 'btn', type: 'submit', value: 'Delete'  }).on('click', function() {
+          if (confirm('WARNING!: This action wil permanently delete this object and its values. Are you sure you want to continue?')) {
+            $.when( api('delete',`objecttype/${type}/object/${id}`) ).always(function() { mod.obj.list(type); });
+          }
+        })
+      );
+    }
     ctwrap.control.append(
-      $('<input/>', { class: 'btn', type: 'submit', value: 'Save'  }).on('click', function() { mod.obj.save(type, id, object.properties, rellist.table); }),
-      $('<input/>', { class: 'btn', type: 'submit', value: 'Delete'  }).on('click', function() {
-        if (confirm('WARNING!: This action wil permanently delete this object and its values. Are you sure you want to continue?')) {
-          $.when( api('delete',`objecttype/${type}/object/${id}`) ).always(function() { mod.obj.list(type); });
-        }
-      }),
       $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function() { mod.obj.list(type); })
     );
 
     // Populate log field
-    if (api_objtype.log) {
+    if (mod.user.self.sa && api_objtype.log) {
       object.logs.append(
         $('<th/>', { class: 'log-th', width: 160}).text('Date/Time'),
         $('<th/>', { class: 'log-th', width: 100 }).text('User'),
@@ -455,7 +484,7 @@ mod['obj'] = {
      *    table   : Relations table
      *    row     : Relation as selected in the table
      ******************************************************************/
-    open: function(type, id, table, row) {
+    open: function(type, id, table, row, acl_update) {
       let tblnewrec = (row == null);
 
       // Generate HTML
@@ -544,6 +573,9 @@ mod['obj'] = {
             rellist.table.parent('div').parent('div').find('.tblwrap-footer').html(`Relations: ${cnt}`);
             popup.overlay.remove();
           });
+          $(objlist.table.html()).find('tbody').children('tr').each(function() {
+            $(this).addClass('pointer');
+          });
 
           popup.wrapper.append(
             objlist.control,
@@ -561,9 +593,13 @@ mod['obj'] = {
       else {
         // Open relation -> show form
         let properties = $('<form/>');
+        let btnunassign = '';
+        if (acl_update) {
+          btnunassign = $('<input/>', { class: 'btn', type: 'submit', value: 'Unassign' }).on('click', function() { row.addClass('delete'); popup.overlay.remove(); });
+        }
         popup.wrapper.append(
           popup.control.append(
-            $('<input/>', { class: 'btn', type: 'submit', value: 'Unassign' }).on('click', function() { row.addClass('delete'); popup.overlay.remove(); }),
+            btnunassign,
             $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function() { popup.overlay.remove(); })
           ),
           properties
@@ -572,7 +608,8 @@ mod['obj'] = {
         let hdt = JSON.parse(row.attr('hdt'));
         $.when(
           api('get',`objecttype/${hdt.objtype}/object/${hdt.id}?format=gui`)
-        ).done(function(apidata) {
+        )
+        .done(function(apidata) {
           let usedata = {};
           $.each(apidata, function(key, value) {
             usedata[value.id]  = { type: 'string', title: value.label, default: value.value, readonly: true };
@@ -581,6 +618,10 @@ mod['obj'] = {
             schema: usedata,
             form: ['*']
           });
+          loader.remove();
+        })
+        .fail(function() {
+          properties.append('Failed to open object (no permissions?)');
           loader.remove();
         });
       }
