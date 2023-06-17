@@ -463,13 +463,22 @@ class sessman {
     if ($id == null) {
       $dbqcol = substr($dbqcol,2);
       $dbqval = substr($dbqval,2);
-      return $this->db->query("INSERT INTO sessman_user ($dbqcol) VALUES ($dbqval) RETURNING id", $dbparams);
+      $id = $this->db->query("INSERT INTO sessman_user ($dbqcol) VALUES ($dbqval) RETURNING id", $dbparams)[0]->id;
+      if (isset($data['groups'])) {
+        foreach($data['groups'] as $groupid) { $this->usergroup_save($id, ['id'=>$groupid]); }
+      }
+      return [ 'id'=>$id ];
     }
     // Update user
     else {
       $dbqupd = substr($dbqupd,2);
       $dbparams['id'] = $id;
-      return $this->db->query("UPDATE sessman_user SET $dbqupd WHERE id=:id", $dbparams);
+      $result = $this->db->query("UPDATE sessman_user SET $dbqupd WHERE id=:id", $dbparams);
+      if (isset($data['groups'])) {
+        $this->db->query('DELETE FROM sessman_usergroups WHERE smuser=:smuser', [':smuser'=>$id]);
+        foreach($data['groups'] as $groupid) { $this->usergroup_save($id, ['id'=>$groupid]); }
+      }
+      return $result;
     }
     return false;
   }
@@ -492,7 +501,15 @@ class sessman {
   function usergroup_list($userid) {
     if (!$this->SA())  { return false; }
     if ($userid == 'self') { return false; }
-    return $this->db->query('SELECT smgroup AS id FROM sessman_usergroups WHERE smuser=:smuser', [':smuser'=>$userid]);
+    $dbquery = '
+      SELECT
+        g.id AS id,
+        g.groupname AS groupname
+      FROM sessman_usergroups AS ug
+      LEFT JOIN sessman_group AS g on g.id = ug.smgroup
+      where ug.smuser=:smuser
+    ';
+    return $this->db->query($dbquery, [':smuser'=>$userid]);
   }
 
   /******************************************************************

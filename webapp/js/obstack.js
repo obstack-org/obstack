@@ -10,12 +10,23 @@ const apibase = 'api.php';
 
 // Development options
 const debug = false;
-const build = '230613'
+const build = '230617'
 
 // Frame elements
 var titlebar;
 var sidebar;
 var content;
+
+// Numeric padding
+function tbpad(value, length) {
+  return ('0'.repeat(length)+value).slice(-length);
+}
+
+// HTML Boolean display shorthand
+function htbool(bool) {
+  if (bool) return '&nbsp;✓';
+  else return '&nbsp;✗';
+}
 
 // Document onload function
 $(document).ready( function () {
@@ -55,15 +66,26 @@ $(document).ready( function () {
       api('get','objecttype')
     ).done(function(self, objecttypes) {
       mod.user.self = self[0];
+      objecttypes = JSON.parse(JSON.stringify(objecttypes[0]));
+      objecttypes.sort(function (a, b) {
+        let data = [a,b];
+        for(let i = 0; i <= 1; i++) {
+          data[i] = data[i]['name'].trim();
+          if (data[i].match(/^\d*(\s|$)/)) {
+            data[i] = tbpad(data[i].slice(0, data[i].search(/[a-zA-Z\-\s_]/)),12) + data[i].slice(data[i].search(/[a-zA-Z\-\s_]/));
+          }
+        }
+        return data[0].localeCompare(data[1]);
+      });
       frm.titlebar.show();
-      frm.sidebar.show(objecttypes[0]);
-      if (objecttypes[0].length >= 1) {
-        mod.obj.list(objecttypes[0][0].id,objecttypes[0][0].name);
+      frm.sidebar.show(objecttypes);
+      if (objecttypes.length >= 1) {
+        mod.obj.list(objecttypes[0].id,objecttypes[0].name);
       }
       else {
         content.empty().append(
           $('<div/>', { class: 'content-header' }).html(''),
-          $('<div/>', { class: 'content-wrapper' }).html('No object types configured.')
+          $('<div/>', { class: 'content-wrapper' }).html('No object types available.')
         );
       }
     });
@@ -98,17 +120,11 @@ function api(httpmethod, path, data) {
         }
       }
       // On debug log responses
-      else if (true) {
+      else if (debug) {
         console.log({status:response.status, request:`${httpmethod}: ${path}`, data:data});
         console.log(response.responseText);
       }
     }
   });
   return xhr;
-}
-
-// HTML Boolean display shorthand
-function htbool(bool) {
-  if (bool) return '&nbsp;✓';
-  else return '&nbsp;✗';
 }

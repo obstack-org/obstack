@@ -62,6 +62,9 @@
         content.empty().append(loader);
         mod.valuemap.open(JSON.parse($(this).parent().attr('hdt')).id);
       });
+      $(vmlist.table.html()).find('tbody').children('tr').each(function() {
+        $(this).addClass('pointer');
+      });
 
       ctwrap.control.append(
         $('<input/>', { class: 'btn', type: 'submit', value: 'Add' })
@@ -146,6 +149,9 @@
       else {
         mod.valuemap.value.open(vallist.table.html(), tr, api_conf.prio);
       }
+    });
+    $(vallist.table.html()).find('tbody').children('tr').each(function() {
+      $(this).addClass('pointer');
     });
     vallist.control.append(
       $('<input/>', { class: 'btn', type: 'submit', value: 'Add' })

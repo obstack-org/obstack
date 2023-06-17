@@ -85,7 +85,7 @@ mod['objconf'] = {
     ).done(function(api_objtype, api_valuemap) {
       mod.objconf.objtypes = api_objtype[0];
       mod.objconf.valuemap = api_valuemap[0];
-      frm.sidebar.show($.extend(true, {}, mod.objconf.objtypes));
+      frm.sidebar.show(mod.objconf.objtypes);
       loader.remove();
 
       obtlist.table = new obTable({
@@ -101,6 +101,9 @@ mod['objconf'] = {
       obtlist.table.html().on('click', 'td', function () {
         content.empty().append(loader);
         mod.objconf.open(JSON.parse($(this).parent().attr('hdt')).id);
+      });
+      $(obtlist.table.html()).find('tbody').children('tr').each(function() {
+        $(this).addClass('pointer');
       });
 
       ctwrap.control.append(
@@ -127,16 +130,22 @@ mod['objconf'] = {
   open: function(id) {
     // New
     if (id == null) {
-      mod.objconf.open_htgen(id, { name:'[new]', prio: false }, {});
+      $.when(
+        api('get',`objecttype/${id}/acl`)
+      )
+      .done(function(api_acl) {
+        mod.objconf.open_htgen(id, { name:'[new]', prio: false }, {}, api_acl);
+      });
     }
     // Open
     else {
       $.when(
         api('get',`objecttype/${id}`),
-        api('get',`objecttype/${id}/property`)
+        api('get',`objecttype/${id}/property`),
+        api('get',`objecttype/${id}/acl`)
       )
-      .done(function(api_conf, api_property) {
-        mod.objconf.open_htgen(id, api_conf[0], api_property[0]);
+      .done(function(api_conf, api_property, api_acl) {
+        mod.objconf.open_htgen(id, api_conf[0], api_property[0], api_acl[0]);
       });
     }
   },
@@ -148,12 +157,18 @@ mod['objconf'] = {
    *   id     : Object type UUID
    *   api_.. : API data
    ******************************************************************/
-  open_htgen: function(id, api_conf, api_property) {
+  open_htgen: function(id, api_conf, api_property, api_acl) {
     // Generate HTML
     let objtype = {
       config:     $('<form/>', { class: 'content-form' }),
     }
     let proplist = {
+      control:  $('<div/>', { class: 'tblwrap-control' }),
+      content:  $('<div/>', { class: 'tblwrap-table' }),
+      footer:   $('<div/>', { class: 'tblwrap-footer' }),
+      table:    null
+    };
+    let grplist = {
       control:  $('<div/>', { class: 'tblwrap-control' }),
       content:  $('<div/>', { class: 'tblwrap-table' }),
       footer:   $('<div/>', { class: 'tblwrap-footer' }),
@@ -194,7 +209,6 @@ mod['objconf'] = {
     });
     proplist.control.append( $('<input/>', { width: 300, class: 'tblwrap-control-search' }).on('keyup', function() { proplist.table.search(this.value); }) );
     proplist.content.append(proplist.table.html());
-    proplist.footer.append(`Properties: ${api_property.length}`);
     proplist.table.html().on('click', 'td', function () {
       if (!$(this).hasClass('obTable-drag')) {
         tr = $(this).parent();
@@ -207,6 +221,37 @@ mod['objconf'] = {
           mod.objconf.properties.open(proplist.table.html(), tr);
         }
       }
+    });
+    $(proplist.table.html()).find('tbody').children('tr').each(function() {
+      $(this).addClass('pointer');
+    });
+
+    for (let i=0; i<api_acl.length; i++) {
+      api_acl[i]['read']   = $('<input/>', { type:'checkbox', class:'nomrg', checked:api_acl[i]['read'] });
+      api_acl[i]['create'] = $('<input/>', { type:'checkbox', class:'nomrg', checked:api_acl[i]['create'] });
+      api_acl[i]['update'] = $('<input/>', { type:'checkbox', class:'nomrg', checked:api_acl[i]['update'] });
+      api_acl[i]['delete'] = $('<input/>', { type:'checkbox', class:'nomrg', checked:api_acl[i]['delete'] });
+    }
+    grplist.table = new obTable({
+      id: 'f35f45de66157761e7d7e4b7361beb840a3ec9ef',
+      data: api_acl,
+      columns: [
+        { id: 'name', name:'Name' },
+        { id: 'read', name:'Read' },
+        { id: 'create', name:'Create' },
+        { id: 'update', name:'Update' },
+        { id: 'delete', name:'Delete' }
+      ],
+      columns_resizable: true,
+      columns_hidden: ['id']
+    });
+    grplist.control.append( $('<input/>', { width: 300, class: 'tblwrap-control-search' }).on('keyup', function() { grplist.table.search(this.value); }) );
+    grplist.content.append(grplist.table.html());
+    grplist.table.html().on('click', 'td', function () {
+
+    });
+    $(grplist.table.html()).find('tbody').children('tr').each(function() {
+      $(this).addClass('pointer');
     });
 
     content.empty().append(
@@ -223,6 +268,12 @@ mod['objconf'] = {
         proplist.content,
         proplist.footer,
         proplist.control
+      )},
+      { title: 'Access',   html: $('<div/>', { class: 'content-tab-wrapper' }).append(
+        grplist.control,
+        grplist.content,
+        grplist.footer,
+        grplist.control
       )}
     ];
 
@@ -272,7 +323,7 @@ mod['objconf'] = {
 
     // Add object type buttons
     ctwrap.control.append(
-      $('<input/>', { class: 'btn', type: 'submit', value: 'Save'  }).on('click', function(event) { mod.objconf.save(id, objtype.config, proplist.table); }),
+      $('<input/>', { class: 'btn', type: 'submit', value: 'Save'  }).on('click', function(event) { mod.objconf.save(id, objtype.config, proplist.table, grplist.table); }),
       $('<input/>', { class: 'btn', type: 'submit', value: 'Delete'  }).on('click', function(event) {
         if (confirm('WARNING!: This action wil permanently delete this object type, all related objects and all related values. Are you sure you want to continue?'))
           if (confirm('WARNING!: Deleting object type. This can NOT be undone, are you really really sure?')) {
@@ -293,19 +344,20 @@ mod['objconf'] = {
    *   config   : Config fields (first tab)
    *   ptable   : Properties table (second tab)
    ******************************************************************/
-  save: function(id, config, proplist) {
+  save: function(id, config, proplist, acltable) {
     proplist = proplist.html();
 
     // Prepare data formats
-    dtsave = { property: [] };
-    dtdel  = { property: [] };
+    let dtsave = { property: [] };
+    let dtdel  = { property: [] };
+    let aclsave = [];
 
     // Gather data from config fields
     config.find(':input').each(function() {
       dtsave[$(this).prop('name')] = $(this).prop('value');
     });
 
-    // Gather data from table
+    // Gather data from tables
     $.each(proplist.find('tbody').children('tr'), function(){
       let tr = $(this);
       let dt = JSON.parse(tr.attr('hdt'));
@@ -316,6 +368,17 @@ mod['objconf'] = {
         dtsave.property = [...dtsave.property, dt];
       }
     });
+
+    $.each(acltable.html().find('tbody').children('tr'), function(idx, tr) {
+      aclsave = [...aclsave, {
+        'id'    : JSON.parse($(tr).attr('hdt')).id,
+        'read'  : $(tr.cells[1]).find('input').prop('checked'),
+        'create': $(tr.cells[2]).find('input').prop('checked'),
+        'update': $(tr.cells[3]).find('input').prop('checked'),
+        'delete': $(tr.cells[4]).find('input').prop('checked')
+      }];
+    });
+
 
     // Send data to API, with confirmation if required
     let save = false;
@@ -329,10 +392,21 @@ mod['objconf'] = {
     }
     if (save) {
       if (id == null) {
-        $.when( api('post','objecttype',dtsave) ).always(function() { mod.objconf.list(); });
+        $.when(
+          api('post','objecttype',dtsave)
+        ).always(function(api_objecttype) {
+          $.when(
+            api('post',`objecttype/${api_objecttype.id}/acl`, aclsave)
+          ).always(function() {
+            mod.objconf.list();
+          });
+        });
       }
       else {
-        $.when( api('put',`objecttype/${id}`,dtsave) ).always(function() { mod.objconf.list(); });
+        $.when(
+          api('put',`objecttype/${id}`,dtsave),
+          api('put',`objecttype/${id}/acl`, aclsave)
+        ).always(function() { mod.objconf.list(); });
       }
     }
   },

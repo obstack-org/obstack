@@ -7,8 +7,8 @@
  *  -> delete($otid, $id)
  *  -> relation_list($id)
  *  -> relation_list_available($otid, $id)
- *  -> relation_save($id, $id_ref)
- *  -> relation_delete($id, $id_ref)
+ *  -> relation_save($id, $id_ref, $private=false)
+ *  -> relation_delete($id, $id_ref, $private=false)
  *  -> log_list($otid, $id)
  *  -> log_save($otid, $id, $action, $detail)
  *
@@ -44,9 +44,71 @@ class mod_obj {
   }
 
   /******************************************************************
+   * Active permissions
+   ******************************************************************/
+  private function acl($otid) {
+    if ($_SESSION['sessman']['sa']) {
+      return (object)[ 'read'=>true, 'create'=>true, 'update'=>true, 'delete'=>true ];
+    }
+    else {
+      $groups = str_replace('"','\'',substr(json_encode($_SESSION['sessman']['groups']),1,-1));
+      if (strlen($groups) > 0) {
+        $dbquery = "
+          SELECT
+            CAST(MAX(CAST(read AS int)) AS bool) AS read,
+            CAST(MAX(CAST(\"create\" AS int)) AS bool) AS \"create\",
+            CAST(MAX(CAST(update AS int)) AS bool) AS update,
+            CAST(MAX(CAST(delete AS int)) AS bool) AS delete
+          FROM objtype_acl AS ota
+          WHERE ota.smgroup IN ($groups)
+          AND ota.objtype = :otid
+        ";
+        return $this->db->query($dbquery, [':otid'=>$otid])[0];
+      }
+      else {
+        return [];
+      }
+    }
+  }
+
+  private function acl_obj($id) {
+    if ($_SESSION['sessman']['sa']) {
+      return (object)[ 'read'=>true, 'create'=>true, 'update'=>true, 'delete'=>true ];
+    }
+    else {
+      $groups = str_replace('"','\'',substr(json_encode($_SESSION['sessman']['groups']),1,-1));
+      if (strlen($groups) > 0) {
+        $dbquery = "
+          SELECT
+            CAST(MAX(CAST(read AS int)) AS bool) AS read,
+            CAST(MAX(CAST(\"create\" AS int)) AS bool) AS \"create\",
+            CAST(MAX(CAST(update AS int)) AS bool) AS update,
+            CAST(MAX(CAST(delete AS int)) AS bool) AS delete
+          FROM objtype_acl AS ota
+          LEFT JOIN obj AS o ON o.objtype = ota.objtype
+          WHERE ota.smgroup IN ($groups)
+          AND o.id = :id
+        ";
+        return $this->db->query($dbquery, [':id'=>$id])[0];
+      }
+      else {
+        return [];
+      }
+    }
+  }
+
+  /******************************************************************
    * Open Object
    ******************************************************************/
   function open($otid, $id) {
+    // Process ACL
+    $acl = $this->acl($otid);
+    if (!$acl->read) {
+      if ($this->format('short')) {
+        return [ [ 'id'=>null, 'name'=>'🛇' ] ];
+      }
+      return null;
+    }
     // Handle formats
     if ($this->format('short'))   { return $this->objtype->list_short($otid, $id); }
     $result = [];
@@ -108,12 +170,18 @@ class mod_obj {
    * Save object
    ******************************************************************/
   function save($otid, $id, $data) {
+    // Get ACL
+    $acl = $this->acl($otid);
     // Check if new record
     $newrec = false;
     if ($id == null) {
+      if (!$acl->create) { return null; }
       $id = $this->db->query('INSERT INTO obj (objtype) VALUES (:otid) RETURNING id', [':otid'=>$otid])[0]->id;
       $newrec = true;
       $this->log_save($otid, $id, 1, 'Object created');
+    }
+    else {
+      if (!$acl->update) { return null; }
     }
     // Prepare objecttypes
     $objproperty = [];
@@ -155,7 +223,7 @@ class mod_obj {
             $value = $current;
           }
         }
-        if ($value != $current) {
+        if (($value != $current) && (strlen($value) > 1)) {
           $this->db->query("INSERT INTO value_$table VALUES (:obj,:objproperty,:value) ON CONFLICT (obj,objproperty) DO UPDATE SET value=:value", [':obj'=>$id, ':objproperty'=>$key, ':value'=>$value]);
           if (!$newrec) {
             $tmplog .= ', '.$dbtmp[0]->name;
@@ -178,13 +246,13 @@ class mod_obj {
     }
     // Delete relation
     foreach (array_diff($dbobjects, $qrobjects) as $rec) {
-      $this->relation_delete($id, $rec);
+      $this->relation_delete($id, $rec, true);
       $this->log_save($otid, $id, 6, $this->objtype->list_short(null, $rec)[0]['name']);
       $this->log_save(null, $rec, 6, $this->objtype->list_short(null, $id)[0]['name']);
     }
     // Add relation
     foreach (array_diff($qrobjects, $dbobjects) as $rec) {
-      $this->relation_save($id, $rec);
+      $this->relation_save($id, $rec, true);
       $this->log_save($otid, $id, 5, $this->objtype->list_short(null, $rec)[0]['name']);
       $this->log_save(null, $rec, 5, $this->objtype->list_short(null, $id)[0]['name']);
     }
@@ -195,6 +263,10 @@ class mod_obj {
    * delete object
    ******************************************************************/
   function delete($otid, $id) {
+    // Process ACL
+    $acl = $this->acl($otid);
+    if (!$acl->delete) { return null; }
+    // Delete object
     foreach($this->db->query('SELECT * FROM obj_obj WHERE obj=:id OR obj_ref=:id', [':id'=>$id]) as $rec) {
       if ($rec->obj == $id) {
         $this->log_save(null, $rec->obj_ref, 6, $this->objtype->list_short(null, $rec->obj)[0]['name'].' (deleted)');
@@ -215,6 +287,9 @@ class mod_obj {
    * List related objects
    ******************************************************************/
   function relation_list($id) {
+    // Process ACL
+    $acl = $this->acl_obj($id);
+    if (!$acl->read) { return null; }
     // Gather relations
     $dbquery = "
       SELECT
@@ -292,19 +367,25 @@ class mod_obj {
     $result = [];
     foreach ($this->objtype->list() as $type) {
       $property_hide = [];
-      foreach($this->objtype->property_list($type->id) as $property) {
-        if (!$property->tbl_visible) {
-          $property_hide[] = $property->name;
-        }
-      }
-      foreach ($this->objtype->open($type->id) as $obj) {
-        $tmpres = ['id'=>$obj->id, 'objtype'=>$type->id, 'type'=>$type->name];
-        foreach ($obj as $key=>$value) {
-          if (!in_array($key, $property_hide)) {
-            $tmpres[$key] = $value;
+      $propertylist = $this->objtype->property_list($type->id);
+      $objectlist = $this->objtype->open($type->id);
+      if ($propertylist != null) {
+        foreach($propertylist as $property) {
+          if (!$property->tbl_visible) {
+            $property_hide[] = $property->name;
           }
         }
-        $result[] = $tmpres;
+      }
+      if ($objectlist != null) {
+        foreach ($objectlist as $obj) {
+          $tmpres = ['id'=>$obj->id, 'objtype'=>$type->id, 'type'=>$type->name];
+          foreach ($obj as $key=>$value) {
+            if (!in_array($key, $property_hide)) {
+              $tmpres[$key] = $value;
+            }
+          }
+          $result[] = $tmpres;
+        }
       }
     }
     return $result;
@@ -313,7 +394,13 @@ class mod_obj {
   /******************************************************************
    * Create/Save relation
    ******************************************************************/
-  function relation_save($id, $id_ref) {
+  function relation_save($id, $id_ref, $private=false) {
+    // Process ACL
+    if (!$private) {
+      $acl = $this->acl_obj($id);
+      if (!$acl->update) { return null; }
+    }
+    // Save relation
     $dbparams = [':obj'=>$id, ':obj_ref'=>$id_ref];
     if ($id < $id_ref) {
       $dbparams = [':obj'=>$id_ref, ':obj_ref'=>$id];
@@ -325,7 +412,12 @@ class mod_obj {
   /******************************************************************
    * Delete relation
    ******************************************************************/
-  function relation_delete($id, $id_ref) {
+  function relation_delete($id, $id_ref, $private=false) {
+    // Process ACL
+    if (!$private) {
+      $acl = $this->acl_obj($id);
+      if (!$acl->delete) { return null; }
+    }
     $dbparams = [':obj'=>$id, ':obj_ref'=>$id_ref];
     if ($id < $id_ref) {
       $dbparams = [':obj'=>$id_ref, ':obj_ref'=>$id];

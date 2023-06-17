@@ -1,5 +1,6 @@
 <?php
 
+$debug = false;
 
 $db_connectionstring = 'pgsql:host=127.0.0.1;dbname=obstack;user=obstack;password=obstack';
 
@@ -14,7 +15,7 @@ $sessman_config = [
     'userdn'        => 'cn=users,cn=accounts,dc=example,dc=local',
     'group-auth'    => 'cn=obstack-auth,cn=groups,cn=accounts,dc=example,dc=local',
     'group-sa'      => 'cn=obstack-sa,cn=groups,cn=accounts,dc=example,dc=local'
-  ], 
+  ],
 
   'radius'  => [
     'enabled'       => false,

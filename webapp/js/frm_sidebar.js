@@ -13,10 +13,10 @@ frm['sidebar'] = {
    * ===================
    * Load sidebar content
    ******************************************************************/
-  show: function(val) {
+  show: function(objecttypes) {
     // Load and display sidebar
     sidebar.empty();
-    $.each(val, function(index, type) {
+    $.each(objecttypes, function(index, type) {
       sidebar.append(
         $('<div/>', {
           class: "sidebar-item",

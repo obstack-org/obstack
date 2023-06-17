@@ -20,6 +20,12 @@ if ($api->route('/objecttype/{objecttype}')) {
   if ($api->method('DELETE'))  { checkSA(); if ($objtype->delete($api->param('objecttype'))) $result = ['delete'=>true]; }
 }
 
+// --> /objecttype/[objecttype]/acl
+if ($api->route('/objecttype/{objecttype}/acl')) {
+  include('inc/mod_acl.php');
+  include('inc/api_acl.php');
+}
+
 // --> /objecttype/[objecttype]/property
 if ($api->route('/objecttype/{objecttype}/property')) {
   if ($api->method('GET'))     { $result = $objtype->property_list($api->param('objecttype')); }
@@ -64,5 +70,5 @@ if ($api->route('/objecttype/{objecttype}/object/{object}/relation/{relation}'))
 
 // --> /objecttype/[objecttype]/object/[object]/log
 if ($api->route('/objecttype/{objecttype}/object/{object}/log')) {
-  if ($api->method('GET'))     { $result = $obj->log_list($api->param('objecttype'), $api->param('object')); }
+  if ($api->method('GET'))     { checkSA(); $result = $obj->log_list($api->param('objecttype'), $api->param('object')); }
 }
