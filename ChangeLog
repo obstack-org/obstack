@@ -2,6 +2,11 @@
  CHANGES
 *********
 
+xx-xx-2023:
+- Refactor frontend framework
+- Replace jsonForm plugin
+- Revise loading
+
 17-06-2023:
 - Add groups with ACL's
 - Fix type order

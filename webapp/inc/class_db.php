@@ -24,19 +24,26 @@ class db {
   /******************************************************************
    * Initialize with connection string
    ******************************************************************/
-  function __construct() {
+  public function __construct() {
     $args = func_get_args();
     $this->debug = false;
     $this->dbconn = null;
+    $this->persistent = false;
+
     try {
-      if (count($args) >= 3) {
+      if (count($args) == 1) {
+        $this->dbconn = new PDO($args[0]);
+      }
+      elseif (count($args) == 2) {
+        $this->persistent = ($args[1] == true);
+        $this->dbconn = new PDO($args[0], null, null, [PDO::ATTR_PERSISTENT=>$this->persistent]);
+      }
+      elseif (count($args) == 3) {
         $this->dbconn = new PDO($args[0], $this->dbuser, $this->dbpass);
       }
       else {
-        $this->dbconn = new PDO($args[0]);
-      }
-      if ($this->debug) {
-        $this->dbconn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $this->persistent = ($args[3] == true);
+        $this->dbconn = new PDO($args[0], $this->dbuser, $this->dbpass, [PDO::ATTR_PERSISTENT=>$this->persistent]);
       }
     }
     catch (PDOException $e) {
@@ -48,7 +55,7 @@ class db {
   /******************************************************************
    * Return SQL driver (e.g. mysql, pgsql)
    ******************************************************************/
-  function driver() {
+  public function driver() {
     return $this->dbconn->getAttribute(PDO::ATTR_DRIVER_NAME);
   }
 
@@ -57,7 +64,7 @@ class db {
    *  $query    : SQL query
    *  $params   : Array of parameters for PDO
    ******************************************************************/
-  function query($query, $params) {
+  public function query($query, $params) {
     try {
       $dbquery = $this->dbconn->prepare($query);
       foreach($params as $paramkey => $paramvalue) {

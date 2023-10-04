@@ -7,6 +7,9 @@
  *    .open()         Function
  *    .open_htgen()   Function
  *    .save()         Function
+ *    .close()        Function
+ *    .groups         Object
+ *      .open()       Function
  *    .token          Object
  *      .open()       Function
  *
@@ -28,74 +31,52 @@ mod['user'] = {
    ******************************************************************/
   list: function() {
 
-    // Generate HTML with loader
-    let usrlist = {
-      control:  $('<div/>', { class: 'tblwrap-control' }),
-      content:  $('<div/>', { class: 'tblwrap-table' }),
-      footer:   $('<div/>', { class: 'tblwrap-footer' }),
-      table:    null
-    };
-    let ctwrap = {
-      name:     $('<div/>').append('Users'),
-      control:  $('<div/>', { class: 'content-wrapper-control' })
-    }
-    content.empty().append(
-      $('<div/>', { class: 'content-header' }).html(ctwrap.name),
-      $('<div/>', { class: 'content-wrapper' }).append(
-        usrlist.control,
-        usrlist.content,
-        usrlist.footer,
-        ctwrap.control
-      )
-    );
+    // Loader
+    content.append(loader.removeClass('fadein').addClass('fadein'));
 
     // Load and display data
-    content.append(loader.removeClass('fadein').addClass('fadein'));
     $.when(
       api('get','auth/user')
     ).done(function(api_user) {
-      for (let i=0; i<api_user.length; i++) {
-        api_user[i].sa = htbool(api_user[i].sa);
-        api_user[i].active = htbool(api_user[i].active);
-        api_user[i].tokens = htbool(api_user[i].tokens);
-      }
-      usrlist.table = new obTable({
-        id: 'e1d79a905880b70f7cb789a9060cda9c23d7f87e',
-        data: api_user,
-        columns: [
-          { id: 'username', name:'Username', orderable: true },
-          { id: 'firstname', name:'First name', orderable: true },
-          { id: 'lastname', name:'Last name', orderable: true },
-          { id: 'active', name:'Active', orderable: true },
-          { id: 'tokens', name:'Tokens', orderable: true },
-          { id: 'admin', name:'Admin', orderable: true }
-        ],
-        columns_orderable: true,
-        columns_resizable: true,
-        columns_hidden: ['id']
-      });
-      usrlist.control.append( $('<input/>', { width: 300, class: 'tblwrap-control-search' }).on('keyup', function() { usrlist.table.search(this.value); }) );
-      usrlist.content.append(usrlist.table.html());
-      usrlist.footer.append(`Users: ${api_user.length}`);
-      usrlist.table.html().on('click', 'td', function () {
-        content.empty().append(loader);
-        mod.user.open(JSON.parse($(this).parent().attr('hdt')).id);
-      });
-      $(usrlist.table.html()).find('tbody').children('tr').each(function() {
-        $(this).addClass('pointer');
+
+      $.each(api_user, function(idx) {
+        api_user[idx].active = htbool(api_user[idx].active);
+        api_user[idx].tokens = htbool(api_user[idx].tokens);
+        api_user[idx].sa = htbool(api_user[idx].sa);
       });
 
-      ctwrap.control.append(
-        $('<input/>', { class: 'btn', type: 'submit', value: 'Add' })
-          .on('click', function() {
-            mod.user.open(null);
-          })
-      );
+      content.empty().append(new obContent({
+        name:     'Users',
+        content:  new obFTable({
+          table: {
+            id: 'e1d79a905880b70f7cb789a9060cda9c23d7f87e',
+            data: api_user,
+            columns: [
+              { id:'username', name:'Username', orderable:true },
+              { id:'firstname', name:'First name', orderable:true },
+              { id:'lastname', name:'Last name', orderable:true },
+              { id:'active', name:'Active', orderable:true },
+              { id:'tokens', name:'Tokens', orderable:true },
+              { id:'admin', name:'Admin', orderable:true }
+            ],
+            columns_orderable: true,
+            columns_resizable: true,
+            columns_hidden: ['id']
+          },
+          search:   true,
+          create:   function() { mod.user.open(null); },
+          open:     function(td) {
+            content.empty().append(loader.removeClass('fadein').addClass('fadein'));
+            mod.user.open(JSON.parse($(td).parent().attr('hdt')).id);
+          },
+          footer:   'Users'
+        }).html(),
+        control:  []
+      }).html());
 
-      $.each(content.find('.obTable-tb'), function() {
-        $(this).obTableRedraw();
-      });
+      $.each(content.find('.obTable-tb'), function() { $(this).obTableRedraw(); });
       loader.remove();
+
     });
   },
 
@@ -134,7 +115,7 @@ mod['user'] = {
   },
 
   /******************************************************************
-   * mod.user.open_htget()
+   * mod.user.open_htget(id, api_..)
    * ===================
    * Generate page from API data
    *    id      : User UUID, null for own profile
@@ -143,274 +124,180 @@ mod['user'] = {
   open_htgen: function(id, api_user, api_groups, api_tokens) {
 
     let self = (id == 'self');
+    content.empty().append(loader.removeClass('fadein').addClass('fadein'));
 
-    // Generate HTML
-    let user = {
-      config:     $('<form/>', { class: 'content-form' }),
-    }
-    let tknlist = {
-      control:  $('<div/>', { class: 'tblwrap-control' }),
-      content:  $('<div/>', { class: 'tblwrap-table' }),
-      footer:   $('<div/>', { class: 'tblwrap-footer' }),
-      table:    null
-    };
-    let grplist = {
-      control:  $('<div/>', { class: 'tblwrap-control' }),
-      content:  $('<div/>', { class: 'tblwrap-table' }),
-      footer:   $('<div/>', { class: 'tblwrap-footer' }),
-      table:    null
-    };
-    let ctwrap = {
-      name:     $('<div/>'),
-      tabs:     $('<div/>', { class: 'content-tab' }),
-      control:  $('<div/>', { class: 'content-wrapper-control-right' })
-    }
+    // Prepare
+    let grplist = null;
+    let tknlist = null;
+    let obtabs = null;
 
-    for (let i=0; i<api_groups.length; i++) {
-      api_groups[i]['delete'] =
-        $('<img/>', { class: 'pointer', src: 'img/icbin.png', width: 14 })
-          .on('click', function(event) {
-            tr = $(this).parents('tr');
+    // Form
+    let frmpw = '•••••••';
+    if (id == null) {
+      frmpw = '';
+    }
+    let usrform_config = [
+      { id:'username', name:'Username', type:'string', regex_input:/^[a-zA-Z][a-zA-Z0-9-_]{0,12}$/, regex_validate:/^[a-zA-Z][a-zA-Z0-9-_]{1,12}$/, value:api_user.username, readonly:(id!=null) },
+      { id:'password', name:'Password', type:'password', info:'Minimum length: 7', regex_validate:/^.{7,}$/, value:frmpw },
+      { id:'passvrfy', name:'Password (verify)', type:'password', regex_validate:/^.{7,}$/, value:frmpw }
+    ];
+
+    // Form (extend)
+    if (!self) {
+      usrform_config = [...usrform_config,
+        { id:'firstname', name:'First name',  type:'string', regex_validate:/^.{2,}$/, value:api_user.firstname },
+        { id:'lastname',  name:'Last name',   type:'string', regex_validate:/^.{2,}$/, value:api_user.lastname },
+        { id:'active',    name:'Active',      type:'checkbox', value:api_user.active },
+        { id:'tokens',    name:'Tokens',      type:'checkbox', value:api_user.tokens },
+        { id:'sa',        name:'Admin',       type:'checkbox', value:api_user.sa },
+      ]
+    };
+    let usrform = new obForm(usrform_config);
+
+    // Groups
+    if (!self) {
+      $.each(api_groups, function(idx) {
+        api_groups[idx]['delete'] = $('<img/>', { class:'pointer', src:'img/icbin.png', width: 14 })
+          .on('click', function() {
+            let tr = $(this).parents('tr');
             if (tr.hasClass('delete')) {
-              //if (confirm('Do you want to remove the unassign mark?')) {
-                tr.removeClass('delete');
-              //}
+              tr.removeClass('delete');
             }
             else {
               tr.addClass('delete');
             }
           });
+      });
+      grplist = new obFTable({
+        table: {
+          id: 'c0dd88fcec3bfa4b2decb41f3f14a7fa1fb5d60a',
+          data: api_groups,
+          columns: [
+            { id:'name', name:'Name' },
+            { id:'delete', name:'Delete' },
+          ],
+          columns_resizable: true,
+          columns_hidden: ['id']
+        },
+        search:   true,
+        create:   function() { mod.user.groups.open(id, grplist); }
+      });
     }
-    grplist.table = new obTable({
-      id: 'c0dd88fcec3bfa4b2decb41f3f14a7fa1fb5d60a',
-      data: api_groups,
-      columns: [
-        { id: 'name', name:'Name' },
-        { id: 'delete', name:'Delete' },
-      ],
-      columns_resizable: true,
-      columns_hidden: ['id']
-    });
-    grplist.control.append( $('<input/>', { width: 300, class: 'tblwrap-control-search' }).on('keyup', function() { grplist.table.search(this.value); }) );
-    grplist.content.append(grplist.table.html());
-    grplist.footer.append(`Groups: ${api_groups.length}`);
-    grplist.table.html().on('click', 'td', function () {
 
-    });
-    grplist.control.append(
-      $('<input/>', { class: 'btn', type: 'submit', value: 'Add' })
-        .on('click', function(event) {
-          mod.user.groups.open(id, grplist.table.html());
-        })
-    );
-
-    tknlist.table = new obTable({
-      id: 'f51ce9052efad7f2933a13ca75792c875a63514f',
-      data: api_tokens,
-      columns: [
-        { id: 'name', name:'Name' },
-        { id: 'expiry', name:'Expires' }
-      ],
-      columns_resizable: true,
-      columns_hidden: ['id']
-    });
-    tknlist.control.append( $('<input/>', { width: 300, class: 'tblwrap-control-search' }).on('keyup', function() { tknlist.table.search(this.value); }) );
-    tknlist.content.append(tknlist.table.html());
-    tknlist.footer.append(`Tokens: ${api_tokens.length}`);
-    tknlist.table.html().on('click', 'td', function () {
-      if (!$(this).hasClass('obTable-drag')) {
-        tr = $(this).parent();
-        if (tr.hasClass('delete')) {
-          if (confirm('Do you want to remove the deletion mark?')) {
-            tr.removeClass('delete');
-          }
-        }
-        else {
-          let tokenid = JSON.parse(tr.attr('hdt')).id;
-          $.when(
-            api('get',`auth/user/${id}/token/${tokenid}`)
-          ).done(function(api_token) {
-            api_token.id = tokenid;
-            mod.user.token.open(id, tknlist.table.html(), tr, api_token);
-          });
-        }
-      }
-    });
-    $(tknlist.table.html()).find('tbody').children('tr').each(function() {
-      $(this).addClass('pointer');
-    });
-    tknlist.control.append(
-      $('<input/>', { class: 'btn', type: 'submit', value: 'Add' })
-        .on('click', function(event) {
-          mod.user.token.open(id, tknlist.table.html(), null, null);
-        })
-    );
-
-    content.empty().append(
-      $('<div/>', { class: 'content-header' }).html(ctwrap.name),
-      $('<div/>', { class: 'content-wrapper' }).append(
-        ctwrap.tabs,
-        ctwrap.control
-      )
-    );
-    let ctabs = [
-      { title: 'Profile',  html: $('<div/>', { class: 'content-tab-wrapper' }).append( user.config ) }
-    ];
-    if (!self) {
-      ctabs = [
-        ...ctabs,
-        { title: 'Groups',   html: $('<div/>', { class: 'content-tab-wrapper' }).append(
-          grplist.control,
-          grplist.content,
-          grplist.footer,
-          grplist.control
-        )}
-      ];
-    }
+    // Tokens
     if (api_user.tokens) {
-      ctabs = [
-        ...ctabs,
-        { title: 'Tokens',   html: $('<div/>', { class: 'content-tab-wrapper' }).append(
-          tknlist.control,
-          tknlist.content,
-          tknlist.footer,
-          tknlist.control
-        )}
-      ];
-    }
-
-    if (self) {
-      ctwrap.name.append('Profile');
-    }
-    else {
-      ctwrap.name.append(
-        $('<a/>', {
-          class: 'link',
-          html: 'Users',
-          click: function() { mod.user.list(); }
-        }),
-        ` / ${api_user.username}`
-        );
-    }
-    ctwrap.tabs.obTabs({
-      tabs: ctabs
-    });
-
-    // Format and load form fields
-    jfpasswd = '';
-    if (id != null) {
-      jfpasswd = '•••••••';
-    }
-    jfschema = {
-      username: { title: 'Username',  type: 'string', default: api_user.username, readonly:(id!=null) },
-      password: { title: 'Password', type: 'password', default:jfpasswd },
-      passvrfy: { title: 'Password (verify)', type: 'password', default:jfpasswd }
-    }
-    if (!self) {
-      jfschema['firstname'] = { title: 'First name',  type: 'string',  default: api_user.firstname };
-      jfschema['lastname']  = { title: 'Last name',   type: 'string',  default: api_user.lastname };
-      jfschema['active']    = { title: 'Active',      type: 'boolean', default: api_user.active };
-      jfschema['tokens']    = { title: 'Tokens',      type: 'boolean', default: api_user.tokens };
-      jfschema['sa']        = { title: 'Admin',       type: 'boolean', default: api_user.sa };
-    }
-    user.config.jsonForm({
-      schema: jfschema,
-      form: ['*']
-    });
-
-    // Add onclick for empty password field
-    user.config.find(':input').each(function() {
-      if ($(this).prop('name').substring(0,4) == 'pass') {
-        $(this).on('click', function(event) {
-          if ($(this).val() == '•••••••') {
-            $(this).val('');
-          }
-        });
-      }
-    });
-
-    // Add object type buttons
-    ctwrap.control.append( $('<input/>', { class: 'btn', type: 'submit', value: 'Save'  }).on('click', function(event) { mod.user.save(id, user.config, grplist.table.html() ); }) );
-    if ((id != null) && (id != 'self')) {
-      ctwrap.control.append( $('<input/>', { class: 'btn', type: 'submit', value: 'Delete'  }).on('click', function(event) {
-        if (confirm('Are you sure you want to delete this user?')) {
-          $.when( api('delete',`auth/user/${id}`) ).always(function() { mod.user.close(); });
+      tknlist = new obFTable({
+        table: {
+          id: 'f51ce9052efad7f2933a13ca75792c875a63514f',
+          data: api_tokens,
+          columns: [
+            { id:'name', name:'Name' },
+            { id:'expiry', name:'Expires' }
+          ],
+          columns_resizable: true,
+          columns_hidden: ['id']
+        },
+        search:   true,
+        create:   function() { mod.user.token.open(id, tknlist, null); },
+        open:     function(td) {
+          mod.user.token.open(id, tknlist, $(td).parent() );
         }
-      }));
+      });
     }
-    ctwrap.control.append( $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function(event) { mod.user.close(id); }) );
+
+    // Tabs
+    obtabs = new obTabs({
+      tabs: [
+        { title:'Profile', html:usrform.html() },
+        (self)?null:{ title:'Groups', html:$('<div/>', { class:'content-tab-wrapper' }).append(grplist.html()) },
+        (!api_user.tokens)?null:{ title:'Tokens', html:$('<div/>', { class:'content-tab-wrapper' }).append(tknlist.html()) }
+      ]
+    });
+
+    // Draw
+    content.append(new obContent({
+      name: (self)?'Profile':[$('<a/>', { class:'link', html:'Users', click: function() { mod.user.list(); } }), ` / ${(id==null)?'[new]':api_user.username}`],
+      content: obtabs.html(),
+      control: [
+        // -- Save
+        $('<input/>', { class:'btn', type:'submit', value:'Save' }).on('click', function() {
+          let usrform_data = usrform.validate();
+          if (usrform_data != null) {
+            if (usrform_data.passvrfy != usrform_data.password) {
+              usrform.html().find('#passvrfy').prop('style', 'box-shadow: 0 0 5px red');
+              obtabs.showtab('_obTab0');
+            }
+            else {
+              if (usrform_data.password == '•••••••') {
+                delete usrform_data.password;
+              }
+              delete usrform_data.passvrfy;
+              mod.user.save(id, usrform_data, (grplist == null)?null:grplist.table());
+            }
+          }
+          else {
+            obtabs.showtab('_obTab0');
+          }
+        }),
+        // -- Delete
+        ((id==null)||(id=='self'))?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
+          if (confirm('Are you sure you want to delete this user?')) {
+            $.when( api('delete',`auth/user/${id}`) ).always(function() { mod.user.close(); });
+          }
+        }),
+        // -- Close
+        $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() { mod.user.close(id); })
+      ]
+    }).html());
+
+    loader.remove();
+
   },
 
   /******************************************************************
-   * mod.user.save(id, settings)
+   * mod.user.save(id, usrform, grplist)
    * ===================
    * Save profile
    *    id        : User UUID, null for own profile
-   *    settings  : Form data
+   *    usrform   : Form data
+   *    grplist   : Group membership
    ******************************************************************/
-  save: function(id, settings, groups) {
+  save: function(id, usrform, grplist) {
+
     // Prepare data formats
-    let dtsave = { groups: [] };
-    let frmpassword = null;
-    let frmpassvrfy = null;
+    let dtsave = usrform;
+    if (grplist != null) {
+      dtsave['groups'] = [];
+      $.each(grplist.html().find('tbody').children('tr'), function() {
+        let tr = $(this);
+        if (!tr.hasClass('delete')) {
+          dtsave.groups = [...dtsave.groups, JSON.parse(tr.attr('hdt')).id];
+        }
+      });
+    }
 
-    // Gather data from settings fields
-    settings.find(':input').each(function() {
-      if ($(this).prop('type') == 'checkbox') {
-        if ($(this).prop('checked')) { dtsave[$(this).prop('name')] = 1; }
-        else { dtsave[$(this).prop('name')] = 0; }
-      }
-      else {
-        dtsave[$(this).prop('name')] = $(this).prop('value');
-        if ($(this).prop('name') == 'password') { frmpassword = $(this); }
-        if ($(this).prop('name') == 'passvrfy') { frmpassvrfy = $(this); }
-      }
-    });
-
-    // Form validity checks
-    let save = true;
-    if (dtsave.password.length < 7) {
-      save = false;
-      frmpassword.prop('style', 'box-shadow: 0 0 5px red');
-      $('.sTabs-tab').removeClass('active');
-      $('.sTabs-tab-content').hide();
-      $('#_sTab0').addClass('active');
-      $('#_sTab0-content').show();
+    // Save
+    if (id == null) {
+      $.when( api('post',`auth/user`,dtsave) ).always(function() { mod.user.close(); });
     }
     else {
-      frmpassword.prop('style', '');
-    }
-    if (dtsave.password != dtsave.passvrfy) {
-      save = false;
-      frmpassvrfy.prop('style', 'box-shadow: 0 0 5px red');
-      $('.sTabs-tab').removeClass('active');
-      $('.sTabs-tab-content').hide();
-      $('#_sTab0').addClass('active');
-      $('#_sTab0-content').show();
-    }
-
-    // Gather data from the groups table
-    $.each(groups.children('tbody').find('tr'), function(idx, tr) {
-      tr = $(tr);
-      if (!tr.hasClass('delete')) {
-        dtsave.groups = [...dtsave.groups, JSON.parse(tr.attr('hdt')).id];
-      }
-    });
-
-    // Send to API
-    if (save) {
-      delete dtsave.passvrfy;
-      if (dtsave.password == '•••••••') { delete dtsave.password }
-      if (id == null) {
-        $.when( api('post',`auth/user`,dtsave) ).always(function() { mod.user.close(); });
-      }
-      else {
-        delete dtsave.username;
+      delete dtsave.username;
+      if (!jQuery.isEmptyObject(dtsave)) {
         $.when( api('put',`auth/user/${id}`,dtsave) ).always(function() { mod.user.close(); });
       }
+      else {
+        mod.user.close();
+      }
     }
+
   },
 
+  /******************************************************************
+   * mod.user.close(id)
+   * ===================
+   * Close profile
+   *    id        : User UUID, return to previous screen
+   ******************************************************************/
   close: function(id) {
     if (id == 'self') {
       $.when(
@@ -441,24 +328,6 @@ mod['user'] = {
      *   table    : Table with selected groups
      ******************************************************************/
     open: function(id, table) {
-      // Generate HTML
-      let popup = {
-        overlay:  $('<div/>'),
-        wrapper:  $('<div/>', { class: 'content-popup-wrapper content-popup-wrapper' }),
-        control:  $('<div/>', { class: 'content-popup-wrapper-control' }),
-        form:     $('<form/>')
-      };
-
-      $('#_obTab1-content').append(
-        popup.overlay.append(
-          $('<div/>', { class: 'content-popup-overlay' }).append(
-            popup.wrapper.append(
-              popup.form,
-              popup.control
-            )
-          )
-        )
-      );
 
       $.when(
         api('get',`auth/group`)
@@ -466,10 +335,9 @@ mod['user'] = {
 
         // Prepare data
         let groups_selected = [];
-        $.each(table.children('tbody').find('tr'), function(idx, tr) {
+        $.each(table.table().html().find('tbody').find('tr'), function(idx, tr) {
           groups_selected = [...groups_selected, JSON.parse($(tr).attr('hdt')).id];
         });
-
         for (let i=0; i<api_groups.length; i++) {
           if ( groups_selected.indexOf(api_groups[i].id) != -1) {
             delete api_groups[i];
@@ -481,64 +349,51 @@ mod['user'] = {
         }
         api_groups = api_groups.flat();
 
-        // Generate table
-        let grplist = {
-          control:  $('<div/>', { class: 'tblwrap-control' }),
-          content:  $('<div/>', { class: 'tblwrap-table' }),
-          footer:   $('<div/>', { class: 'tblwrap-footer' }),
-          table:    null
-        };
-
-        grplist.table = new obTable({
-          id: '7ddf83906ec857525e73f93fd3c482ede1287cf6',
-          data: api_groups,
-          columns: [  { id: 'groupname', name:'Group', orderable: true } ],
-          columns_hidden: ['id']
-        });
-        grplist.control.append( $('<input/>', { class: 'tblwrap-control-search-left' }).on('keyup', function() { grplist.table.search(this.value); }) );
-        grplist.content.append(grplist.table.html());
-        grplist.footer.append(`Groups: ${api_groups.length}`);
-        grplist.table.html().on('click', 'tr', function () {
-          table.find('tbody').append(
-            $(this).append(
-              $('<td/>')
-              .append(
-                $('<img/>', { class: 'pointer', src: 'img/icbin.png', width: 14 })
-                .on('click', function(event) {
-                  tr = $(this).parents('tr');
-                  if (tr.hasClass('delete')) {
-                    //if (confirm('Do you want to remove the unassign mark?')) {
-                      tr.removeClass('delete');
-                    //}
-                  }
-                  else {
-                    tr.addClass('delete');
-                  }
-                })
-              )
-            )
-          );
-          table.find('.obTable-tb').obTableRedraw();
-          popup.overlay.remove();
-        });
-        $(grplist.table.html()).find('tbody').children('tr').each(function() {
-          $(this).addClass('pointer');
+        // Table
+        let grplist = new obFTable({
+          table: {
+            id: '7ddf83906ec857525e73f93fd3c482ede1287cf6',
+            data: api_groups,
+            columns: [  { id:'groupname', name:'Group', orderable:true } ],
+            columns_hidden: ['id']
+          },
+          search: true,
+          open:   function(td) {
+            td = $(td);
+            let tr = td.parent('tr');
+            let newrow = table.addrow([
+              td.text(),
+              $('<img/>', { class:'pointer', src:'img/icbin.png', width:14 })
+              .on('click', function() {
+                tr = $(this).parents('tr');
+                if (tr.hasClass('delete')) {
+                    tr.removeClass('delete');
+                }
+                else {
+                  tr.addClass('delete');
+                }
+              })
+            ]);
+            newrow.attr('hdt',tr.attr('hdt'));
+            popup.remove();
+          },
+          footer: 'Groups'
         });
 
-        grplist.table.html().obTableRedraw();
+        // Popup
+        let popup = new obPopup({
+          content: grplist.html(),
+          control: $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() { popup.remove(); })
+        });
+        popup.html().find('.tblwrap-control-search').removeClass('tblwrap-control-search').addClass('tblwrap-control-search-left');
+        $('#_obTab1-content').append(popup.html());
 
-        popup.wrapper.append(
-          grplist.control,
-          grplist.content,
-          grplist.footer,
-          popup.control.append(
-            $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function() { popup.overlay.remove(); })
-          )
-        );
+        $.each(content.find('.obTable-tb'), function() { $(this).obTableRedraw(); });
 
       });
 
     }
+
   },
 
   /******************************************************************
@@ -549,143 +404,101 @@ mod['user'] = {
   token: {
 
     /******************************************************************
-     * mod.user.token.open(id, table)
+     * mod.user.token.open(id, table, token)
      * ===============================
      * Open the value form
      *   id       : User UUID, null for own profile
-     *   table   : Value/Token as selected in the table
+     *   table    : Token table
+     *   row      : Selected table row (null for new)
      ******************************************************************/
-    open: function(id, table, row, token) {
-      let frmnewrec = (row == null);
+    open: function(id, table, row) {
 
-      // Generate HTML
-      let popup = {
-        overlay:  $('<div/>'),
-        wrapper:  $('<div/>', { class: 'content-popup-wrapper content-popup-wrapper_medium' }),
-        control:  $('<div/>', { class: 'content-popup-wrapper-control' }),
-        form:     $('<form/>')
-      };
-
-      let tabid = (id == 'self') ? 1 : 2;
-      $(`#_obTab${tabid}-content`).append(
-        popup.overlay.append(
-          $('<div/>', { class: 'content-popup-overlay' }).append(
-            popup.wrapper.append(
-              popup.form,
-              popup.control
-            )
-          )
-        )
-      );
-
-      // Ok/Create button
-      let btnsubmit = 'Ok';
-      if (frmnewrec) {
-        btnsubmit = 'Create';
+      // Form
+      let rowid = null;
+      let rowdata = [null, null];
+      if (row != null) {
+        rowid = JSON.parse(row.attr('hdt')).id;
+        let rowcs = row.find('td');
+        rowdata = [
+          rowcs[0].innerText,
+          rowcs[1].innerText
+        ];
       }
-      popup.control.append(
-        $('<input/>', { class: 'btn', type: 'submit', value: btnsubmit }).on('click', function(event) {
-          // Prepare form data
-          let fdata = {};
-          popup.form.find(':input').each(function() {
-            fdata[$(this).prop('name')] = $(this).prop('value');
-          });
-          // Prepare row data
-          let rdata = [
-            fdata.name,
-            fdata.expiry.replace('T',' ')
-          ];
+      let tknform = new obForm([
+        { id:'name',   name:'Name',    type:'string', regex_validate:/^.+/, value:rowdata[0] },
+        { id:'expiry', name:'Expires', type:'datetime', regex_validate:/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, value:rowdata[1] }
+      ]);
 
-          // Check date format and submit
-          if (!rdata[1].match(/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}$/)) {
-            popup.form.find(':input').each(function() {
-              if ($(this).prop('name') == 'expiry') {
-                $(this).prop('style', 'box-shadow: 0 0 5px red');
-              }
-            });
-          }
-          else {
-            if (frmnewrec) {
-              // Create token
+      // Control buttons
+      let popup_control = [];
+      if (row == null) {
+        popup_control = [
+          // -- Create
+          $('<input/>', { class:'btn', type:'submit', value:'Create' }).on('click', function() {
+            let tknform_data = tknform.validate();
+            if (tknform_data != null) {
+              tknform_data.expiry.replace(/[A|P]M/,'');
               $.when(
-                api('post',`auth/user/${id}/token`, { name:rdata[0], expiry:rdata[1] })
+                api('post',`auth/user/${id}/token`, { name:tknform_data.name, expiry:tknform_data.expiry })
               ).done(function(api_token) {
-                table.append(
-                  $('<tr/>')
-                    .attr('id', null)
-                    .attr('hdt', JSON.stringify({ id:api_token.id }))
-                    .append(
-                      $('<td/>').append(rdata[0]),
-                      $('<td/>').append(rdata[1])
-                    )
-                );
-                table.find('.obTable-tb').obTableRedraw();
-                popup.wrapper.removeClass('content-popup-wrapper_medium').addClass('content-popup-wrapper_small');
-                popup.form.empty().jsonForm({
-                  schema: { 'token':   {title:'Token: (only provided once)', type:'string', default:api_token.token, readonly:true } },
-                  form: ['*']
+                popup.remove();
+                let tknpopup = new obPopup({
+                  size: 'small',
+                  content: new obForm([
+                    { id:'token', name:'Token: (only provided once)', type:'string', value:api_token.token, readonly:true }
+                  ]).html(),
+                  control: $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() { tknpopup.remove(); })
                 });
-                popup.control.empty().append(
-                  $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function(event) {
-                    popup.overlay.remove();
-                  })
-                );
+                table.addrow({id:api_token.id, name:tknform_data.name, expiry:tknform_data.expiry.replace('T',' ')});
+                table.table().html().parents('.obTabs-tab-content').append(tknpopup.html());
               });
             }
-            else {
-              // Update token
+          }),
+        ];
+      }
+      else {
+        popup_control = [
+          // -- OK
+          $('<input/>', { class:'btn', type:'submit', value:'Ok' }).on('click', function() {
+            let tknform_data = tknform.validate();
+            if (tknform_data != null) {
+              tknform_data.expiry = tknform_data.expiry.replace('T',' ');
               $.when(
-                api('put',`auth/user/${id}/token/${token.id}`, { name:rdata[0], expiry:rdata[1] })
-              ).done(function() {
-                row
-                  .empty()
-                  .append(
-                    $('<td/>').append(rdata[0]),
-                    $('<td/>').append(rdata[1])
-                  );
-                table.find('.obTable-tb').obTableRedraw();
-                popup.overlay.remove();
+                api('put',`auth/user/${id}/token/${rowid}`, tknform_data)
+              ).done(function(api_token) {
+                row.remove();
+                table.addrow({id:rowid, ...tknform_data});
+                popup.remove();
               });
             }
-          }
-        })
-      );
-
-      // Delete button
-      if (!frmnewrec) {
-        popup.control.append(
-          $('<input/>', { class: 'btn', type: 'submit', value: 'Delete' }).on('click', function(event) {
+          }),
+          // -- Delete
+          $('<input/>', { class:'btn', type:'submit', value:'Delete' }).on('click', function() {
             if (confirm('WARNING!: Token will be deleted instantly. Are you sure you want to continue?')) {
               $.when(
-                api('delete',`auth/user/${id}/token/${token.id}`)
+                api('delete',`auth/user/${id}/token/${rowid}`)
               ).done(function() {
                 row.remove();
-                popup.overlay.remove();
+                popup.remove();
               });
             }
           })
-        );
+        ];
       }
+      popup_control = [
+        // -- Close
+        ...popup_control,
+        $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() { popup.remove(); })
+      ];
 
-      // Close button
-      popup.control.append(
-        $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function(event) { popup.overlay.remove(); })
-      );
-
-      // Generate form
-      popup.form.jsonForm({
-        schema: {
-          'name':   {title:'Name', type:'string'},
-          'expiry': {title:'Expires', type:'datetime-local'}
-        },
-        form: ['*']
+      // Popup
+      let popup = new obPopup({
+        size: 'medium',
+        content: tknform.html(),
+        control: popup_control
       });
+      table.table().html().parents('.obTabs-tab-content').append(popup.html());
 
-      // Load data into form for editing
-      if (!frmnewrec) {
-        popup.form.find('input[name=name]').val(token.name);
-        popup.form.find('input[name=expiry]').val(token.expiry);
-      }
     }
   }
 

@@ -42,8 +42,8 @@ frm['titlebar'] = {
    ******************************************************************/
   show: function() {
     // Load and display titlebar
-    controlbar = $('<div/>', { class: 'titlebar-control' });
-    titlebar_name = $('<div/>', { class: 'titlebar-title' }).append(
+    let controlbar = $('<div/>', { class: 'titlebar-control' });
+    let titlebar_name = $('<div/>', { class: 'titlebar-title' }).append(
       $('<img/>', { src: 'img/obstack.png' }),
       `&nbsp;${title}`
     );

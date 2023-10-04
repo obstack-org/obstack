@@ -13,7 +13,7 @@
   padding: 0px;
   color: #444;
   font-size: 16px;
-  font-family: 'Trebuchet MS', serif;
+  font-family: 'Trebuchet MS', 'Segoe UI Symbol', 'Dejavu Sans', sans-serif;
 }
 input, select, textarea {
   display: inline-block;

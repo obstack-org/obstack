@@ -11,12 +11,12 @@
 #### config.php
 
 Database:
-```
+```php
 $db_connectionstring = 'pgsql:host=127.0.0.1;dbname=obstack;user=obstack;password=obstack';
 ```
 
 Authentication options:
-```
+```php
 $sessman_config = [
 
   'timeout'  => 600,
@@ -48,14 +48,14 @@ For more details on LDAP/Radius go to: [Configuring external authentication](#co
 #### js/obstack.js
 
 Display name:
-```
+```javascript
 const title = 'ObStack';
 ```
 
 #### css/index.css
 
 Color scheme
-```
+```css
 :root {
   --titlebar-height: 60px;
   --titlebar-color: #ddeeee;

@@ -4,12 +4,6 @@
  *
  ******************************************************************/
 
-// Content for loader screen
-const loader =
-  $('<div/>', { class: 'content-wrapper', style: 'z-index: 20' }).append(
-    $('<img/>', { src: 'img/sqbf.gif', class: 'center', width: 40 })
-  )
-
 // Definitions for global types
 const def = {
     prop: {
@@ -23,5 +17,28 @@ const def = {
     date            : { id: 8, jftype: 'string',    name: 'Date' },
     datetime        : { id: 9, jftype: 'string',    name: 'DateTime' }
     },
+    property: {
+      1:'Text',
+      2:'Number',
+      3:'Select (Object Type)',
+      4:'Select (Value Map)',
+      5:'Checkbox',
+      6:'Textbox',
+      7:'Password',
+      8:'Date',
+      9:'DateTime'
+    },
+    property_type: {
+      1:'string',
+      2:'number',
+      3:'select',
+      4:'select',
+      5:'checkbox',
+      6:'textarea',
+      7:'password',
+      8:'date',
+      9:'datetime'
+    },
+
     logtype         : { 1:'Create', 2:'Update', 5:'Assign', 6:'Unassign', 9:'Delete', 10:'ObjectType' }
   };

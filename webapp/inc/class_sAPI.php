@@ -20,7 +20,7 @@ class sAPI {
   /******************************************************************
    * Initialize, error 400 on URI syntax error
    ******************************************************************/
-  function __construct($version = 1) {
+  public function __construct($version = 1) {
     // Set version
     $this->version = $version;
 
@@ -37,7 +37,7 @@ class sAPI {
   /******************************************************************
    * Route matching (/path/to/{id})
    ******************************************************************/
-  function route($route) {
+  public function route($route) {
     // Match route depth
     $steps = explode('/', "v$this->version$route");
     if (count($steps) != count($this->uri)) {
@@ -61,7 +61,7 @@ class sAPI {
   /******************************************************************
    * HTTP method
    ******************************************************************/
-  function method($method) {
+  public function method($method) {
     if (strtolower($method) == strtolower($_SERVER['REQUEST_METHOD'])) {
       return true;
     }
@@ -71,7 +71,7 @@ class sAPI {
   /******************************************************************
    * Parameter value from route (param('id'))
    ******************************************************************/
-  function param($param) {
+  public function param($param) {
     if (isset($this->params[$param])) {
       return $this->params[$param];
     }
@@ -81,14 +81,14 @@ class sAPI {
   /******************************************************************
    * Provide HTTP payload
    ******************************************************************/
-  function payload() {
+  public function payload() {
     return $this->payload;
   }
 
   /******************************************************************
    * HTTP error code
    ******************************************************************/
-  function http_error($error) {
+  public function http_error($error) {
     $errorstring = [
       400=>'Bad request',
       401=>'Unauthorized',

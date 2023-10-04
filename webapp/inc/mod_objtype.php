@@ -22,7 +22,7 @@ class mod_objtype {
   /******************************************************************
    * Initialize
    ******************************************************************/
-  function __construct($db) {
+  public function __construct($db) {
     $this->db = $db;
     if (isset($_GET['format'])) {
       $this->format = $_GET['format'];
@@ -43,8 +43,8 @@ class mod_objtype {
    * Boolean as string
    ******************************************************************/
   private function bool2str($var) {
-    if ($var) return 'true';
-    else return 'false';
+    if ($var) { return 'true'; }
+    else { return 'false'; }
   }
 
   /******************************************************************
@@ -73,7 +73,7 @@ class mod_objtype {
   /******************************************************************
    * List object types
    ******************************************************************/
-  function list($id = null) {
+  public function list($id = null) {
     // Process list
     if ($id == null) {
       if ($_SESSION['sessman']['sa']) {
@@ -113,14 +113,12 @@ class mod_objtype {
    *     list_short([id],null);     All objects from objtype [id]
    *     list_short([id],[obj]);    Only the selected object
    ******************************************************************/
-  function list_short($id, $obj) {
+  public function list_short($id, $obj) {
     // Call limited function to prevent infinite loop
     $short = $this->list_short_limit($id, $obj, 0);
     // Return correct format on empty result
-    if (count($short) == 1) {
-      if ($short[0]['id'] == null) {
-        return [];
-      }
+    if (count($short) == 1 && $short[0]['id'] == null) {
+      return [];
     }
     // Return result
     return $short;
@@ -168,11 +166,11 @@ class mod_objtype {
       LEFT JOIN objtype ot ON ot.id = o.objtype
       LEFT JOIN objproperty op ON op.objtype = ot.id
       LEFT JOIN value_decimal   vd ON vd.objproperty = op.id AND vd.obj = o.id
-      LEFT JOIN value_text 		  vx ON vx.objproperty = op.id AND vx.obj = o.id
+      LEFT JOIN value_text      vx ON vx.objproperty = op.id AND vx.obj = o.id
       LEFT JOIN value_timestamp vt ON vt.objproperty = op.id AND vt.obj = o.id
-      LEFT JOIN value_uuid 		  vu ON vu.objproperty = op.id AND vu.obj = o.id
-      LEFT JOIN value_varchar 	vv ON vv.objproperty = op.id AND vv.obj = o.id
-      LEFT JOIN valuemap_value vo ON vo.id = vu.value
+      LEFT JOIN value_uuid      vu ON vu.objproperty = op.id AND vu.obj = o.id
+      LEFT JOIN value_varchar   vv ON vv.objproperty = op.id AND vv.obj = o.id
+      LEFT JOIN valuemap_value  vo ON vo.id = vu.value
       WHERE 1=1 $dbqobj $dbqobjtype
       ORDER BY o.id, op.prio, op.name
     ";
@@ -197,10 +195,8 @@ class mod_objtype {
       if ($length < $rec->short) {
         if ($rec->type == 3) {
           // Objtype, with loop protection when selecting self
-          if ($depth < 3) {
-            if ($rec->value != null) {
-              $cache .= ' / '.$this->list_short_limit(null, $rec->value, $depth+1)[0]['name'];
-            }
+          if ($depth < 3 && $rec->value != null) {
+            $cache .= ' / '.$this->list_short_limit(null, $rec->value, $depth+1)[0]['name'];
           }
         }
         // Any other value
@@ -219,7 +215,7 @@ class mod_objtype {
   /******************************************************************
    * Open object type
    ******************************************************************/
-  function open($otid) {
+  public function open($otid) {
     // Process ACL
     $acl = $this->acl($otid);
     if (!$acl->read) {
@@ -230,11 +226,10 @@ class mod_objtype {
     }
     // Handle formats
     if ($this->format('short'))   { return $this->list_short($otid, null); }
-    //if ($this->format('config'))  { return $this->config_open($otid); }
     $result = [];
     $dbqvaluemap = ['vu.value::varchar', ''];
     $dbqcheckbox = "TO_CHAR(vd.value,'FM9')";
-    $dbqpassword = '*****';
+    $dbqpw = '*****';
     if ($this->format('hr')) {
       $dbqvaluemap = ['vo.name', 'LEFT JOIN valuemap_value vo ON vo.id = vu.value'];
       $dbqcheckbox = "
@@ -252,7 +247,7 @@ class mod_objtype {
           ELSE '&nbsp;✗'
         END
       ";
-      $dbqpassword = '•••••';
+      $dbqpw = '•••••';
     }
     // Gather data
     $dbquery = "
@@ -267,28 +262,28 @@ class mod_objtype {
           WHEN 4 THEN $dbqvaluemap[0]
           WHEN 5 THEN $dbqcheckbox
           WHEN 6 THEN vx.value
-          WHEN 7 THEN '$dbqpassword'
+          WHEN 7 THEN '$dbqpw'
           WHEN 8 THEN TO_CHAR(vt.value,'YYYY-MM-DD')
           WHEN 9 THEN TO_CHAR(vt.value,'YYYY-MM-DD HH24:MI')
         END AS value
       FROM obj o
       LEFT JOIN objtype ot ON ot.id = o.objtype
       LEFT JOIN objproperty op ON op.objtype = ot.id
-      LEFT JOIN value_decimal		vd ON vd.objproperty = op.id AND vd.obj = o.id
-      LEFT JOIN value_text 		  vx ON vx.objproperty = op.id AND vx.obj = o.id
+      LEFT JOIN value_decimal    vd ON vd.objproperty = op.id AND vd.obj = o.id
+      LEFT JOIN value_text       vx ON vx.objproperty = op.id AND vx.obj = o.id
       LEFT JOIN value_timestamp vt ON vt.objproperty = op.id AND vt.obj = o.id
-      LEFT JOIN value_uuid 		  vu ON vu.objproperty = op.id AND vu.obj = o.id
-      LEFT JOIN value_varchar 	vv ON vv.objproperty = op.id AND vv.obj = o.id
+      LEFT JOIN value_uuid       vu ON vu.objproperty = op.id AND vu.obj = o.id
+      LEFT JOIN value_varchar   vv ON vv.objproperty = op.id AND vv.obj = o.id
       $dbqvaluemap[1]
       WHERE ot.id = :id
       ORDER BY o.id, op.prio, op.name
     ";
     // Format data
-    $tmpid = NULL;
+    $tmpid = null;
     $cache = [];
     foreach ($this->db->query($dbquery, [':id'=>$otid]) as $rec) {
       if ($tmpid != $rec->id) {
-        if (count($cache) > 0) {
+        if (!empty($cache)) {
           array_push($result, $cache);
         }
         $tmpid = $rec->id;
@@ -316,7 +311,7 @@ class mod_objtype {
   /******************************************************************
    * Save object type
    ******************************************************************/
-  function save($id, $data) {
+  public function save($id, $data) {
     // Objtype configuration
     $dbparams = [];
     if (isset($data['name']))   { $dbparams['name'] = $data['name']; }
@@ -372,7 +367,7 @@ class mod_objtype {
   /******************************************************************
    * Delete object type
    ******************************************************************/
-  function delete($otid) {
+  public function delete($otid) {
     $dbparams = [':otid'=>$otid];
     foreach($this->valuetype as $type) {
       $this->db->query("DELETE FROM value_$type WHERE objproperty IN (SELECT id FROM objproperty WHERE objtype=:otid)", $dbparams);
@@ -381,13 +376,13 @@ class mod_objtype {
     $this->db->query('DELETE FROM objproperty WHERE objtype=:otid', $dbparams);
     $this->db->query('DELETE FROM objtype_acl WHERE objtype=:otid', $dbparams);
     $count = count($this->db->query('DELETE FROM objtype WHERE id=:otid RETURNING *', $dbparams));
-    return ($count > 0);
+    return $count > 0;
   }
 
   /******************************************************************
    * List object type properties
    ******************************************************************/
-  function property_list($otid, $id = null) {
+  public function property_list($otid, $id = null) {
     // Process ACL
     $acl = $this->acl($otid);
     if (!$acl->read) { return null; }
@@ -430,7 +425,7 @@ class mod_objtype {
   /******************************************************************
    * Save object type property
    ******************************************************************/
-  function property_save($otid, $id, $data) {
+  public function property_save($otid, $id, $data) {
     $fields = 'objtype';
     $insert = ':objtype';
     $update = '';
@@ -453,19 +448,15 @@ class mod_objtype {
       }
     }
     $update = substr($update, 2);
-    if ($data['id'] == null) {
-      if ($id != null) {
-        $data['id'] = $id;
-      }
+    if ($data['id'] == null && $id != null) {
+      $data['id'] = $id;
     }
     if ($data['id'] == null) {
       $dbquery = "INSERT INTO objproperty ($fields) VALUES($insert) RETURNING id";
-      //$log_create .= ", ".$rec['name'];
     }
     else {
       $dbquery = "UPDATE objproperty SET $update WHERE id=:id AND objtype=:objtype";
       $dbparams['id'] = $data['id'];
-      //$log_update .= ", ".$rec['name'];
     }
     return $this->db->query($dbquery, $dbparams);
   }
@@ -473,9 +464,9 @@ class mod_objtype {
   /******************************************************************
    * Delete object type property
    ******************************************************************/
-  function property_delete($otid, $id) {
+  public function property_delete($otid, $id) {
     $count = count($this->db->query('DELETE FROM objproperty WHERE objtype=:otid AND id=:id', [':otid'=>$otid, ':id'=>$id]));
-    return ($count > 0);
+    return $count > 0;
   }
 
 }
