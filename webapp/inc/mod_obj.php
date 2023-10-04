@@ -25,7 +25,7 @@ class mod_obj {
   /******************************************************************
    * Initialize
    ******************************************************************/
-  function __construct($db, $otid) {
+  public function __construct($db, $otid) {
     $this->db = $db;
     $this->objtype = $otid;
     if (isset($_GET['format'])) {
@@ -100,7 +100,7 @@ class mod_obj {
   /******************************************************************
    * Open Object
    ******************************************************************/
-  function open($otid, $id) {
+  public function open($otid, $id) {
     // Process ACL
     $acl = $this->acl($otid);
     if (!$acl->read) {
@@ -113,9 +113,9 @@ class mod_obj {
     if ($this->format('short'))   { return $this->objtype->list_short($otid, $id); }
     $result = [];
     $dbqvaluemap = ['vu.value::varchar', ''];
-    $dbqpassword = '*****';
+    $dbqpw = '*****';
     if ($this->format('gui')) {
-      $dbqpassword = '•••••';
+      $dbqpw = '•••••';
       $dbqvaluemap = ['vo.name', 'LEFT JOIN valuemap_value vo ON vo.id = vu.value'];
     }
     $dbquery = "
@@ -130,18 +130,18 @@ class mod_obj {
           WHEN 4 THEN $dbqvaluemap[0]
           WHEN 5 THEN TO_CHAR(vd.value,'FM9')
           WHEN 6 THEN vx.value
-          WHEN 7 THEN '$dbqpassword'
+          WHEN 7 THEN '$dbqpw'
           WHEN 8 THEN TO_CHAR(vt.value,'YYYY-MM-DD')
           WHEN 9 THEN TO_CHAR(vt.value,'YYYY-MM-DD HH24:MI')
         END AS value
       FROM obj o
-      LEFT JOIN objtype ot 			    ON ot.id = o.objtype
-      LEFT JOIN objproperty op 		  ON op.objtype = ot.id
-      LEFT JOIN value_decimal vd 	  ON vd.objproperty = op.id AND vd.obj = o.id
-      LEFT JOIN value_text vx 		  ON vx.objproperty = op.id AND vx.obj = o.id
+      LEFT JOIN objtype ot              ON ot.id = o.objtype
+      LEFT JOIN objproperty op         ON op.objtype = ot.id
+      LEFT JOIN value_decimal vd      ON vd.objproperty = op.id AND vd.obj = o.id
+      LEFT JOIN value_text vx         ON vx.objproperty = op.id AND vx.obj = o.id
       LEFT JOIN value_timestamp vt  ON vt.objproperty = op.id AND vt.obj = o.id
-      LEFT JOIN value_uuid vu 		  ON vu.objproperty = op.id AND vu.obj = o.id
-      LEFT JOIN value_varchar vv 	  ON vv.objproperty = op.id AND vv.obj = o.id
+      LEFT JOIN value_uuid vu         ON vu.objproperty = op.id AND vu.obj = o.id
+      LEFT JOIN value_varchar vv      ON vv.objproperty = op.id AND vv.obj = o.id
       $dbqvaluemap[1]
       WHERE ot.id = :otid
       AND o.id = :id
@@ -169,7 +169,7 @@ class mod_obj {
   /******************************************************************
    * Save object
    ******************************************************************/
-  function save($otid, $id, $data) {
+  public function save($otid, $id, $data) {
     // Get ACL
     $acl = $this->acl($otid);
     // Check if new record
@@ -238,8 +238,8 @@ class mod_obj {
     $dbobjects = [];
     $qrobjects = [];
     foreach($this->db->query('SELECT obj, obj_ref FROM obj_obj WHERE obj=:obj OR obj_ref=:obj', [':obj'=>$id]) as $rec) {
-      if (!in_array($rec->obj,     $dbobjects)) { if ($rec->obj     != $id) { array_push($dbobjects, $rec->obj); }}
-      if (!in_array($rec->obj_ref, $dbobjects)) { if ($rec->obj_ref != $id) { array_push($dbobjects, $rec->obj_ref); }}
+      if (!in_array($rec->obj,     $dbobjects) && $rec->obj     != $id) { array_push($dbobjects, $rec->obj); }
+      if (!in_array($rec->obj_ref, $dbobjects) && $rec->obj_ref != $id) { array_push($dbobjects, $rec->obj_ref); }
     }
     foreach ($data['relations'] as $value) {
       if (!in_array($value,        $qrobjects)) { array_push($qrobjects,  $value); }
@@ -262,7 +262,7 @@ class mod_obj {
   /******************************************************************
    * delete object
    ******************************************************************/
-  function delete($otid, $id) {
+  public function delete($otid, $id) {
     // Process ACL
     $acl = $this->acl($otid);
     if (!$acl->delete) { return null; }
@@ -286,7 +286,7 @@ class mod_obj {
   /******************************************************************
    * List related objects
    ******************************************************************/
-  function relation_list($id) {
+  public function relation_list($id) {
     // Process ACL
     $acl = $this->acl_obj($id);
     if (!$acl->read) { return null; }
@@ -318,17 +318,17 @@ class mod_obj {
       LEFT JOIN obj o on (o.id = oo.obj) or (o.id = oo.obj_ref)
       LEFT JOIN objtype ot ON ot.id = o.objtype
       LEFT JOIN objproperty op ON op.objtype = ot.id
-      LEFT JOIN value_decimal		vd ON vd.objproperty = op.id AND vd.obj = o.id
-      LEFT JOIN value_text 		  vx ON vx.objproperty = op.id AND vx.obj = o.id
+      LEFT JOIN value_decimal      vd ON vd.objproperty = op.id AND vd.obj = o.id
+      LEFT JOIN value_text         vx ON vx.objproperty = op.id AND vx.obj = o.id
       LEFT JOIN value_timestamp vt ON vt.objproperty = op.id AND vt.obj = o.id
-      LEFT JOIN value_uuid 		  vu ON vu.objproperty = op.id AND vu.obj = o.id
-      LEFT JOIN value_varchar 	vv ON vv.objproperty = op.id AND vv.obj = o.id
+      LEFT JOIN value_uuid         vu ON vu.objproperty = op.id AND vu.obj = o.id
+      LEFT JOIN value_varchar    vv ON vv.objproperty = op.id AND vv.obj = o.id
       LEFT JOIN valuemap_value vo ON vo.id = vu.value
       WHERE (oo.obj = :id OR oo.obj_ref = :id)
       AND o.id != :id
       ORDER BY o.id, op.prio, op.name
     ";
-    $tmpid = NULL;
+    $tmpid = null;
     $cache = [];
     $result = [];
     foreach ($this->db->query($dbquery, [':id'=>$id]) as $rec) {
@@ -352,10 +352,8 @@ class mod_obj {
       }
     }
     array_push($result, $cache);
-    if (count($result) == 1) {
-      if ($result[0]['id'] == null) {
-        $result = [];
-      }
+    if (count($result) == 1 && $result[0]['id'] == null) {
+      $result = [];
     }
     return $result;
   }
@@ -363,7 +361,7 @@ class mod_obj {
   /******************************************************************
    * List available relations for object
    ******************************************************************/
-  function relation_list_available($otid, $id) {
+  public function relation_list_available($otid, $id) {
     $result = [];
     foreach ($this->objtype->list() as $type) {
       $property_hide = [];
@@ -394,7 +392,7 @@ class mod_obj {
   /******************************************************************
    * Create/Save relation
    ******************************************************************/
-  function relation_save($id, $id_ref, $private=false) {
+  public function relation_save($id, $id_ref, $private=false) {
     // Process ACL
     if (!$private) {
       $acl = $this->acl_obj($id);
@@ -406,13 +404,13 @@ class mod_obj {
       $dbparams = [':obj'=>$id_ref, ':obj_ref'=>$id];
     }
     $count = count($this->db->query('INSERT INTO obj_obj VALUES (:obj,:obj_ref) RETURNING *', $dbparams));
-    return ($count > 0);
+    return $count > 0;
   }
 
   /******************************************************************
    * Delete relation
    ******************************************************************/
-  function relation_delete($id, $id_ref, $private=false) {
+  public function relation_delete($id, $id_ref, $private=false) {
     // Process ACL
     if (!$private) {
       $acl = $this->acl_obj($id);
@@ -423,13 +421,13 @@ class mod_obj {
       $dbparams = [':obj'=>$id_ref, ':obj_ref'=>$id];
     }
     $count = count($this->db->query('DELETE FROM obj_obj WHERE obj=:obj AND obj_ref=:obj_ref RETURNING *', $dbparams));
-    return ($count > 0);
+    return $count > 0;
   }
 
   /******************************************************************
    * List log entries
    ******************************************************************/
-  function log_list($otid, $id) {
+  public function log_list($otid, $id) {
     if ($this->logstate[$otid] == null) {
       $this->logstate[$otid] = $this->db->query('SELECT log FROM objtype WHERE id=:id', [':id'=>$otid])[0]->log;
     }
@@ -447,7 +445,7 @@ class mod_obj {
   /******************************************************************
    * Save log entry
    ******************************************************************/
-  function log_save($otid, $id, $action, $detail) {
+  public function log_save($otid, $id, $action, $detail) {
     if ($otid == null) {
       $otid = $this->db->query('SELECT objtype FROM obj WHERE id=:id', [':id'=>$id])[0]->objtype;
     }

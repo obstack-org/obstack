@@ -34,7 +34,7 @@ Obstack also supplies a <a href="https://github.com/obstack-org/obstack-docker" 
 
 _(The database security used in this example is for demo purposes only)_
 
-```
+```bash
 # Install packages
 sudo dnf -y module disable php postgresql
 sudo dnf -y module enable php:7.4 postgresql:12
