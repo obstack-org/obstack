@@ -25,7 +25,7 @@
 }
 .obTabs-tabs .obTabs-tab {
   float: left;
-  padding: 10px 20px;
+  padding: 4px 20px 8px;
   cursor: pointer;
 }
 .obTabs-tabs .active {
@@ -38,104 +38,129 @@
   display: none;
 }
 .obTabs-content .active {
-  display: block;
+  display: inline-block;
 }
-
 
 /*******************************************************************
 *  obTable()
 ******************************************************************/
 
 .obTable {
-display: block;
-border-spacing: 0px 0px;
-border-collapse: none;
-empty-cells: show;
+  display: block;
+  border-spacing: 0px 0px;
+  border-collapse: none;
+  empty-cells: show;
 }
 .obTable thead, .obTable tbody {
-display: block;
-position: relative;
-width: calc(100%-1px);
-overflow-x: hidden;
-overflow-y: scroll;
+  display: block;
+  position: relative;
+  width: calc(100% - 1px);
+  overflow-x: hidden;
+  overflow-y: scroll;
 }
 .obTable thead {
-background-color: #f1f1f1;
-border-right: 1px solid #f4f4f4;
-border-bottom: 1px solid #000;
+  background-color: #f1f1f1;
+  border-right: 1px solid #f4f4f4;
+  border-bottom: 1px solid #000;
 }
 .obTable tbody{
-background-color: #fff;
+  background-color: #fff;
 }
 .obTable th, .obTable td, .obTable-drag, .obTable-plc {
-display: block;
-overflow: hidden;
-padding: 8px 12px 8px 12px;
-border-right: 1px solid #f4f4f4;
-flex-basis: 0%;
-text-align: left;
-text-overflow: ellipsis;
-white-space: nowrap;
+  display: block;
+  overflow: hidden;
+  padding: 8px 12px 8px 12px;
+  border-right: 1px solid #f4f4f4;
+  flex-basis: 0%;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.obTable-tb {
+  cursor: default;
 }
 .obTable tr {
-display: flex;
-width: 100%;
-border-bottom: 1px solid #f4f4f4;
+  display: flex;
+  width: 100%;
+  border-bottom: 1px solid #f4f4f4;
 }
 .obTable th, .obTable td {
-flex-grow: 0;
-flex-shrink: 1;
-min-width: 10px;
+  flex-grow: 0;
+  flex-shrink: 1;
+  min-width: 10px;
 }
 .obTable th {
-border-right: 1px solid #ebebeb;
+  border-right: 1px solid #ebebeb;
 }
 .obTable td {
-cursor: pointer;
+  cursor: inherit;
 }
 .obTable th:last-child, .obTable td:last-child {
-flex-grow: 1;
-flex-shrink: 1;
+  flex-grow: 1;
+  flex-shrink: 1;
 }
 .obTable tbody tr:hover {
-background: #fcfcfc;
+  background: #fcfcfc;
 }
 .obTable-drag, .obTable-thdrag {
-min-width: 14px !important;
-flex-basis: 14px !important;
-flex-grow: 0;
-flex-shrink: 0;
-border-left: 1px solid #f4f4f4;
+  min-width: 14px !important;
+  flex-basis: 14px !important;
+  flex-grow: 0;
+  flex-shrink: 0;
+  border-left: 1px solid #f4f4f4;
 }
 .obTable-drag {
-cursor: move !important;
+  cursor: move !important;
+  text-overflow: clip !important;
 }
 .obTable-plc {
-height: 22px;
-background: #eee;
+  height: 22px;
+  background: #eee;
 }
 .obTable-sort {
-cursor: pointer;
+  cursor: pointer;
 }
 .obTable-resize {
-position: absolute;
-display: none;
-z-index: 1000;
-top: 0px;
-left: 0px;
-width: 2px;
-height: 100%;
-border-right: dotted 1px rgba(68, 68, 68, .5);
+  position: absolute;
+  display: none;
+  z-index: 1000;
+  top: 0px;
+  left: 0px;
+  width: 2px;
+  height: 100%;
+  border-right: dotted 1px rgba(68, 68, 68, .5);
 }
 .obTable-thsrc {
-position: absolute;
-top: 0px;
-bottom: 0px;
-right: 0px;
-width: 18px;
-height: 36px;
-z-index: 1000;
-background-color: #f1f1f1;
+  position: absolute;
+  top: 0px;
+  bottom: 0px;
+  right: 0px;
+  width: 18px;
+  height: 36px;
+  z-index: 1000;
+  background-color: #f1f1f1;
+}
+
+
+/*******************************************************************
+*  obForm()
+******************************************************************/
+
+.obForm {
+  display: block;
+}
+.obForm-field {
+  display: block;
+}
+input.obForm-field[type=number]::-webkit-inner-spin-button,
+input.obForm-field[type=number]::-webkit-outer-spin-button
+{
+  position: absolute;
+  border-left: 0px;
+  opacity: .5;
+  top: 0;
+  right: 0;
+  bottom: 0;
 }
 
 
@@ -143,29 +168,28 @@ background-color: #f1f1f1;
 *  jQueryUI
 ******************************************************************/
 
-
 .ui-resizable {
-position: relative;
+  position: relative;
 }
 .ui-resizable-handle {
-display: block;
-position: absolute;
-padding-top: 6px;
-font-size: 22px;
-font-style: normal;
-text-align: right;
-color: #ddd;
+  display: block;
+  position: absolute;
+  padding-top: 6px;
+  font-size: 22px;
+  font-style: normal;
+  text-align: right;
+  color: #ddd;
+  background-color: rgba(0, 0, 0, 0) !important;
 }
 .ui-resizable-disabled .ui-resizable-handle,
 .ui-resizable-autohide .ui-resizable-handle {
-display: none;
+  display: none;
 }
 .ui-resizable-e {
-cursor: e-resize;
-width: 16px;
-right: 0px;
-top: 0;
-width: 8px;
-height: 100%;
-background-color: #f1f1f1;
+  cursor: e-resize;
+  right: 0px;
+  top: 0;
+  width: 8px;
+  height: 100%;
+  background-color: #f1f1f1;
 }

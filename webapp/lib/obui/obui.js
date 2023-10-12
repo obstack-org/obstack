@@ -4,7 +4,7 @@
  * ========================
  *
  * Requires: jQuery, jQueryUI
- * Functions: obTabs, obTable, obForm
+ * Functions: obTabs, obForm, obTable, obFTable, obContent, obPopup
  *
  * Part of ObStack (https://www.obstack.org). License: GPL-3.0
  *
@@ -41,7 +41,7 @@
       tabs.append(
         $('<div/>', { id: pid+'_obTab'+key, 'class': 'obTabs-tab' })
           .html(value.title)
-          .bind('click', function(event) {
+          .bind('click', function() {
             obTabClick('#'+$(this)[0].id);
           })
         );
@@ -72,6 +72,192 @@
 
 
 /*******************************************************************
+ *  obForm(fields)
+ * ==============
+ *   fields         : Form fields (JSON)
+ *
+ * Example:
+ * --------
+ *  let myform = new obForm([
+ *    { id:'username', name:'Username', type:'string',   regex_validate:/^.{1,}$/, regex_input:/^[0-9a-zA-z-_]{0,12}$/ },
+ *    { id:'password', name:'Password', type:'password', regex_validate:/^.{6,}$/, info:'Minimal length: 6', value:'******' },
+ *    { id:'type',     name:'Type',     type:'select',   options:{'admin':'Admin','user':'User'}, value:'user' },
+ *    { id:'remember', name:'Remember', type:'checkbox', value:1, readonly:true }
+ *  ]);
+ *  let bntSubmit = $('<input/>', { class:'button', type:'submit', value:'Submit' }).on('click', function() {
+ *    let formdata = myform.validate();
+ *    if (formdata != null) {
+ *      console.log(formdata);
+ *    }
+ *  });
+ *  body.append(myform.html(), bntSubmit);
+ *
+ ******************************************************************/
+
+var obForm = function(fields) {
+
+  /******************************************************************
+   * Constructor
+   ******************************************************************/
+
+  // Options
+  var deffield = {
+    id: null,
+    name: '',
+    type: 'string',
+    value: null,
+    options: null,
+    info: null,
+    regex_input: null,
+    regex_validate: null,
+    readonly: null
+  }
+  var form = $('<form/>', { class: 'obForm' });
+
+  // Fields
+  $.each(fields, function(idx, field) {
+    $.extend(deffield, field);
+    if (field.type == 'datetime') {
+      field.type = 'datetime-local';
+    }
+    let info = null;
+    if (field.info != null) {
+      info = $('<info/>', { title:field.info }).text(' 🛈');
+    }
+    //form.append($('<label/>', { for: field.id }).append(field.name, info));
+
+    var fieldelem = $('<input disabled/>').text('[undefined]');
+    var fieldattr = {
+      class: 'obForm-field',
+      id: field.id,
+      name: field.id,
+      type: field.type
+    }
+
+    if (['string', 'number', 'password', 'checkbox', 'date', 'datetime-local'].indexOf(field.type) != -1) {
+      fieldelem = $('<input/>', fieldattr);
+    }
+    if (field.type == 'select') {
+      fieldelem = $('<select/>', fieldattr);
+      if (field.value == null) {
+        fieldelem.append(
+          $('<option disabled selected value/>').text('-- select an option --')
+        );
+      }
+      $.each(field.options, function(value, text) {
+        if (field.value == value) {
+          fieldelem.append(
+            $('<option selected/>').val(value).text(text)
+          );
+        }
+        else {
+          fieldelem.append(
+            $('<option/>').val(value).text(text)
+          );
+        }
+
+      });
+    }
+    if (field.type == 'textarea') {
+      fieldelem = $('<textarea/>', fieldattr);
+    }
+    if (field.type == 'checkbox') {
+      if (field.value == 1) {
+        fieldelem.prop('checked', true);
+      }
+      if (field.readonly) {
+        fieldelem.on('click', function(event) {
+          event.preventDefault();
+          return false;
+        });
+      }
+    }
+    if (['string', 'number', 'password', 'textarea'].indexOf(field.type) != -1) {
+      if (field.type == 'number') {
+        if (field.regex_input == null) {
+          field.regex_input = /^[0-9]*\.?[0-9]*$/;
+        }
+        if (field.regex_validate == null) {
+          field.regex_validate = /^[0-9]*\.?[0-9]*$/;
+        }
+      }
+      fieldelem
+        .on('keypress', function(event) {
+          let chr = String.fromCharCode(event.charCode);
+          if ( `${this.value}${chr}`.match(field.regex_input) == null ) {
+            event.preventDefault();
+            return false;
+          }
+        })
+        .on('paste', function(event) {
+          let txt = event.originalEvent.clipboardData.getData('text');
+          if ( `${this.value}${txt}`.match(field.regex_input) == null ) {
+            event.preventDefault();
+            return false;
+          }
+        });
+    }
+
+    if (field.readonly) {
+      fieldelem.prop('disabled', true);
+    }
+
+    form.append(
+      $('<div/>').append(
+        $('<label/>', { for: field.id }).append(field.name, info),
+        fieldelem.val(field.value)
+      )
+    );
+
+  });
+
+  /******************************************************************
+   * Public
+   ******************************************************************/
+
+  // Retrieve element
+  this.html = function() {
+    return form;
+  }
+
+  // Validate & return data
+  this.validate = function() {
+    let values = {};
+    let validate = true;
+    $.each(form.find(':input'), function() {
+      let field = $(this);
+      if (field.prop('type') == 'checkbox') {
+        if (field.prop('checked')) { values[field.prop('name')] = 1; }
+        else { values[field.prop('name')] = 0; }
+      }
+      else {
+        values[field.prop('name')] = field.prop('value');
+      }
+      $.each(fields, function() {
+        if (this.id == field.prop('name')) {
+          if (typeof this.regex_validate != 'unidentified') {
+            if (field.prop('value').match(this.regex_validate) == null) {
+              field.prop('style', 'box-shadow: 0 0 5px red');
+              validate = false;
+            }
+            else {
+              field.prop('style', '');
+            }
+          }
+        }
+      });
+    });
+    if (validate) {
+      return values;
+    }
+    else {
+      return null;
+    }
+  }
+}
+
+
+/*******************************************************************
  *  obTable(options)
  * ==================
  * Options:
@@ -83,6 +269,7 @@
  *   columns_orderable  : Default for ordering on all columns
  *   columns_hidden     : Array of column keys that must be hidden
  *   sortable           : Enable dragging/reordering rows
+ *   onclick            : Function on cell click (td)
  *
  *  $(element).obTableSort(colnr)
  * ===============================
@@ -221,7 +408,8 @@ var obTable = function(coptions) {
     columns_resizable: false,
     columns_orderable: false,
     columns_hidden : [],
-    sortable: false
+    sortable: false,
+    onclick: null
   }
   $.extend(options, coptions);
 
@@ -378,12 +566,16 @@ var obTable = function(coptions) {
               if (typeof data[i] == 'boolean') {
                 data[i] = (data[i]) ? '0' : '1';
               }
-              if (data[i].match(/^\d*(\s|$)/)) {
-                data[i] = tbpad(data[i].slice(0, data[i].search(/[a-zA-Z\-\s_]/)),12) + data[i].slice(data[i].search(/[a-zA-Z\-\s_]/))
+              if (typeof data[i] != 'object') {
+                if (data[i].match(/^\d*(\s|$)/)) {
+                  data[i] = tbpad(data[i].slice(0, data[i].search(/[a-zA-Z\-\s_]/)),12) + data[i].slice(data[i].search(/[a-zA-Z\-\s_]/))
+                }
               }
             }
           }
-          if (data[0]) return data[1] ? data[0].localeCompare(data[1]) : -1;
+          if ((typeof data[0] != 'object') && (typeof data[1] != 'object'))  {
+            if (data[0]) return data[1] ? data[0].localeCompare(data[1]) : -1;
+          }
         });
       };
     });
@@ -397,7 +589,7 @@ var obTable = function(coptions) {
       if (i*dtchunksize < options.data.length) {
         let chunk = options.data.slice(i*dtchunksize, (i+1)*dtchunksize);
         $.each(chunk, function (rowkey, rowdata) {
-          tbrow(tbody, rowkey, rowdata);
+          nwrow(tbody, rowkey, rowdata);
         });
         if (i==0) {
           $.each(options.element.find('.obTable-tb'), function() { $(this).obTableRedraw(); });
@@ -414,10 +606,10 @@ var obTable = function(coptions) {
   // Load data (all data at once)
   else {
     $.each(options.data, function (rowkey, rowdata) {
-      tbrow(tbody, rowkey, rowdata);
+      nwrow(tbody, rowkey, rowdata);
     });
-    setTimeout(function() { 
-      $.each(options.element.find('.obTable-tb'), function() { $(this).obTableRedraw(); }); 
+    setTimeout(function() {
+      $.each(options.element.find('.obTable-tb'), function() { $(this).obTableRedraw(); });
     }, 0);
   }
 
@@ -429,14 +621,27 @@ var obTable = function(coptions) {
     tbody
   );
 
-
   /******************************************************************
    * Public
    ******************************************************************/
 
-  // Retreive table element
+  // Retrieve element
   this.html = function() {
     return options.element;
+  }
+
+  // Add row
+  this.addrow = function(data) {
+    let row = nwrow(tbody, null, data);
+    $.each(options.element.find('.obTable-tb'), function() { $(this).obTableRedraw(); });
+    return row;
+  }
+
+  // Update row
+  this.updaterow = function(row, data) {
+    let rrow = chrow($(row), null, data);
+    $.each(options.element.find('.obTable-tb'), function() { $(this).obTableRedraw(); });
+    return rrow;
   }
 
   // Search / Filter data
@@ -459,8 +664,8 @@ var obTable = function(coptions) {
    * Private
    ******************************************************************/
 
-  // Table row
-  function tbrow(tbody, rowkey, rowdata) {
+  // Table new row
+  function nwrow(tbody, rowkey, rowdata) {
     let row = $('<tr/>');
     let hdt = {};
     if (options.sortable) {
@@ -475,7 +680,36 @@ var obTable = function(coptions) {
       }
     });
     row.attr('id', rowkey).attr('hdt', JSON.stringify(hdt));
+
+    if (options.onclick != null) {
+      row.addClass('pointer').on('click', 'td', function() {
+        if (!$(this).hasClass('obTable-drag')) {
+          options.onclick(this);
+        }
+      });
+    }
+
     tbody.append(row);
+    return row;
+  }
+
+  // Table change row
+  function chrow(row, rowkey, rowdata) {
+    row.empty();
+    let hdt = {};
+    if (options.sortable) {
+      row.append($('<td/>', { class: 'obTable-drag' }).append('⇅'));
+    }
+    $.each(rowdata, function (key,value) {
+      if ($.inArray(key, options.columns_hidden) != -1) {
+        hdt[key] = value;
+      }
+      else {
+        row.append($('<td/>').append(value));
+      }
+    });
+    row.attr('id', rowkey).attr('hdt', JSON.stringify(hdt));
+    return row;
   }
 
   // Table sorting
@@ -517,6 +751,312 @@ var obTable = function(coptions) {
   // Numeric padding
   function tbpad(value, length) {
     return ('0'.repeat(length)+value).slice(-length);
+  }
+
+}
+
+
+/*******************************************************************
+ *  obFTable (coptions)
+ * ==============
+ *   coptions      : Options
+ * (wrapper for obTable)
+ *
+ * Example:
+ * --------
+ *   let testtable = new obFTable({
+ *      table: {
+ *        id: 'demotable',
+ *        data: [
+ *          { id: 1, Name:'Row 1', Value: 'Value 1' },
+ *          { id: 2, Name:'Row 2', Value: 'Value 2' },
+ *          { id: 3, Name:'Row 3', Value: 'Value 3' }
+ *        ];
+ *        columns: [
+ *          { id: 'demotable-column-1', name:'Name', orderable: true },
+ *          { id: 'demotable-column-2', name:'Value', orderable: false }
+ *        ],
+ *        columns_resizable: true,
+ *        columns_hidden: ['id'],
+ *        sortable: true
+ *      },
+ *      search:   true,
+ *      create:   function()   { function_newrec(null); },
+ *      open:     function(td) { function_openrec(td); },
+ *      footer:   'Value maps'
+ *    });
+ *
+ ******************************************************************/
+
+var obFTable = function(coptions) {
+
+  /******************************************************************
+   * Constructor
+   ******************************************************************/
+
+  var options   = {};
+  var ellist   = {};
+
+  options = {
+    table:  {
+      id:     '829c3804401b0727f70f73d4415e162400cbe57b',
+      data:   []
+    },
+    search:   false,
+    create:   null,
+    open:     null,
+    footer:   null
+  };
+  ellist = {
+    control:  $('<div/>', { class: 'tblwrap-control' }),
+    content:  $('<div/>', { class: 'tblwrap-table' }),
+    footer:   $('<div/>', { class: 'tblwrap-footer' }),
+    table:    null
+  };
+  $.extend(options, coptions);
+
+  if (options.open != null) {
+    options.table.onclick = options.open;
+  }
+
+  ellist.table = new obTable(options.table);
+  if (options.search) {
+    ellist.control.append( $('<input/>', { width: 300, class: 'tblwrap-control-search' }).on('keyup', function() { ellist.table.search(this.value); }) );
+  }
+  ellist.content.append(ellist.table.html());
+  if (options.footer != null) {
+    ellist.footer.append(`${options.footer}: ${options.table.data.length}`);
+  }
+
+  if (options.create != null) {
+    ellist.control.append(
+      $('<input/>', { class: 'btn', type: 'submit', value: 'Add' })
+        .on('click', function() { options.create(); })
+    );
+  }
+
+  this.table = function() {
+    return ellist.table;
+  }
+
+  this.addrow = function(data) {
+    let row = ellist.table.addrow(data);
+    if (options.open != null) {
+      $(row).addClass('pointer').on('click', 'td', function() {
+        if (!$(this).hasClass('obTable-drag')) {
+          options.open(this);
+        }
+      });
+    }
+    return row;
+  }
+
+  this.updaterow = function(row, data) {
+    return ellist.table.updaterow(row, data);
+  }
+
+  this.html = function() {
+    return [ellist.control, ellist.content, ellist.footer];
+  }
+
+}
+
+
+/*******************************************************************
+ *  obPopup(coptions)
+ * ==============
+ *   coptions      : Options
+ *
+ * Example:
+ * --------
+ *   var popup = new obPopup({
+ *     size: 'small',
+ *     content: 'MyContent',
+ *     control: [ btnElement1, btnElement2 ]
+ *   });
+ *
+ ******************************************************************/
+
+var obPopup = function(coptions) {
+
+  /******************************************************************
+   * Constructor
+   ******************************************************************/
+
+  var options = {
+    size: null,
+    content: null,
+    control: null
+  };
+  $.extend(options, coptions);
+
+  if (options.size == null) {
+    options.size = '';
+  }
+  else {
+    options.size = `_${options.size}`;
+  }
+  var popup = {
+    element: $('<div/>'),
+    wrapper: $('<div/>', { class: `content-popup-wrapper content-popup-wrapper${options.size}` }),
+    control: $('<div/>', { class: 'content-popup-wrapper-control' }),
+    content: $('<div/>')
+  };
+
+  if (options.content != null) {
+    popup.content.append(options.content);
+  }
+  if (options.control != null) {
+    popup.control.append(options.control);
+  }
+
+  popup.element.append(
+    $('<div/>', { class: 'content-popup-overlay' }).append(
+      popup.wrapper.append(
+        popup.content,
+        popup.control
+      )
+    )
+  );
+
+  // Retrieve element
+  this.html = function() {
+    return popup.element;
+  }
+
+  // Delete element
+  this.remove = function() {
+    popup.element.remove();
+  }
+
+}
+
+
+/*******************************************************************
+ *  obContent(coptions)
+ * ==============
+ *   coptions      : Options
+ *
+ * Example:
+ * --------
+ *   var content = new obContent({
+ *     name: 'My Content',
+ *     content: 'My Content',
+ *     control: [ btnElement1, btnElement2 ]
+ *   });
+ *
+ ******************************************************************/
+
+var obContent = function(coptions) {
+
+  /******************************************************************
+   * Constructor
+   ******************************************************************/
+
+  var options = {
+    name: '',
+    content: null,
+    control: null
+  };
+  $.extend(options, coptions);
+
+  var content = {
+    element:  $('<div/>'),
+    name:     $('<div/>', { class: 'content-header' }).html(options.name),
+    wrapper:  $('<div/>', { class: 'content-wrapper' })
+  };
+
+  if (options.content != null) {
+    content.wrapper.append(options.content);
+  }
+  if (options.control != null) {
+    content.wrapper.append($('<div/>', { class: 'content-wrapper-control-right' }).append(options.control));
+  }
+
+  // Retrieve element
+  this.html = function() {
+    return $('<div/>').append(content.name, content.wrapper);
+  }
+
+  // Delete element
+  this.remove = function() {
+    content.element.remove();
+  }
+
+}
+
+
+
+
+
+
+var obTabs = function(coptions) {
+
+  /******************************************************************
+   * Constructor
+   ******************************************************************/
+
+  // Options
+  var options = {
+    id: '',
+    tabs: []
+  }
+  $.extend(options, coptions);
+
+  var tabs = {
+    element: $('<div/>', { id: options.id+'_obTabs' }),
+    control: $('<div/>', { id: options.id+'_obTabs-tabs', class:'obTabs-tabs' }),
+    content: $('<div/>', { id: options.id+'_obTabs-content', class:'obTabs-content' })
+  }
+
+  let key = 0;
+  $.each(options.tabs, function (idx, value) {
+    if (value != null) {
+      tabs.control.append(
+        $('<div/>', { id: options.id+'_obTab'+key, class:'obTabs-tab' })
+          .html(value.title)
+          .bind('click', function() {
+            showtab($(this).attr('id'));
+          })
+        );
+      tabs.content.append(
+        $('<div/>', { id: options.id+'_obTab'+key+'-content', class:'obTabs-tab-content' }).append(value.html)
+      );
+      key++;
+    }
+  });
+  tabs.element.append(tabs.control, tabs.content);
+
+
+  /******************************************************************
+   * Public
+   ******************************************************************/
+
+  // Retrieve element
+  this.html = function() {
+    setTimeout(function() { showtab(options.id+'_obTab0'); }, 0);
+    return tabs.element;
+  }
+
+  // obTabs onclick
+  this.showtab = function(tabname) {
+    setTimeout(function() { showtab(options.id+'_obTab0'); }, 0);
+  }
+
+  /******************************************************************
+   * Private
+   ******************************************************************/
+
+  // obTabs onclick
+  function showtab(tabname) {
+    $('.obTabs-tab').removeClass('active');
+    $('.obTabs-tab-content').hide();
+    $(`#${tabname}`).addClass('active');
+    let tabcontent = $(`#${tabname}-content`);
+    tabcontent.show();
+    $.each(tabcontent.find('.obTable-tb'), function() {
+      $(this).obTableRedraw();
+    });
   }
 
 }

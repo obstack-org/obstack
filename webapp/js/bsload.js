@@ -6,81 +6,50 @@
 
 'use strict';
 
+// Development options
+const debug = false;
+const build = '231012'
+
 // Loading options
-const hthead = $('head')
+const hthead = $('head');
 const htinit = [
-  "js/const.js",
   "css/index.css",
   "css/login.css",
   "css/titlebar.css",
   "css/sidebar.css",
   "css/content.css",
-  "lib/jsonform/underscore.js",
-  "lib/jsonform/jsonform.js",
-  "js/frm_login.js",
-];
-const htapp = [
   "lib/obui/obui.js",
   "lib/obui/obui.css",
-  "js/frm_titlebar.js",
-  "js/frm_sidebar.js",
-  "js/mod_obj.js",
-  "js/mod_user.js",
-  "js/mod_group.js",
-  "js/mod_objconf.js",
-  "js/mod_valuemap.js"
+  "js/obstack.js",
 ];
 
-// Define structural arrays
-var mod = {};
-var frm = {};
-
-// Function for locking all functions in an array
-function lockfuncts(rootobj) {
-  var depth = 0;    // Max depth to prevent infinite loop
-  $.each(rootobj, function (key, value) {
-    if ((typeof value === 'object') && (value.tagName !== 'DIV') && (depth < 16 )) {
-      lockfuncts(value);
-      depth++;
-    }
-    if (typeof value === 'function') {
-      Object.freeze(value);
-    }
+async function bsload(srclist, reset) {
+  let dbg = bsdbg(reset);
+  $.each(srclist, function(ids, src) {
+    setTimeout(function() {
+      switch(src.split('.').reverse()[0]) {
+        case 'js':
+          hthead.append($('<script/>', { type: 'text/javascript', src: `${src}${dbg}` }));
+          break;
+        case 'css':
+          hthead.append($('<link/>', { type: 'text/css', rel: 'stylesheet', href: `${src}${dbg}` }));
+          break;
+      }
+    },0);
+    return true;
   });
 }
 
-async function adhead(type, prop) {
-  hthead.append($(type, prop));
+function bsdbg(reset) {
+  let dbg = '';
+  let strbld = localStorage.getItem('obstack:build');
+  if ((strbld != build) || debug) {
+    dbg = `?_=${$.now()}`;
+    if (reset == true) {
+      localStorage.setItem('obstack:build', build);
+    }
+  }
+  return dbg;
 }
 
-function bsload(htload) {
-  let dbg = '';
-  // Full reload on deviating build version
-  let lockey = `obstack_ver_0x${('0000'+htload.length).slice(-4)}`;
-  let strbld = localStorage.getItem(lockey);
-  if (strbld != build) {
-    dbg = `?_=${$.now()}`;
-    localStorage.setItem(lockey,build);
-  }
-  // Full reload when debug is enabled
-  if (typeof debug !== 'undefined' && debug) { dbg = `?_=${$.now()}`; }
-  // Load
-  $.each(
-    htload,
-    function(idx,src) {
-      switch(src.split('.').reverse()[0]) {
-        case 'js':
-          //hthead.append($('<script/>', { type: 'text/javascript', src: `${src}${dbg}` }));
-          adhead('<script/>', { type: 'text/javascript', src: `${src}${dbg}` });
-          break;
-        case 'css':
-          //hthead.append($('<link/>', { type: 'text/css', rel: 'stylesheet', href: `${src}${dbg}` }));
-          adhead('<link/>', { type: 'text/css', rel: 'stylesheet', href: `${src}${dbg}` });
-          break;
-      }
-    }
-  );
-  // Freeze functions
-  lockfuncts(mod);
-  lockfuncts(frm);
-}
+bsload(htinit);

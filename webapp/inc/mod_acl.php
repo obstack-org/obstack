@@ -13,7 +13,7 @@ class mod_acl {
   /******************************************************************
    * Initialize
    ******************************************************************/
-  function __construct($db) {
+  public function __construct($db) {
     $this->db = $db;
   }
 
@@ -21,7 +21,7 @@ class mod_acl {
    * List ACL's by group
    ******************************************************************/
 
-  function group_list($groupid) {
+  public function group_list($groupid) {
     $dbquery = "
       SELECT
         ot.id,
@@ -45,7 +45,7 @@ class mod_acl {
    * Save ACL's by group
    ******************************************************************/
 
-  function group_save($groupid, $data) {
+  public function group_save($groupid, $data) {
     $this->db->query('DELETE FROM objtype_acl WHERE smgroup=:group', ['group'=>$groupid]);
     foreach ($data as $rec) {
       if ($rec['read'] || $rec['create'] || $rec['update'] || $rec['delete']) {
@@ -67,7 +67,7 @@ class mod_acl {
    * Delete ACL's by group
    ******************************************************************/
 
-  function group_delete($groupid) {
+  public function group_delete($groupid) {
     $this->db->query('DELETE FROM objtype_acl WHERE smgroup=:group', ['group'=>$groupid]);
     return [];
   }
@@ -76,7 +76,7 @@ class mod_acl {
    * List ACL's by object type
    ******************************************************************/
 
-  function objtype_list($otid) {
+  public function objtype_list($otid) {
     if (strlen($otid) < 36) {
       $dbquery = "
         SELECT
@@ -117,7 +117,7 @@ class mod_acl {
    * Save ACL's by object type
    ******************************************************************/
 
-  function objtype_save($otid, $data) {
+  public function objtype_save($otid, $data) {
     $this->db->query('DELETE FROM objtype_acl WHERE objtype=:objtype', ['objtype'=>$otid]);
     foreach ($data as $rec) {
       if ($rec['read'] || $rec['create'] || $rec['update'] || $rec['delete']) {
@@ -139,7 +139,7 @@ class mod_acl {
    * Delete ACL's by object type
    ******************************************************************/
 
-  function objtype_delete($otid) {
+  public function objtype_delete($otid) {
     $this->db->query('DELETE FROM objtype_acl WHERE objtype=:objtype', ['objtype'=>$otid]);
     return [];
   }

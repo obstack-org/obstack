@@ -36,7 +36,7 @@ if ($api->route('/auth/user')) {
 if ($api->route('/auth/user/{user}')) {
   if ($api->method("GET"))      { $result = $sessman->user_list($api->param('user'))[0]; }
   if ($api->method("PUT"))      { $result = $sessman->user_save($api->param('user'), $payload)[0]; }
-  if ($api->method("DELETE"))   { if ($sessman->user_delete($api->param('user'))) $result = ['delete'=>true]; }
+  if ($api->method("DELETE"))   { if ($sessman->user_delete($api->param('user'))) { $result = ['delete'=>true]; } }
 }
 
 // --> /auth/user/[user]/group
@@ -48,7 +48,7 @@ if ($api->route('/auth/user/{user}/group')) {
 // --> /auth/user/[user]/group/[group]
 if ($api->route('/auth/user/{user}/group/{group}')) {
   if ($api->method("GET"))      { $result = $sessman->group_list($api->param('group'))[0]; }
-  if ($api->method("DELETE"))   { if ($sessman->usergroup_delete($api->param('user'), $api->param('group'))) $result = ['delete'=>true]; }
+  if ($api->method("DELETE"))   { if ($sessman->usergroup_delete($api->param('user'), $api->param('group'))) { $result = ['delete'=>true]; } }
 }
 
 // --> /auth/user/[user]/token
@@ -61,7 +61,7 @@ if ($api->route('/auth/user/{user}/token')) {
 if ($api->route('/auth/user/{user}/token/{token}')) {
   if ($api->method("GET"))      { $result = $sessman->usertoken_list($api->param('user'), $api->param('token'))[0]; }
   if ($api->method("PUT"))      { $result = $sessman->usertoken_save($api->param('user'), $api->param('token'), $payload['name'], $payload['expiry']); }
-  if ($api->method("DELETE"))   { if ($sessman->usertoken_delete($api->param('user'), $api->param('token'))) $result = ['delete'=>true]; }
+  if ($api->method("DELETE"))   { if ($sessman->usertoken_delete($api->param('user'), $api->param('token'))) { $result = ['delete'=>true]; } }
 }
 
 // --> /auth/group
@@ -74,5 +74,5 @@ if ($api->route('/auth/group')) {
 if ($api->route('/auth/group/{group}')) {
   if ($api->method("GET"))      { $result = $sessman->group_list($api->param('group'))[0]; }
   if ($api->method("PUT"))      { $result = $sessman->group_save($api->param('group'), $payload)[0]; }
-  if ($api->method("DELETE"))   { if ($sessman->group_delete($api->param('group'))) $result = ['delete'=>true]; }
+  if ($api->method("DELETE"))   { if ($sessman->group_delete($api->param('group'))) { $result = ['delete'=>true]; } }
 }

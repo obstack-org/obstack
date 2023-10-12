@@ -18,7 +18,7 @@ class mod_valuemap {
   /******************************************************************
    * Initialize
    ******************************************************************/
-  function __construct($db) {
+  public function __construct($db) {
     $this->db = $db;
   }
 
@@ -26,8 +26,8 @@ class mod_valuemap {
    * Boolean as string
    ******************************************************************/
   private function bool2str($var) {
-    if ($var) return 'true';
-    if ($var == '1') return 'true';
+    if ($var) { return 'true'; }
+    if ($var == '1') { return 'true'; }
     return 'false';
   }
 
@@ -35,7 +35,7 @@ class mod_valuemap {
    * List valuemaps
    *  [ { id, name, prio }, {} ]
    ******************************************************************/
-  function list($id = null) {
+  public function list($id = null) {
     if ($id == null) {
       return $this->db->query('SELECT id, name FROM valuemap ORDER BY name', []);
     }
@@ -47,7 +47,7 @@ class mod_valuemap {
   /******************************************************************
    * Save valuemap (create/update)
    ******************************************************************/
-  function save($id, $data) {
+  public function save($id, $data) {
     $dbparams = [];
     // Valuemap configuration
     if (isset($data['name'])) { $dbparams['name'] = $data['name']; }
@@ -92,16 +92,16 @@ class mod_valuemap {
   /******************************************************************
    * Delete valuemap
    ******************************************************************/
-  function delete($id) {
+  public function delete($id) {
     $this->db->query('DELETE FROM valuemap_value WHERE valuemap=:valuemap', [':valuemap'=>$id]);
     $count = count($this->db->query('DELETE FROM valuemap WHERE id=:id RETURNING *', [':id'=>$id]));
-    return ($count > 0);
+    return $count > 0;
   }
 
   /******************************************************************
    * value open
    ******************************************************************/
-  function value_list($vmid, $id = null) {
+  public function value_list($vmid, $id = null) {
     if ($id == null) {
       $vmconfig = $this->db->query('SELECT prio FROM valuemap WHERE id=:vmid', [':vmid'=>$vmid])[0];
       $priosort = 'name';
@@ -118,7 +118,7 @@ class mod_valuemap {
   /******************************************************************
    * value save
    ******************************************************************/
-  function value_save($vmid, $id, $data) {
+  public function value_save($vmid, $id, $data) {
     $dbqprio = '';
     $dbparams = [':vmid'=>$vmid, ':name'=>$data['name']];
     if ($id == null) {
@@ -142,9 +142,9 @@ class mod_valuemap {
   /******************************************************************
    * value delete
    ******************************************************************/
-  function value_delete($vmid, $id) {
+  public function value_delete($vmid, $id) {
     $count = count($this->db->query('DELETE FROM valuemap_value WHERE valuemap=:vmid AND id=:id RETURNING *', [':id'=>$id, ':vmid'=>$vmid]));
-    return ($count > 0);
+    return $count > 0;
   }
 
 }
