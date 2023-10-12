@@ -134,7 +134,7 @@ mod['group'] = {
     });
 
     content.append(new obContent({
-      name: [ $('<a/>', { class:'link', html:'Object types', click:function() { mod.group.list(); } }), ` / ${(id==null)?'[new]':api_group.groupname},` ],
+      name: [ $('<a/>', { class:'link', html:'Groups', click:function() { mod.group.list(); } }), ` / ${(id==null)?'[new]':api_group.groupname}` ],
       content: obtabs.html(),
       control: [
         // -- Save
@@ -162,120 +162,6 @@ mod['group'] = {
         $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function() { mod.group.close(); }),
       ]
     }).html());
-
-    /*
-    // Generate HTML
-    let group = {
-      config:     $('<form/>', { class: 'content-form' }),
-    }
-    let acllist = {
-      control:  $('<div/>', { class: 'tblwrap-control' }),
-      content:  $('<div/>', { class: 'tblwrap-table' }),
-      footer:   $('<div/>', { class: 'tblwrap-footer' }),
-      table:    null
-    };
-    let ctwrap = {
-      name:     $('<div/>'),
-      tabs:     $('<div/>', { class: 'content-tab' }),
-      control:  $('<div/>', { class: 'content-wrapper-control-right' })
-    }
-
-    for (let i=0; i<api_acl.length; i++) {
-      api_acl[i]['read']   = $('<input/>', { type:'checkbox', class:'nomrg', checked:api_acl[i]['read'] });
-      api_acl[i]['create'] = $('<input/>', { type:'checkbox', class:'nomrg', checked:api_acl[i]['create'] });
-      api_acl[i]['update'] = $('<input/>', { type:'checkbox', class:'nomrg', checked:api_acl[i]['update'] });
-      api_acl[i]['delete'] = $('<input/>', { type:'checkbox', class:'nomrg', checked:api_acl[i]['delete'] });
-    }
-
-    acllist.table = new obTable({
-      id: 'f35f45de66157761e7d7e4b7361beb840a3ec9ef',
-      data: api_acl,
-      columns: [
-        { id: 'name', name:'Name' },
-        { id: 'read', name:'Read' },
-        { id: 'create', name:'Create' },
-        { id: 'update', name:'Update' },
-        { id: 'delete', name:'Delete' }
-      ],
-      columns_resizable: true,
-      columns_hidden: ['id']
-    });
-    acllist.control.append( $('<input/>', { width: 300, class: 'tblwrap-control-search' }).on('keyup', function() { acllist.table.search(this.value); }) );
-    acllist.content.append(acllist.table.html());
-    acllist.footer.append(`Assigned object types: ${api_acl.length}`);
-
-    content.empty().append(
-      $('<div/>', { class: 'content-header' }).html(ctwrap.name),
-      $('<div/>', { class: 'content-wrapper' }).append(
-        ctwrap.tabs,
-        ctwrap.control
-      )
-    );
-    let ctabs = [
-      { title: 'Group',   html: $('<div/>', { class: 'content-tab-wrapper' }).append( group.config ) },
-      { title: 'Access',  html: $('<div/>', { class: 'content-tab-wrapper' }).append(
-        acllist.control,
-        acllist.content,
-        acllist.footer,
-        acllist.control
-      )}
-
-    ];
-
-    ctwrap.name.append(
-      $('<a/>', {
-        class: 'link',
-        html: 'Groups',
-        click: function() { mod.group.list(); }
-      }),
-      ` / ${api_group.groupname}`
-    );
-
-    ctwrap.tabs.obTabs({
-      tabs: ctabs
-    });
-
-    // Format and load form fields
-    jfschema = {
-      groupname:  { title: 'Name',  type: 'string', default: api_group.groupname },
-      ldapcn:     { title: 'LDAP CN',  type: 'string', default: api_group.ldapcn },
-      radiusattr: { title: 'Radius Attribute',  type: 'string', default: api_group.radiusattr }
-    }
-    group.config.jsonForm({
-      schema: jfschema,
-      form: ['*']
-    });
-
-    // Add onclick for empty password field
-    group.config.find(':input').each(function() {
-      if ($(this).prop('name').substring(0,4) == 'pass') {
-        $(this).on('click', function(event) {
-          if ($(this).val() == '•••••••') {
-            $(this).val('');
-          }
-        });
-      }
-    });
-
-    // Add object type buttons
-    ctwrap.control.append( $('<input/>', { class: 'btn', type: 'submit', value: 'Save'  }).on('click', function(event) { mod.group.save(id, group.config, acllist.table); }) );
-    if ((id != null) && (id != 'self')) {
-      ctwrap.control.append( $('<input/>', { class: 'btn', type: 'submit', value: 'Delete'  }).on('click', function(event) {
-        if (confirm('Are you sure you want to delete this group?')) {
-          $.when(
-            api('delete',`auth/group/${id}/acl`)
-          ).always(function() {
-            $.when(
-              api('delete',`auth/group/${id}`)
-            ).always(function() {
-              mod.group.close();
-            });
-          });
-        }
-      }));
-    }
-    ctwrap.control.append( $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function(event) { mod.group.close(); }) );
-    */
 
   },
 

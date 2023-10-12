@@ -1,6 +1,6 @@
 # ObStack
 
-ObStack is an open source tool allowing a user to fully dynamically configure data object types, and manage the objects and data as suited. Both object configuration and data can be fully by managed by a web interface or the API. This allows ObStack to be used as CMDB / Configuration manager, asset manager, content manager, deployment manager, a quick and simple management portal or whatever application one may seem fit.
+ObStack is an open source tool allowing a user to fully dynamically configure data object types, and manage the objects and data as suited. Both object configuration and data can be fully managed by a web interface or API. This allows ObStack to be used as CMDB / Configuration manager, asset manager, content manager, deployment manager, a quick and simple management portal or whatever application that may seem fit.
 
 For more information visit <a href="https://www.obstack.org" target="_blank">https://www.obstack.org</a>.
 

@@ -20,7 +20,7 @@ mod['obj'] = {
    * Array of field types used in jsonForm schema. Content is loaded
    * from const after loading module
    ******************************************************************/
-   jftypes: {},
+  jftypes: {},
 
   /******************************************************************
    * mod.obj.list(type)
@@ -143,7 +143,6 @@ mod['obj'] = {
    *    api_..  : API data
    ******************************************************************/
   open_htgen: function(type, id, api_objtype, api_objproperty, api_obj, api_obj_short, api_relations, api_log) {
-
     // Load
     let propform_value = {};
     $.each(api_obj, function(idx, value) {
@@ -156,7 +155,8 @@ mod['obj'] = {
           id:property.id,
           name:property.name,
           type:def.property_type[property.type],
-          value:(property.id in propform_value)?propform_value[property.id]:null
+          value:(property.id in propform_value)?propform_value[property.id]:null,
+          readonly:!api_objtype.acl.update
         }]
      });
      let propform = new obForm(propform_data);
@@ -228,7 +228,7 @@ mod['obj'] = {
         columns_hidden: ['id', 'objtype']
       },
       search:   true,
-      create:   function() { mod.obj.relations.open(type, id, rellist.table(), null); },
+      create:   (!api_objtype.acl.update)?null:function() { mod.obj.relations.open(type, id, rellist.table(), null); },
       open:     function(td) {
         let tr = $(td).parent();
         if (tr.hasClass('delete')) {
@@ -237,7 +237,7 @@ mod['obj'] = {
           }
         }
         else {
-          mod.obj.relations.open(type, id, rellist.table(), tr);
+          mod.obj.relations.open(type, id, rellist.table(), tr, api_objtype.acl.update);
         }
       }
     });
@@ -272,11 +272,11 @@ mod['obj'] = {
     ]});
 
     let obcontent = {
-      name: [$('<a/>', { class:'link', html:`${api_objtype.name}`, click:function() { mod.obj.list(type); } }), ` / ${(id==null)?'[new]':api_obj.name}`],
+      name: [$('<a/>', { class:'link', html:`${api_objtype.name}`, click:function() { mod.obj.list(type); } }), ` / ${(id==null)?'[new]':api_obj_short[0].name}`],
       content: obtabs.html(),
       control: [
         // -- Save
-        $('<input/>', { class:'btn', type:'submit', value:'Save'  }).on('click', function() {
+        (!api_objtype.acl.update)?null:$('<input/>', { class:'btn', type:'submit', value:'Save'  }).on('click', function() {
           let propform_data = propform.validate();
           if (propform_data != null) {
             mod.obj.save(type, id, propform_data, rellist.table());
@@ -286,11 +286,9 @@ mod['obj'] = {
           }
         }),
         // -- Delete
-        $('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
-          if (confirm('WARNING!: This action wil permanently delete this object type, all related objects and all related values. Are you sure you want to continue?')) {
-            if (confirm('WARNING!: Deleting object type. This can NOT be undone, are you really really sure?')) {
-              $.when( api('delete',`objecttype/${type}/object/${id}`) ).always(function() { mod.obj.list(type); });
-            }
+        (!api_objtype.acl.delete)?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
+          if (confirm('WARNING!: This action wil permanently delete this object, are you sure you want to continue?')) {
+            $.when( api('delete',`objecttype/${type}/object/${id}`) ).always(function() { mod.obj.list(type); });
           }
         }),
         // -- Close
@@ -466,7 +464,7 @@ mod['obj'] = {
           let popup = new obPopup({
             content: new obForm(api_obj).html(),
             control: [
-              $('<input/>', { class:'btn', type:'submit', value:'Unassign' }).on('click', function() { row.addClass('delete'); popup.remove(); }),
+              (!acl_update)?null:$('<input/>', { class:'btn', type:'submit', value:'Unassign' }).on('click', function() { row.addClass('delete'); popup.remove(); }),
               $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() { popup.remove(); })
             ]
           });

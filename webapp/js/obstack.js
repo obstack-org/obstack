@@ -69,7 +69,7 @@ $(document).ready( function () {
   }).done(function() {
     // Load content
     $.when(
-      bsload(obinit)
+      bsload(obinit, true)
     ).always(function() {
       lockfuncts(mod);
       lockfuncts(frm);
