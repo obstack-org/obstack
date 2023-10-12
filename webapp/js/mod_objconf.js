@@ -189,7 +189,7 @@ mod['objconf'] = {
     });
 
     // Access
-    for (let i of api_acl) {
+    for (let i=0; i<api_acl.length; i++) {
       api_acl[i]['read']   = $('<input/>', { type:'checkbox', class:'nomrg', checked:api_acl[i]['read'] });
       api_acl[i]['create'] = $('<input/>', { type:'checkbox', class:'nomrg', checked:api_acl[i]['create'] });
       api_acl[i]['update'] = $('<input/>', { type:'checkbox', class:'nomrg', checked:api_acl[i]['update'] });

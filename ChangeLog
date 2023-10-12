@@ -2,8 +2,8 @@
  CHANGES
 *********
 
-xx-xx-2023:
-- Refactor frontend framework
+12-10-2023:
+- Full frontend refactoring
 - Replace jsonForm plugin
 - Revise loading
 

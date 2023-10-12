@@ -223,7 +223,7 @@ class mod_obj {
             $value = $current;
           }
         }
-        if (($value != $current) && (strlen($value) > 1)) {
+        if ($value != $current) {
           $this->db->query("INSERT INTO value_$table VALUES (:obj,:objproperty,:value) ON CONFLICT (obj,objproperty) DO UPDATE SET value=:value", [':obj'=>$id, ':objproperty'=>$key, ':value'=>$value]);
           if (!$newrec) {
             $tmplog .= ', '.$dbtmp[0]->name;

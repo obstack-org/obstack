@@ -8,7 +8,7 @@
 
 // Development options
 const debug = false;
-const build = '231004'
+const build = '231012'
 
 // Loading options
 const hthead = $('head');
@@ -23,8 +23,8 @@ const htinit = [
   "js/obstack.js",
 ];
 
-async function bsload(srclist) {
-  let dbg = bsdbg();
+async function bsload(srclist, reset) {
+  let dbg = bsdbg(reset);
   $.each(srclist, function(ids, src) {
     setTimeout(function() {
       switch(src.split('.').reverse()[0]) {
@@ -40,12 +40,14 @@ async function bsload(srclist) {
   });
 }
 
-function bsdbg() {
+function bsdbg(reset) {
   let dbg = '';
   let strbld = localStorage.getItem('obstack:build');
   if ((strbld != build) || debug) {
     dbg = `?_=${$.now()}`;
-    localStorage.setItem('obstack:build', build);
+    if (reset == true) {
+      localStorage.setItem('obstack:build', build);
+    }
   }
   return dbg;
 }

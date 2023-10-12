@@ -172,7 +172,7 @@ class sessman {
     // Unauthorized, reset session id
     session_destroy();
     session_regenerate_id();
-    session_id(bin2hex(random_bytes(random_int(48,64))));
+    session_id(bin2hex(random_bytes(random_int(56,64))));
     session_start();
     return false;
   }
