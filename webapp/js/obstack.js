@@ -137,6 +137,9 @@ function api(httpmethod, path, data) {
           location.reload(true);
         }
       }
+      else if (response.status == 404) {
+        alert('No access to object');
+      }
       // On debug log responses
       else if (debug) {
         console.log({status:response.status, request:`${httpmethod}: ${path}`, data:data});
@@ -159,6 +162,31 @@ function lockfuncts(rootobj) {
       Object.freeze(value);
     }
   });
+}
+
+// Get object from list by value
+function getObject(list, key, value) {
+  for (let i in list) {
+    if (key in list[i]) {
+      if (list[i][key] == value) return list[i];
+    }
+  }
+  return null;
+}
+
+// Sort list of objects
+function lsSort(list, key) {
+  list.sort(function (a, b) {
+    let data = [a,b];
+    for(let i = 0; i <= 1; i++) {
+      data[i] = data[i][key].trim();
+      if (data[i].match(/^\d*(\s|$)/)) {
+        data[i] = tbpad(data[i].slice(0, data[i].search(/[a-zA-Z\-\s_]/)),12) + data[i].slice(data[i].search(/[a-zA-Z\-\s_]/));
+      }
+    }
+    return data[0].localeCompare(data[1]);
+  });
+  return list;
 }
 
 // Numeric padding

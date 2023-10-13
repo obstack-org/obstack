@@ -104,9 +104,6 @@ class mod_obj {
     // Process ACL
     $acl = $this->acl($otid);
     if (!$acl->read) {
-      if ($this->format('short')) {
-        return [ [ 'id'=>null, 'name'=>'🛇' ] ];
-      }
       return null;
     }
     // Handle formats
@@ -151,12 +148,29 @@ class mod_obj {
     if ($this->format('gui')) {
       $cache = [];
       foreach ($this->db->query($dbquery, [':otid'=>$otid, ':id'=>$id]) as $rec) {
-        if ($rec->type == 3) {
+        if ($rec->type == 3 && $rec->value != null) {
           array_push($cache, ['id'=>$rec->id, 'type'=>$rec->type, 'label'=>$rec->label, 'value'=>$this->objtype->list_short(null, $rec->value)[0]['name']]);
         }
         else {
           array_push($cache, $rec);
         }
+      }
+      $result = $cache;
+    }
+    // Temporary fix for human readable values, update in v1.1.2
+    elseif ($this->format('hr')) {
+      $cache = [];
+      foreach ($this->db->query($dbquery, [':otid'=>$otid, ':id'=>$id]) as $rec) {
+        if ($rec->type == 3 && $rec->value != null) {
+          $rec->value_hr = $this->objtype->list_short(null, $rec->value)[0]['name'];
+        }
+        elseif ($rec->type == 4) {
+          $rec->value_hr = $this->db->query('SELECT name FROM valuemap_value WHERE id=:id', [':id'=>$rec->value])[0]->name;
+        }
+        else {
+          $rec->value_hr = $rec->value;
+        }
+        array_push($cache, $rec);
       }
       $result = $cache;
     }
