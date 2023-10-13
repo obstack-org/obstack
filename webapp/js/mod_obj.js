@@ -124,7 +124,7 @@ mod['obj'] = {
         $.when(
           api('get',`objecttype/${type}?format=gui`),
           api('get',`objecttype/${type}/property`),
-          api('get',`objecttype/${type}/object/${id}`),
+          api('get',`objecttype/${type}/object/${id}?format=hr`),
           api('get',`objecttype/${type}/object/${id}?format=short`),
           api('get',`objecttype/${type}/object/${id}/relation`)
         ).done(function(api_objtype, api_objproperty, api_obj, api_obj_short, api_relations) {
@@ -144,6 +144,7 @@ mod['obj'] = {
    ******************************************************************/
   open_htgen: function(type, id, api_objtype, api_objproperty, api_obj, api_obj_short, api_relations, api_log) {
     // Load
+    let acl_save = (mod.user.self.sa)?true:(id==null)?api_objtype.acl.create:api_objtype.acl.update;
     let propform_value = {};
     $.each(api_obj, function(idx, value) {
       propform_value[value.id] = value.value;
@@ -156,7 +157,7 @@ mod['obj'] = {
           name:property.name,
           type:def.property_type[property.type],
           value:(property.id in propform_value)?propform_value[property.id]:null,
-          readonly:!api_objtype.acl.update
+          readonly:!acl_save
         }]
      });
      let propform = new obForm(propform_data);
@@ -173,13 +174,21 @@ mod['obj'] = {
           $.when(
             api('get',`objecttype/${property.type_objtype}/object?format=short`)
           ).done(function(otdata) {
-            $.each(otdata, function(idx, option) {
-              let htopt = $('<option/>').text(option.name).val(option.id);
-              if (option.id == value) {
-                htopt.attr('selected','selected');
+            if (otdata[0].id == null) {
+              let option = getObject(api_obj, 'id', property.id);
+              if (option != null) {
+                select.append($('<option/>').text(option.value_hr).val(option.id));
               }
-              select.append(htopt);
-            });
+            }
+            else {
+              $.each(lsSort(otdata, 'name'), function(idx, option) {
+                let htopt = $('<option/>').text(option.name).val(option.id);
+                if (option.id == value) {
+                  htopt.attr('selected','selected');
+                }
+                select.append(htopt);
+              });
+            }
           });
         }
         // Value Map
@@ -228,7 +237,7 @@ mod['obj'] = {
         columns_hidden: ['id', 'objtype']
       },
       search:   true,
-      create:   (!api_objtype.acl.update)?null:function() { mod.obj.relations.open(type, id, rellist.table(), null); },
+      create:   (!acl_save)?null:function() { mod.obj.relations.open(type, id, rellist.table(), null); },
       open:     function(td) {
         let tr = $(td).parent();
         if (tr.hasClass('delete')) {
@@ -237,7 +246,7 @@ mod['obj'] = {
           }
         }
         else {
-          mod.obj.relations.open(type, id, rellist.table(), tr, api_objtype.acl.update);
+          mod.obj.relations.open(type, id, rellist.table(), tr, acl_save);
         }
       }
     });
@@ -276,7 +285,7 @@ mod['obj'] = {
       content: obtabs.html(),
       control: [
         // -- Save
-        (!api_objtype.acl.update)?null:$('<input/>', { class:'btn', type:'submit', value:'Save'  }).on('click', function() {
+        (!acl_save)?null:$('<input/>', { class:'btn', type:'submit', value:'Save'  }).on('click', function() {
           let propform_data = propform.validate();
           if (propform_data != null) {
             mod.obj.save(type, id, propform_data, rellist.table());
