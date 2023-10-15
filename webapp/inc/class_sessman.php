@@ -444,7 +444,7 @@ class sessman {
       if (isset($data['groups'])) {
         foreach($data['groups'] as $groupid) { $this->usergroup_save($id, ['id'=>$groupid]); }
       }
-      return [ 'id'=>$id ];
+      return [ [ 'id'=>$id ] ];
     }
     // Update user
     else {
