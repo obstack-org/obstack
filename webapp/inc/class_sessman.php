@@ -444,7 +444,7 @@ class sessman {
       if (isset($data['groups'])) {
         foreach($data['groups'] as $groupid) { $this->usergroup_save($id, ['id'=>$groupid]); }
       }
-      return [ [ 'id'=>$id ] ];
+      return [ ['id'=>$id] ];
     }
     // Update user
     else {
@@ -670,12 +670,20 @@ class sessman {
     if ($id == null) {
       $dbqcol = substr($dbqcol,2);
       $dbqval = substr($dbqval,2);
-      return $this->db->query("INSERT INTO sessman_group ($dbqcol) VALUES ($dbqval) RETURNING id", $dbparams);
+      $id = $this->db->query("INSERT INTO sessman_group ($dbqcol) VALUES ($dbqval) RETURNING id", $dbparams)[0]->id;
+      if (isset($data['users'])) {
+        foreach($data['users'] as $userid) { $this->groupmember_save($id, ['id'=>$userid]); }
+      }
+      return [ ['id'=>$id] ];
     }
     // Update group
     else {
       $dbqupd = substr($dbqupd,2);
       $dbparams['id'] = $id;
+      if (isset($data['users'])) {
+        $this->db->query('DELETE FROM sessman_usergroups WHERE smgroup=:smgroup', [':smgroup'=>$id]);
+        foreach($data['users'] as $userid) { $this->groupmember_save($id, ['id'=>$userid]); }
+      }
       return $this->db->query("UPDATE sessman_group SET $dbqupd WHERE id=:id", $dbparams);
     }
   }
@@ -689,6 +697,35 @@ class sessman {
     $this->db->query('DELETE FROM sessman_usergroups WHERE smgroup=:id', [':id'=>$id]);
     $count = count($this->db->query('DELETE FROM sessman_group WHERE id=:id RETURNING *', [':id'=>$id]));
     return $count > 0;
+  }
+
+  /******************************************************************
+   * List group members (SA only)
+   *    $id = ......    Members by group UUID
+   ******************************************************************/
+  public function groupmember_list($id = null) {
+    if (!$this->SA())  { return false; }
+    $dbquery = '
+      SELECT
+        su.id,
+        su.username,
+        su.firstname,
+        su.lastname,
+        su.active
+      FROM sessman_usergroups sg
+      LEFT JOIN sessman_user su ON su.id = sg.smuser
+      WHERE sg.smgroup = :id
+    ';
+    return $this->db->query($dbquery, [':id'=>$id]);
+  }
+
+  /******************************************************************
+   * Save user group (SA only)
+   ******************************************************************/
+  public function groupmember_save($groupid, $data) {
+    if (!$this->SA())  { return false; }
+    if ($userid == 'self') { return false; }
+    return $this->db->query('INSERT INTO sessman_usergroups VALUES (:smuser, :smgroup)', [':smuser'=>$data['id'], ':smgroup'=>$groupid]);
   }
 
 }

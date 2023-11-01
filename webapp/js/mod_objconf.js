@@ -109,18 +109,16 @@ mod['objconf'] = {
         api('get',`objecttype/${id}/acl`)
       )
       .done(function(api_acl) {
-        mod.objconf.open_htgen(id, { prio:false }, {}, api_acl);
+        mod.objconf.open_htgen(id, { ojbecttype: { prio:false }, property:{}, acl:api_acl });
       });
     }
     // Open
     else {
       $.when(
-        api('get',`objecttype/${id}`),
-        api('get',`objecttype/${id}/property`),
-        api('get',`objecttype/${id}/acl`)
+        api('get',`objecttype/${id}?format=aggr&acl=group`)
       )
-      .done(function(api_conf, api_property, api_acl) {
-        mod.objconf.open_htgen(id, api_conf[0], api_property[0], api_acl[0]);
+      .done(function(api_conf) {
+        mod.objconf.open_htgen(id, api_conf[0]);
       });
     }
   },
@@ -132,7 +130,11 @@ mod['objconf'] = {
    *   id     : Object type UUID
    *   api_.. : API data
    ******************************************************************/
-  open_htgen: function(id, api_conf, api_property, api_acl) {
+  open_htgen: function(id, apidata) {
+
+    let api_conf = apidata.objecttype;
+    let api_property = apidata.property;
+    let api_acl = apidata.acl;
 
     content.empty().append(loader.removeClass('fadein').addClass('fadein'));
 
@@ -235,7 +237,7 @@ mod['objconf'] = {
           }
         }),
         // -- Delete
-        $('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
+        (id == null)?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
           if (confirm('WARNING!: This action wil permanently delete this object type, all related objects and all related values. Are you sure you want to continue?')) {
             if (confirm('WARNING!: Deleting object type. This can NOT be undone, are you really really sure?')) {
               $.when( api('delete',`objecttype/${id}`) ).always(function() { mod.objconf.list(); });

@@ -3,9 +3,9 @@
 /valuemap provides access to value maps.
 
 * [/valuemap](#valuemap)
-* [/valuemap/{valuemap}](#valuemap-valuemap-)
-* [/valuemap/{valuemap}/value](#valuemap-valuemap-value)
-* [/valuemap/{valuemap}/value/{value}](#valuemap-valuemap-value-value-)
+* [/valuemap/{valuemap}](#valuemapvaluemap)
+* [/valuemap/{valuemap}/value](#valuemapvaluemapvalue)
+* [/valuemap/{valuemap}/value/{value}](#valuemapvaluemapvaluevalue)
 
 ### /valuemap
 

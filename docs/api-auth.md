@@ -5,13 +5,13 @@
 * [Tokens](#tokens)
 * [/auth](#auth)
 * [/auth/user](#authuser)
-* [/auth/user/{user}](#authuser-user-)
-* [/auth/user/{user}/group](#authuser-user-group)
-* [/auth/user/{user}/group/{group}](#authuser-user-group-group-)
-* [/auth/user/{user}/token](#authuser-user-token)
-* [/auth/user/{user}/token/{token}](#authuser-user-token-token-)
+* [/auth/user/{user}](#authuseruser)
+* [/auth/user/{user}/group](#authuserusergroup)
+* [/auth/user/{user}/group/{group}](#authuserusergroupgroup)
+* [/auth/user/{user}/token](#authuserusertoken)
+* [/auth/user/{user}/token/{token}](#authuserusertokentoken)
 * [/auth/group](#authgroup)
-* [/auth/group/{group}](#authgroup-group-)
+* [/auth/group/{group}](#authgroupgroup)
 
 ### Tokens
 

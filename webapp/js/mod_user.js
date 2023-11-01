@@ -148,7 +148,7 @@ mod['user'] = {
         { id:'firstname', name:'First name',  type:'string', regex_validate:/^.{2,}$/, value:api_user.firstname },
         { id:'lastname',  name:'Last name',   type:'string', regex_validate:/^.{2,}$/, value:api_user.lastname },
         { id:'active',    name:'Active',      type:'checkbox', value:api_user.active },
-        { id:'tokens',    name:'Tokens',      type:'checkbox', value:api_user.tokens },
+        { id:'tokens',    name:'Tokens',      type:'checkbox', value:api_user.tokens, info:'Change requires save to activate' },
         { id:'sa',        name:'Admin',       type:'checkbox', value:api_user.sa },
       ]
     };

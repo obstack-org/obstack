@@ -16,7 +16,13 @@ if ($api->route('/auth/group/{group}/acl')) {
 }
 
 // --> /objecttype/[objecttype]/acl
-if ($api->route('/objecttype/{objecttype}/acl')) {
+elseif ($api->route('/objecttype/{objecttype}')) {
+  checkSA();
+  if ($api->method('GET'))      { $result[0]->acl = $acl->objtype_list($api->param('objecttype')); }
+}
+
+// --> /objecttype/[objecttype]/acl
+elseif ($api->route('/objecttype/{objecttype}/acl')) {
   checkSA();
   if ($api->method('GET'))      { $result = $acl->objtype_list($api->param('objecttype')); }
   if ($api->method('POST'))     { $result = $acl->objtype_save($api->param('objecttype'), $api->payload()); }

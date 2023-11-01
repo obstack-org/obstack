@@ -560,7 +560,7 @@ var obTable = function(coptions) {
     $.each(Object.keys(options.data[0]).reverse(), function(idx, key) {
       if ($.inArray(key, options.columns_hidden) == -1) {
         options.data = options.data.sort(function(a, b) {
-          let data = [a[key],b[key]];
+          let data = [String(a[key]),String(b[key])];
           for(let i = 0; i <= 1; i++) {
             if (data[i] != null) {
               if (typeof data[i] == 'boolean') {

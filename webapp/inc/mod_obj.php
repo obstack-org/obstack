@@ -2,11 +2,11 @@
 /******************************************************************
  *
  * api_obj($db, $otid)
+ *  -> list($otid, $id)
  *  -> open($otid, $id)
  *  -> save($otid, $id, $data)
  *  -> delete($otid, $id)
- *  -> relation_list($id)
- *  -> relation_list_available($otid, $id)
+ *  -> relation_list($otid, $id $available=false)
  *  -> relation_save($id, $id_ref, $private=false)
  *  -> relation_delete($id, $id_ref, $private=false)
  *  -> log_list($otid, $id)
@@ -17,20 +17,23 @@
 class mod_obj {
 
   private $db;
+  private $format;
+  private $display;
   private $objtype;
-  private $format = null;
-  private $logstate = [];
+  private $valuemap;
   private $datatype  = [ 1=>'varchar', 2=>'decimal', 3=>'uuid', 4=>'uuid', 5=>'decimal', 6=>'text', 7=>'varchar', 8=>'timestamp', 9=>'timestamp' ];
+  private $propertytype = [ 1=>'Text', 2=>'Number', 3=>'Object Type', 4=>'Value Map', 5=>'Checkbox', 6=>'Textbox', 7=>'Password', 8=>'Date', 9=>'DateTime' ];
 
   /******************************************************************
    * Initialize
    ******************************************************************/
-  public function __construct($db, $otid) {
+  public function __construct($db, $objtype, $valuemap) {
     $this->db = $db;
-    $this->objtype = $otid;
-    if (isset($_GET['format'])) {
-      $this->format = $_GET['format'];
-    }
+    $this->format = '';
+    $this->objtype = $objtype;
+    $this->valuemap = $valuemap;
+    if (isset($_GET['format'])) { $this->format = $_GET['format']; }
+    if (isset($_GET['display'])) { $this->display = $_GET['display']; }
   }
 
   /******************************************************************
@@ -44,140 +47,296 @@ class mod_obj {
   }
 
   /******************************************************************
-   * Active permissions
+   * Convert array to marks and params for SQL query:
+   * $db->query(
+   *    "... WHERE value IN ($list2in->marks)",
+   *    $list2in->params )
    ******************************************************************/
-  private function acl($otid) {
-    if ($_SESSION['sessman']['sa']) {
-      return (object)[ 'read'=>true, 'create'=>true, 'update'=>true, 'delete'=>true ];
+  private function list2in($list, $prefix='i') {
+    $result = (object)[ 'marks'=>[], 'params'=>[] ];
+    foreach($list as $id=>$value) {
+      $result->marks[] = ":$prefix$id";
+      $result->params[":$prefix$id"] = $value;
     }
-    else {
-      $groups = str_replace('"','\'',substr(json_encode($_SESSION['sessman']['groups']),1,-1));
-      if (strlen($groups) > 0) {
-        $dbquery = "
-          SELECT
-            CAST(MAX(CAST(read AS int)) AS bool) AS read,
-            CAST(MAX(CAST(\"create\" AS int)) AS bool) AS \"create\",
-            CAST(MAX(CAST(update AS int)) AS bool) AS update,
-            CAST(MAX(CAST(delete AS int)) AS bool) AS delete
-          FROM objtype_acl AS ota
-          WHERE ota.smgroup IN ($groups)
-          AND ota.objtype = :otid
-        ";
-        return $this->db->query($dbquery, [':otid'=>$otid])[0];
-      }
-      else {
-        return [];
-      }
-    }
+    $result->marks = implode(',', $result->marks);
+    return $result;
   }
 
-  private function acl_obj($id) {
-    if ($_SESSION['sessman']['sa']) {
-      return (object)[ 'read'=>true, 'create'=>true, 'update'=>true, 'delete'=>true ];
+  /******************************************************************
+   * List Objects
+   * ============
+   * $otid / $id    UUID or array of UUID's
+   * ?format=       none (default), text, expand, full, aggr
+   ******************************************************************/
+  private function list_full($otid=null, $id=null, $format_overwrite=null, $cache=null, $depth=0) {
+    // Prepare
+    $result = [];
+    $format = (object)[ 'none'=>false, 'text'=>false, 'expand'=>false, 'full'=>false, 'aggr'=>false ];
+    if ($format_overwrite != null) {
+      $format->$format_overwrite = true;
     }
     else {
-      $groups = str_replace('"','\'',substr(json_encode($_SESSION['sessman']['groups']),1,-1));
-      if (strlen($groups) > 0) {
-        $dbquery = "
-          SELECT
-            CAST(MAX(CAST(read AS int)) AS bool) AS read,
-            CAST(MAX(CAST(\"create\" AS int)) AS bool) AS \"create\",
-            CAST(MAX(CAST(update AS int)) AS bool) AS update,
-            CAST(MAX(CAST(delete AS int)) AS bool) AS delete
-          FROM objtype_acl AS ota
-          LEFT JOIN obj AS o ON o.objtype = ota.objtype
-          WHERE ota.smgroup IN ($groups)
-          AND o.id = :id
-        ";
-        return $this->db->query($dbquery, [':id'=>$id])[0];
-      }
-      else {
-        return [];
+      if (in_array($this->format, array_keys((array)$format))) {
+        $tfmt = $this->format;
+        $format->$tfmt = true;
       }
     }
+    $xlist = (object)[ 'valuemap'=>[], 'object'=>[] ];
+    if ($cache == null) {
+      $cache = (object)[ 'valuemap'=>[], 'object'=>[] ];
+    }
+
+    // Filter
+    $dbq = (object)[ 'filter'=>[], 'params'=>[] ];
+    $dbqlabel = ($format->expand || $format->full) ? 'op.name as label,' : '';
+    if ($otid != null) {
+      if (!is_array($otid)) {
+        $otid = [ $otid ];
+      }
+      $dbqin = $this->list2in($otid, 'otid');
+      $dbq->filter[] = "ot.id IN ($dbqin->marks)";
+      $dbq->params = array_merge($dbq->params, $dbqin->params);
+    }
+    if ($id != null) {
+      if (!is_array($id)) {
+        $id = [ $id ];
+      }
+      // Exclude cached objects
+      $oblist = array_diff($id, array_keys($cache->object));
+      if (count($oblist) > 0) {
+        $dbqin = $this->list2in($oblist, 'id');
+        $dbq->filter[] = "o.id IN ($dbqin->marks)";
+        $dbq->params = array_merge($dbq->params, $dbqin->params);
+      }
+    }
+    if ($this->display == 'table') {
+      $dbq->filter[] = 'op.tbl_visible';
+    }
+    if (count($dbq->filter) > 0) {
+      $dbq->filter = 'WHERE '.implode(' AND ', $dbq->filter);
+    }
+    else {
+      $dbq->filter = '';
+    }
+
+    // Retrieve objects
+    if (!($otid == null && $id == null)) {
+      // Retrieve data
+      $dbquery = "
+        SELECT
+          o.id AS id,
+          ot.short AS short,
+          op.id AS property,
+          $dbqlabel
+          op.type AS type,
+          CASE op.type
+            WHEN 1 THEN vv.value
+            WHEN 2 THEN rtrim(TO_CHAR(vd.value, 'FM99999999.99999999'),'.')
+            WHEN 3 THEN vu.value::varchar
+            WHEN 4 THEN vu.value::varchar
+            WHEN 5 THEN TO_CHAR(vd.value,'FM9')
+            WHEN 6 THEN vx.value
+            WHEN 7 THEN '*****'
+            WHEN 8 THEN TO_CHAR(vt.value,'YYYY-MM-DD')
+            WHEN 9 THEN TO_CHAR(vt.value,'YYYY-MM-DD HH24:MI')
+          END AS value
+        FROM obj o
+        LEFT JOIN objtype ot ON ot.id = o.objtype
+        LEFT JOIN objproperty op ON op.objtype = ot.id
+        LEFT JOIN value_decimal vd ON vd.objproperty = op.id AND vd.obj = o.id
+        LEFT JOIN value_text vx ON vx.objproperty = op.id AND vx.obj = o.id
+        LEFT JOIN value_timestamp vt ON vt.objproperty = op.id AND vt.obj = o.id
+        LEFT JOIN value_uuid vu ON vu.objproperty = op.id AND vu.obj = o.id
+        LEFT JOIN value_varchar vv ON vv.objproperty = op.id AND vv.obj = o.id
+        $dbq->filter
+        ORDER BY o.id, op.prio, op.name
+      ";
+      $dbresult = $this->db->query($dbquery, $dbq->params);
+      if (count($dbresult) > 0) {
+        $id = null;
+        $meta = [];
+        foreach($dbresult as $dbrow) {
+          if ($dbrow->id != $id) {
+            if ($id != null) {
+              $cache->object[$id] = (object)[ 'short'=>$dbrow->short, 'meta'=>$meta ];
+              $result[] = (object)[ 'id'=>$id ];
+              $meta = [];
+            }
+            $id = $dbrow->id;
+          }
+          $meta[$dbrow->property] = (object)[
+            'label'=>$dbrow->label,
+            'type'=>$dbrow->type,
+            'type_text'=>$this->propertytype[$dbrow->type],
+            'value'=>$dbrow->value
+          ];
+          if ($dbrow->type == 2) {
+            $meta[$dbrow->property]->value = intval($dbrow->value);
+          }
+          elseif ($dbrow->type == 3) {
+            $xlist->object[$dbrow->value][$dbrow->id] = $dbrow->property;
+          }
+          elseif ($dbrow->type == 4) {
+            $xlist->valuemap[$dbrow->value][$dbrow->id] = $dbrow->property;
+          }
+          elseif ($dbrow->type == 5) {
+            $meta[$dbrow->property]->value = ($dbrow->value == '1') ? true : false;
+          }
+          $meta[$dbrow->property]->value_text = $meta[$dbrow->property]->value;
+        }
+        $cache->object[$id] = (object)[ 'short'=>$dbrow->short, 'meta'=>$meta ];
+        $result[] = (object)[ 'id'=>$id ];
+      }
+    }
+
+    // Retrieve valuemap values, exclude cached valuemaps
+    $xkeys = array_diff(array_keys($xlist->valuemap), array_keys($cache->valuemap));
+    if (count($xkeys) > 0) {
+      $dbqin = $this->list2in($xkeys);
+      foreach ($this->db->query("SELECT id, name FROM valuemap_value WHERE id IN ($dbqin->marks)", $dbqin->params) as $dbrow) {
+        foreach($xlist->valuemap[$dbrow->id] as $oid=>$propid) {
+          $cache->object[$oid]->meta[$propid]->value_text = $dbrow->name;
+        }
+      }
+    }
+
+    // Retrieve object shortnames, exclude cached objects
+    $shortlist = $this->list_short(null, array_keys($xlist->object), $cache, $depth);
+    foreach ($shortlist as $sid=>$svalue) {
+      foreach($xlist->object[$sid] as $oid=>$propid) {
+        $cache->object[$oid]->meta[$propid]->value_text = $shortlist[$sid];
+      }
+    }
+
+    // Result
+    for ($i=0; $i<count($result); $i++) {
+      foreach ($cache->object[$result[$i]->id]->meta as $property=>$value ) {
+        if ($format->text) {
+          $result[$i]->$property = $value->value_text;
+        }
+        elseif ($format->expand) {
+          $result[$i]->$property = (object) [
+            'name'=>$value->label,
+            'value'=>$value->value,
+            'value_text'=>$value->value_text,
+          ];
+        }
+        elseif ($format->full) {
+          $result[$i]->$property = $value;
+        }
+        else {
+          $result[$i]->$property = $value->value;
+        }
+      }
+    }
+
+    return $result;
+  }
+
+  /***********************************************************************
+   * List short name for ojbects
+   * ===========================
+   * $otidlist / $idlist    UUID or array of UUID's
+   * $cache     Caching results preventing repeated requests
+   * $depth     Current depth, preventing infinite loop (link to self)
+   ***********************************************************************/
+  private function list_short($otidlist=null, $idlist=null, $cache=[], $depth=0) {
+    // Prepare
+    $result = [];
+    if ($cache == null) {
+      $cache = (object)[ 'valuemap'=>[], 'object'=>[] ];
+    }
+    if ($otidlist != null) {
+      if ($idlist == null) {
+        $idlist = [];
+      }
+      foreach ($this->list_full($otidlist) as $obj) {
+        $idlist[] = $obj->id;
+      }
+    }
+    // Complement cache
+    $newlist = array_diff($idlist, array_keys($cache->object));
+    if (count($newlist) > 0) {
+      $this->list_full(null, $newlist, 'text', $cache);
+    }
+    // Retrieve shortnames
+    foreach($idlist as $id) {
+      $max = ($cache->object[$id] < 4) ? $cache->object[$id]->short : 4;
+      $short = [];
+      // Retrieve values
+      foreach($cache->object[$id]->meta as $key=>$value) {
+        if ($max >= 0) {
+          if ($depth < 8) {
+            $short[] = ($value->type == 3) ? $this->list_short(null, [$value->value], $cache, $depth++)[$value->value] : $value->value_text;
+          }
+          $max--;
+        }
+      }
+      // Format result
+      $short = implode(', ', $short);
+      $result[$id] =  (strlen($short) > 64) ? substr($short,0,62).'...' : $short;
+      $depth = 0;
+    }
+    return $result;
+  }
+
+  /******************************************************************
+   * List Objects
+   * ============
+   * $otid / $id    UUID or array of UUID's
+   * ?format=       none (default, text, expand, full
+   ******************************************************************/
+  public function list($otid) {
+    if (!$this->objtype->acl($otid)->read) { return null; }
+    return $this->list_full($otid, null);
   }
 
   /******************************************************************
    * Open Object
+   * ===========
+   * $otid / $id    UUID or array of UUID's
+   * ?format=       none (default), text, expand, full, aggr
    ******************************************************************/
-  public function open($otid, $id) {
-    // Process ACL
-    $acl = $this->acl($otid);
-    if (!$acl->read) {
-      return null;
-    }
-    // Handle formats
-    if ($this->format('short'))   { return $this->objtype->list_short($otid, $id); }
-    $result = [];
-    $dbqvaluemap = ['vu.value::varchar', ''];
-    $dbqpw = '*****';
-    if ($this->format('gui')) {
-      $dbqpw = '•••••';
-      $dbqvaluemap = ['vo.name', 'LEFT JOIN valuemap_value vo ON vo.id = vu.value'];
-    }
-    $dbquery = "
-      SELECT
-        op.id AS id,
-        op.type AS type,
-        op.name AS label,
-        CASE op.type
-          WHEN 1 THEN vv.value
-          WHEN 2 THEN rtrim(TO_CHAR(vd.value, 'FM99999999.99999999'),'.')
-          WHEN 3 THEN vu.value::varchar
-          WHEN 4 THEN $dbqvaluemap[0]
-          WHEN 5 THEN TO_CHAR(vd.value,'FM9')
-          WHEN 6 THEN vx.value
-          WHEN 7 THEN '$dbqpw'
-          WHEN 8 THEN TO_CHAR(vt.value,'YYYY-MM-DD')
-          WHEN 9 THEN TO_CHAR(vt.value,'YYYY-MM-DD HH24:MI')
-        END AS value
-      FROM obj o
-      LEFT JOIN objtype ot              ON ot.id = o.objtype
-      LEFT JOIN objproperty op         ON op.objtype = ot.id
-      LEFT JOIN value_decimal vd      ON vd.objproperty = op.id AND vd.obj = o.id
-      LEFT JOIN value_text vx         ON vx.objproperty = op.id AND vx.obj = o.id
-      LEFT JOIN value_timestamp vt  ON vt.objproperty = op.id AND vt.obj = o.id
-      LEFT JOIN value_uuid vu         ON vu.objproperty = op.id AND vu.obj = o.id
-      LEFT JOIN value_varchar vv      ON vv.objproperty = op.id AND vv.obj = o.id
-      $dbqvaluemap[1]
-      WHERE ot.id = :otid
-      AND o.id = :id
-      ORDER BY o.id, op.prio, op.name
-    ";
-    // Gather properties
-    if ($this->format('gui')) {
-      $cache = [];
-      foreach ($this->db->query($dbquery, [':otid'=>$otid, ':id'=>$id]) as $rec) {
-        if ($rec->type == 3 && $rec->value != null) {
-          array_push($cache, ['id'=>$rec->id, 'type'=>$rec->type, 'label'=>$rec->label, 'value'=>$this->objtype->list_short(null, $rec->value)[0]['name']]);
+  public function open($otid=null, $id=null) {
+    if (!$this->objtype->acl($otid)->read) { return null; }
+    if (is_array($otid) || is_array($id)) { return null; }
+    $obj = $this->list_full($otid, $id);
+    $rel = $this->relation_list($otid, $id);
+    if (count($obj) > 0) {
+      if ($this->format('aggr')) {
+        $objecttype = $this->objtype->list($otid);
+        $meta = (object)[ 'objecttype'=>(object)[], 'valuemap'=>(object)[] ];
+        foreach ($objecttype[0]->property as $property) {
+          if ($property->type == 3) {
+            $tobjtype = $property->type_objtype;
+            $meta->objecttype->$tobjtype = [];
+            foreach($this->list_short([$tobjtype], null) as $sid=>$sname) {
+              $meta->objecttype->$tobjtype[] = (object)[ 'id'=>$sid, 'name'=>$sname ];
+            }
+          }
+          if ($property->type == 4) {
+            $tvaluemap = $property->type_valuemap;
+            $meta->valuemap->$tvaluemap = $this->valuemap->value_list($tvaluemap);
+          }
         }
-        else {
-          array_push($cache, $rec);
+        $obj = (object)[
+          'name'=>$this->list_short(null, [$id])[$id],
+          'object'=>$obj[0],
+          'relation'=>$rel,
+          'meta'=>$meta,
+          'objecttype'=>$objecttype[0]->objecttype,
+          'property'=>$objecttype[0]->property,
+          'acl'=>$objecttype[0]->acl
+        ];
+        if ($objecttype[0]->objecttype->log) {
+          $obj->log = $this->log_list_full($id);
         }
       }
-      $result = $cache;
-    }
-    // Temporary fix for human readable values, update in v1.1.2
-    elseif ($this->format('hr')) {
-      $cache = [];
-      foreach ($this->db->query($dbquery, [':otid'=>$otid, ':id'=>$id]) as $rec) {
-        if ($rec->type == 3 && $rec->value != null) {
-          $rec->value_hr = $this->objtype->list_short(null, $rec->value)[0]['name'];
-        }
-        elseif ($rec->type == 4) {
-          $rec->value_hr = $this->db->query('SELECT name FROM valuemap_value WHERE id=:id', [':id'=>$rec->value])[0]->name;
-        }
-        else {
-          $rec->value_hr = $rec->value;
-        }
-        array_push($cache, $rec);
-      }
-      $result = $cache;
     }
     else {
-      $result = $this->db->query($dbquery, [':otid'=>$otid, ':id'=>$id]);
+      return null;
     }
-    return $result;
+    return $obj;
   }
 
   /******************************************************************
@@ -298,109 +457,88 @@ class mod_obj {
   }
 
   /******************************************************************
-   * List related objects
+   * List relations
+   * ==============
+   * $otid / $id    UUID or array of UUID's
+   * $available     List available relations
    ******************************************************************/
-  public function relation_list($id) {
-    // Process ACL
-    $acl = $this->acl_obj($id);
-    if (!$acl->read) { return null; }
-    // Gather relations
-    $dbquery = "
-      SELECT
-        o.id AS objid,
-        ot.id AS ObjTypeId,
-        ot.\"name\" AS ObjTypeName,
-        op.\"name\" AS label,
-        op.prio AS prio,
-        op.type AS type,
-        CASE op.type
-          WHEN 1 THEN vv.value
-          WHEN 2 THEN rtrim(TO_CHAR(vd.value, 'FM99999999.99999999'),'.')
-          WHEN 3 THEN vu.value::varchar
-          WHEN 4 THEN vo.name
-          WHEN 5 then
-            CASE
-              WHEN (TO_CHAR(vd.value,'FM9') = '1') THEN '&nbsp;✓'
-              ELSE '&nbsp;✗'
-            END
-          WHEN 6 THEN vx.value
-          WHEN 7 THEN '•••••'
-          WHEN 8 THEN TO_CHAR(vt.value,'YYYY-MM-DD')
-          WHEN 9 THEN TO_CHAR(vt.value,'YYYY-MM-DD HH24:MI')
-        END AS value
-      FROM obj_obj oo
-      LEFT JOIN obj o on (o.id = oo.obj) or (o.id = oo.obj_ref)
-      LEFT JOIN objtype ot ON ot.id = o.objtype
-      LEFT JOIN objproperty op ON op.objtype = ot.id
-      LEFT JOIN value_decimal      vd ON vd.objproperty = op.id AND vd.obj = o.id
-      LEFT JOIN value_text         vx ON vx.objproperty = op.id AND vx.obj = o.id
-      LEFT JOIN value_timestamp vt ON vt.objproperty = op.id AND vt.obj = o.id
-      LEFT JOIN value_uuid         vu ON vu.objproperty = op.id AND vu.obj = o.id
-      LEFT JOIN value_varchar    vv ON vv.objproperty = op.id AND vv.obj = o.id
-      LEFT JOIN valuemap_value vo ON vo.id = vu.value
-      WHERE (oo.obj = :id OR oo.obj_ref = :id)
-      AND o.id != :id
-      ORDER BY o.id, op.prio, op.name
-    ";
-    $tmpid = null;
-    $cache = [];
-    $result = [];
-    foreach ($this->db->query($dbquery, [':id'=>$id]) as $rec) {
-      if ($tmpid != $rec->objid) {
-        if ($tmpid != null) {
-          array_push($result, $cache);
-        }
-        $tmpid = $rec->objid;
-        $cache = ['id'=>$rec->objid, 'objtype'=>$rec->objtypeid, 'objtype_name'=>$rec->objtypename];
+  public function relation_list($otid, $id, $available=false) {
+    if (!$this->objtype->acl($otid)->read) { return null; }
+    $xlist = [];
+    if ($available) {
+      $dbquery = "
+        SELECT
+          o.id as id,
+          o.objtype AS objtype,
+          ot.name AS objtype_name,
+          ot.short AS short
+        FROM obj o
+        LEFT JOIN objtype ot ON ot.id = o.objtype
+      ";
+      foreach ($this->db->query($dbquery, []) as $rel) {
+        $xlist[$rel->id] = $rel;
       }
-      if ($rec->type == 3) {
-        if ($rec->value != null) {
-          $cache[$rec->label] = $this->objtype->list_short(null, $rec->value)[0]['name'];
+    }
+    else {
+      $dbquery = "
+        SELECT
+          o.id AS obj,
+          r.id AS obj_ref,
+          o.objtype AS obj_objtype,
+          r.objtype AS obj_ref_objtype,
+          oot.name AS obj_name,
+          rot.name AS obj_ref_name,
+          oot.short AS obj_short,
+          rot.short AS obj_ref_short
+        FROM obj_obj oo
+        LEFT JOIN obj o ON o.id = oo.obj
+        LEFT JOIN obj r ON r.id = oo.obj_ref
+        LEFT JOIN objtype oot ON oot.id = o.objtype
+        LEFT JOIN objtype rot ON rot.id = r.objtype
+        WHERE (o.objtype = :otid AND o.id = :id)
+        OR (r.objtype = :otid AND r.id = :id)
+      ";
+      foreach ($this->db->query($dbquery, [ 'otid'=>$otid, 'id'=>$id ]) as $rel) {
+        if ($rel->obj == $obj) {
+          $xlist[$rel->obj] = (object)[
+            'id'=>$rel->obj,
+            'objtype'=>$rel->obj_objtype,
+            'objtype_name'=>$rel->obj_name,
+            'short'=>$rel->obj_short
+          ];
         }
         else {
-          $cache[$rec->label] = null;
+          $xlist[$rel->obj_ref] = (object)[
+            'id'=>$rel->obj_ref,
+            'objtype'=>$rel->obj_ref_objtype,
+            'objtype_name'=>$rel->obj_ref_name,
+            'short'=>$rel->obj_ref_short
+          ];
         }
       }
-      else {
-        $cache[$rec->label] = $rec->value;
-      }
     }
-    array_push($result, $cache);
-    if (count($result) == 1 && $result[0]['id'] == null) {
+    if ($this->format('aggr')) {
       $result = [];
-    }
-    return $result;
-  }
-
-  /******************************************************************
-   * List available relations for object
-   ******************************************************************/
-  public function relation_list_available($otid, $id) {
-    $result = [];
-    foreach ($this->objtype->list() as $type) {
-      $property_hide = [];
-      $propertylist = $this->objtype->property_list($type->id);
-      $objectlist = $this->objtype->open($type->id);
-      if ($propertylist != null) {
-        foreach($propertylist as $property) {
-          if (!$property->tbl_visible) {
-            $property_hide[] = $property->name;
+      foreach($this->list_full(null, array_keys($xlist), 'text') as $rel) {
+        $tmprel = (object)[
+          'id'=>$rel->id,
+          'objtype'=>$xlist[$rel->id]->objtype,
+          'objtype_name'=>$xlist[$rel->id]->objtype_name
+        ];
+        $max = ($xlist[$rel->id]->short < 4) ? $xlist[$rel->id]->short : 4;
+        foreach ($rel as $property=>$value) {
+          if ($max >= 0) {
+            $tmprel->$property = $value;
+            $max--;
           }
         }
+        $result[] = $tmprel;
       }
-      if ($objectlist != null) {
-        foreach ($objectlist as $obj) {
-          $tmpres = ['id'=>$obj->id, 'objtype'=>$type->id, 'type'=>$type->name];
-          foreach ($obj as $key=>$value) {
-            if (!in_array($key, $property_hide)) {
-              $tmpres[$key] = $value;
-            }
-          }
-          $result[] = $tmpres;
-        }
-      }
+      return $result;
     }
-    return $result;
+    else {
+      return $this->list_full(null, array_keys($xlist));
+    }
   }
 
   /******************************************************************
@@ -438,20 +576,18 @@ class mod_obj {
     return $count > 0;
   }
 
-  /******************************************************************
-   * List log entries
-   ******************************************************************/
-  public function log_list($otid, $id) {
-    if ($this->logstate[$otid] == null) {
-      $this->logstate[$otid] = $this->db->query('SELECT log FROM objtype WHERE id=:id', [':id'=>$otid])[0]->log;
+  private function log_list_full($id) {
+    $log = $this->db->query('SELECT timestamp,username,action,details FROM obj_log WHERE obj=:id ORDER BY timestamp DESC', [':id'=>$id]);
+    for ($i=0; $i < count($log); $i++) {
+      $log[$i]->timestamp = substr($log[$i]->timestamp, 0, strrpos($log[$i]->timestamp, ':'));
     }
-    if ($this->logstate[$otid]) {
-      //return $this->db->query('SELECT TO_CHAR(timestamp,'YYYY-MM-DD HH24:MI') as timestamp,username,action,details FROM obj_log WHERE obj=:id ORDER BY timestamp DESC', array(':id'=>$id));
-      $log = $this->db->query('SELECT timestamp,username,action,details FROM obj_log WHERE obj=:id ORDER BY timestamp DESC', [':id'=>$id]);
-      for ($i=0; $i < count($log); $i++) {
-        $log[$i]->timestamp = substr($log[$i]->timestamp, 0, strrpos($log[$i]->timestamp, ':'));
-      }
-      return $log;
+    return $log;
+  }
+
+  public function log_list($otid, $id) {
+    if (!$_SESSION['sessman']['sa']) { return null; }
+    if ($this->db->query('SELECT log FROM objtype WHERE id=:id', [':id'=>$otid])[0]->log) {
+      return $this->log_list_full($id);
     }
     return [];
   }

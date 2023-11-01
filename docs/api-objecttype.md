@@ -3,19 +3,19 @@
 /objecttype provides all access to both objecttypes and objects.
 
 * [/objecttype](#objecttype)
-* [/objecttype/{objecttype}](#objecttype-objecttype-)
+* [/objecttype/{objecttype}](#objecttypeobjecttype)
 
-* [/objecttype/{objecttype}/property](#objecttype-objecttype-property)
-* [/objecttype/{objecttype}/property/{property}](#objecttype-objecttype-property-property-)
+* [/objecttype/{objecttype}/property](#objecttypeobjecttype-roperty)
+* [/objecttype/{objecttype}/property/{property}](#objecttypeobjecttypepropertyproperty)
 
-* [/objecttype/{objecttype}/object](#objecttype-objecttype-object)
-* [/objecttype/{objecttype}/object/{object}](#objecttype-objecttype-object-object-)
+* [/objecttype/{objecttype}/object](#objecttypeobjecttypeobject)
+* [/objecttype/{objecttype}/object/{object}](#objecttypeobjecttypeobjectobject)
 
-* [/objecttype/{objecttype}/object/{object}/relation](#objecttype-objecttype-object-object-relation)
-* [/objecttype/{objecttype}/object/{object}/relation/available](#objecttype-objecttype-object-object-relationavailable)
-* [/objecttype/{objecttype}/object/{object}/relation/{relation}](#objecttype-objecttype-object-object-relation-relation-)
+* [/objecttype/{objecttype}/object/{object}/relation](#objecttypeobjecttypeobjectobjectrelation)
+* [/objecttype/{objecttype}/object/{object}/relation/available](#objecttypeobjecttypeobjectobjectrelationavailable)
+* [/objecttype/{objecttype}/object/{object}/relation/{relation}](#objecttypeobjecttypeobjectobjectrelationrelation)
 
-* [/objecttype/{objecttype}/object/{object}/log](#objecttype-objecttype-object-object-log)
+* [/objecttype/{objecttype}/object/{object}/log](#objecttypeobjecttypeobjectobjectlog)
 
 ### /objecttype
 
