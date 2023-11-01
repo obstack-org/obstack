@@ -39,7 +39,7 @@ if ($api->uri[1] == 'auth' && $api->uri[2] == 'group') {
 }
 
 // --> /valuemap
-if ($api->uri[1] == 'valuemap') {
+if ($api->uri[1] == 'valuemap' || $api->uri[1] == 'objecttype') {
   require_once 'inc/mod_valuemap.php';
   require_once 'inc/api_valuemap.php';
 }

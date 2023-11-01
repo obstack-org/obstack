@@ -118,7 +118,7 @@
 
     let vmform = new obForm([
       { id:'name', name:'Name',       type:'string', regex_validate:/^.+/, value:api_conf.name },
-      { id:'prio', name:'Sorting by', type:'select', options:{ 0:'Name', 1:'Order'}, value:(api_conf.prio)?1:0 }
+      { id:'prio', name:'Sorting by', type:'select', options:{ 0:'Name', 1:'Order'}, info:'Change requires save to activate', value:(api_conf.prio)?1:0 }
     ]);
 
     let obtabs = new obTabs({ tabs: [

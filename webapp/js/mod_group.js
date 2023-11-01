@@ -6,6 +6,8 @@
  *    .open()         Function
  *    .open_htgen()   Function
  *    .save()         Function
+ *    .members        Object
+ *      .open()       Function
  *
  ******************************************************************/
 
@@ -44,7 +46,7 @@ mod['group'] = {
       });
 
       content.empty().append(new obContent({
-        name: api_group.name,
+        name: 'Groups',
         content: grplist.html()
       }).html());
 
@@ -73,16 +75,17 @@ mod['group'] = {
           api_objecttype[i]['update'] = false;
           api_objecttype[i]['delete'] = false;
         }
-        mod.group.open_htgen(null, {}, api_objecttype);
+        mod.group.open_htgen(null, {}, {}, api_objecttype);
       });
     }
     // Open
     else {
       $.when(
         api('get',`auth/group/${id}`),
+        api('get',`auth/group/${id}/member`),
         api('get',`auth/group/${id}/acl`)
-      ).done(function(api_group, api_acl) {
-        mod.group.open_htgen(id, api_group[0], api_acl[0]);
+      ).done(function(api_group, api_member, api_acl) {
+        mod.group.open_htgen(id, api_group[0], api_member[0], api_acl[0]);
       });
     }
   },
@@ -94,7 +97,7 @@ mod['group'] = {
    *    id      : Group UUID
    *    api_..  : API data
    ******************************************************************/
-  open_htgen: function(id, api_group, api_acl) {
+  open_htgen: function(id, api_group, api_member, api_acl) {
 
     for (let i=0; i<api_acl.length; i++) {
       api_acl[i]['read']   = $('<input/>', { type:'checkbox', class:'nomrg', checked:api_acl[i]['read'] });
@@ -108,6 +111,38 @@ mod['group'] = {
       { id:'ldapcn',     name:'LDAP CN', type:'string', value:(id==null)?'':api_group.ldapcn },
       { id:'radiusattr', name:'Radius Attribute', type:'string', value:(id==null)?'':api_group.radiusattr }
     ]);
+
+    for (let i=0; i<api_member.length; i++) {
+      api_member[i]['active'] = htbool(api_member[i]['active']);
+      api_member[i]['delete'] = $('<img/>', { class:'pointer', src:'img/icbin.png', width: 14 })
+        .on('click', function() {
+          let tr = $(this).parents('tr');
+          if (tr.hasClass('delete')) {
+            tr.removeClass('delete');
+          }
+          else {
+            tr.addClass('delete');
+          }
+        });
+    }
+
+    let usrlist = new obFTable({
+      table: {
+        id: '652e14bd1b293bce298e1dc615ada9f5aea9f318',
+        data: api_member,
+        columns: [
+          { id: 'username', name:'Username' },
+          { id: 'firstname', name:'First name' },
+          { id: 'lastname', name:'Last name' },
+          { id: 'active', name:'Active' },
+          { id: 'delete', name:'Delete' }
+        ],
+        columns_resizable: true,
+        columns_hidden: ['id']
+      },
+      search: true,
+      create: function() { mod.group.members.open(id, usrlist); }
+    });
 
     let acclist = new obFTable({
       table: {
@@ -129,6 +164,7 @@ mod['group'] = {
     let obtabs = new obTabs({
       tabs:[
         { title:'Group',  html:grpform.html() },
+        { title:'Users',  html:$('<div/>', { class:'content-tab-wrapper' }).append( usrlist.html() )},
         { title:'Access', html:$('<div/>', { class:'content-tab-wrapper' }).append( acclist.html() )}
       ]
     });
@@ -141,7 +177,7 @@ mod['group'] = {
         $('<input/>', { class: 'btn', type: 'submit', value: 'Save' }).on('click', function() {
           let grpform_data = grpform.validate();
           if (grpform_data != null) {
-            mod.group.save(id, grpform_data, acclist.table());
+            mod.group.save(id, grpform_data, usrlist.table(), acclist.table());
           }
         }),
         // -- Delete
@@ -173,10 +209,20 @@ mod['group'] = {
    *    settings    : Form data
    *    permissions : Permissions table
    ******************************************************************/
-  save: function(id, grpform, acclist) {
+  save: function(id, grpform, usrlist, acclist) {
     // Prepare data formats
     let dtsave = grpform;
     let aclsave = [];
+
+    if (usrlist != null) {
+      dtsave['users'] = [];
+      $.each(usrlist.html().find('tbody').children('tr'), function() {
+        let tr = $(this);
+        if (!tr.hasClass('delete')) {
+          dtsave.users = [...dtsave.users, JSON.parse(tr.attr('hdt')).id];
+        }
+      });
+    }
 
     // Process ACL
     $.each(acclist.html().find('tbody').children('tr'), function() {
@@ -212,6 +258,96 @@ mod['group'] = {
 
   close: function() {
     mod.group.list();
+  },
+
+  /******************************************************************
+   * mod.group.members
+   * ===============
+   * Array of functions and subarrays for managing group membership
+   ******************************************************************/
+  members: {
+
+    /******************************************************************
+     * mod.group.members.open(id, table)
+     * ===============================
+     * Open the group select form
+     *   id       : Group UUID
+     *   table    : Table with selected users
+     ******************************************************************/
+    open: function(id, table) {
+
+      $.when(
+        api('get',`auth/user`)
+      ).done(function(api_users) {
+
+        // Prepare data
+        let members_selected = [];
+        $.each(table.table().html().find('tbody').find('tr'), function(idx, tr) {
+          members_selected = [...members_selected, JSON.parse($(tr).attr('hdt')).id];
+        });
+        for (let i=0; i<api_users.length; i++) {
+          if ( members_selected.indexOf(api_users[i].id) != -1) {
+            delete api_users[i];
+          }
+          else {
+            api_users[i]['active'] = htbool(api_users[i]['active']);
+            delete(api_users[i]['tokens']);
+            delete(api_users[i]['sa']);
+          }
+        }
+        api_users = api_users.flat();
+
+        // Table
+        let grplist = new obFTable({
+          table: {
+            id: '7ddf83906ec857525e73f93fd3c482ede1287cf6',
+            data: api_users,
+            columns: [
+              { id:'username', name:'Username', orderable:true },
+              { id:'firstname', name:'First name', orderable:true },
+              { id:'lastname', name:'Last name', orderable:true },
+              { id:'active', name:'Active', orderable:true }
+            ],
+            columns_hidden: ['id']
+          },
+          search: true,
+          open:   function(td) {
+            let tr = $(td).parent('tr');
+            let tds = [];
+            $.each(tr.children('td'), function(){ tds = [...tds, $(this).html()]; });
+            let newrow = table.addrow([
+              ...tds,
+              $('<img/>', { class:'pointer', src:'img/icbin.png', width:14 })
+              .on('click', function() {
+                tr = $(this).parents('tr');
+                if (tr.hasClass('delete')) {
+                    tr.removeClass('delete');
+                }
+                else {
+                  tr.addClass('delete');
+                }
+              })
+            ]);
+            newrow.attr('hdt',tr.attr('hdt'));
+            popup.remove();
+          },
+          footer: 'Groups'
+        });
+
+        // Popup
+        let popup = new obPopup({
+          content: grplist.html(),
+          control: $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() { popup.remove(); })
+        });
+        popup.html().find('.tblwrap-control-search').removeClass('tblwrap-control-search').addClass('tblwrap-control-search-left');
+        $('#_obTab1-content').append(popup.html());
+
+        $.each(content.find('.obTable-tb'), function() { $(this).obTableRedraw(); });
+
+      });
+
+    }
+
   }
 
 }

@@ -23,15 +23,6 @@ class mod_valuemap {
   }
 
   /******************************************************************
-   * Boolean as string
-   ******************************************************************/
-  private function bool2str($var) {
-    if ($var) { return 'true'; }
-    if ($var == '1') { return 'true'; }
-    return 'false';
-  }
-
-  /******************************************************************
    * List valuemaps
    *  [ { id, name, prio }, {} ]
    ******************************************************************/
@@ -51,7 +42,7 @@ class mod_valuemap {
     $dbparams = [];
     // Valuemap configuration
     if (isset($data['name'])) { $dbparams['name'] = $data['name']; }
-    if (isset($data['prio'])) { $dbparams['prio'] = $this->bool2str($data['prio']); }
+    if (isset($data['prio'])) { $dbparams['prio'] = ($data['prio'] || $data['prio'] == '1') ? 'true' : 'false'; }
     // Valuemap create / update
     if ($id == null) {
       $id = $this->db->query('INSERT INTO valuemap (name, prio) VALUES (:name, :prio) RETURNING id', $dbparams)[0]->id;

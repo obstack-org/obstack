@@ -35,13 +35,12 @@ mod['obj'] = {
 
     // Load and display data
     $.when(
-      api('get',`objecttype/${type}?format=gui`),
-      api('get',`objecttype/${type}/property`),
-      api('get',`objecttype/${type}/object?format=gui`)
-    ).done(function(apidata_type, apidata_properties, apidata_objects) {
-      apidata_type = apidata_type[0];
+      api('get',`objecttype/${type}?format=aggr`),
+      api('get',`objecttype/${type}/object?format=text&display=table`)
+    ).done(function(apidata_type, apidata_objects) {
+      apidata_type = apidata_type[0][0];
       apidata_objects = apidata_objects[0];
-      apidata_properties = apidata_properties[0];
+      apidata_properties = apidata_type.property;
 
       let columns = [];
       let columns_remove = [];
@@ -51,6 +50,11 @@ mod['obj'] = {
         }
         else {
           columns_remove = [...columns_remove, column.name];
+        }
+        if (column.type == 5) {
+          $.each(apidata_objects, function(idx, rec) {
+            apidata_objects[idx][column.id] = htbool(apidata_objects[idx][column.id]);
+          });
         }
       });
       for (let i=0; i<apidata_objects.length; i++) {
@@ -76,7 +80,7 @@ mod['obj'] = {
       });
 
       content.empty().append(new obContent({
-        name: apidata_type.name,
+        name: apidata_type.objecttype.name,
         content: objlist.html()
       }).html());
 
@@ -98,7 +102,7 @@ mod['obj'] = {
     // New
     if (id == null) {
       $.when(
-        api('get',`objecttype/${type}?format=gui`),
+        api('get',`objecttype/${type}?format=aggr`),
         api('get',`objecttype/${type}/property`)
       ).done(function(api_objtype, api_objproperty) {
         mod.obj.open_htgen(type, id, api_objtype[0], api_objproperty[0], {}, [{}], {}, {});
@@ -106,31 +110,11 @@ mod['obj'] = {
     }
     // Open
     else {
-      // SA (with log)
-      if (mod.user.self.sa) {
-        $.when(
-          api('get',`objecttype/${type}?format=gui`),
-          api('get',`objecttype/${type}/property`),
-          api('get',`objecttype/${type}/object/${id}`),
-          api('get',`objecttype/${type}/object/${id}?format=short`),
-          api('get',`objecttype/${type}/object/${id}/relation`),
-          api('get',`objecttype/${type}/object/${id}/log`)
-        ).done(function(api_objtype, api_objproperty, api_obj, api_obj_short, api_relations, api_log) {
-          mod.obj.open_htgen(type, id, api_objtype[0], api_objproperty[0], api_obj[0], api_obj_short[0], api_relations[0], api_log[0]);
-        });
-      }
-      // User (without log)
-      else {
-        $.when(
-          api('get',`objecttype/${type}?format=gui`),
-          api('get',`objecttype/${type}/property`),
-          api('get',`objecttype/${type}/object/${id}?format=hr`),
-          api('get',`objecttype/${type}/object/${id}?format=short`),
-          api('get',`objecttype/${type}/object/${id}/relation`)
-        ).done(function(api_objtype, api_objproperty, api_obj, api_obj_short, api_relations) {
-          mod.obj.open_htgen(type, id, api_objtype[0], api_objproperty[0], api_obj[0], api_obj_short[0], api_relations[0], []);
-        });
-      }
+      $.when(
+        api('get',`objecttype/${type}/object/${id}?format=aggr`)
+      ).done(function(apidata) {
+        mod.obj.open_htgen(type, id, apidata);
+      });
     }
   },
 
@@ -142,13 +126,20 @@ mod['obj'] = {
    *    id      : Object UUID
    *    api_..  : API data
    ******************************************************************/
-  open_htgen: function(type, id, api_objtype, api_objproperty, api_obj, api_obj_short, api_relations, api_log) {
+  open_htgen: function(type, id, apidata) {
+    // Reformat - temporary
+    api_objtype = apidata.objecttype;
+    api_objtype.acl = apidata.acl;
+    api_objproperty = apidata.property;
+    api_obj_short = [{ name:apidata.name }];
+    api_relations = apidata.relation;
+    api_obj = apidata.object;
+    api_log = [];
+    if (apidata.objecttype.log) {
+      api_log = apidata.log;
+    }
     // Load
     let acl_save = (mod.user.self.sa)?true:(id==null)?api_objtype.acl.create:api_objtype.acl.update;
-    let propform_value = {};
-    $.each(api_obj, function(idx, value) {
-      propform_value[value.id] = value.value;
-    });
     let propform_data = [];
     $.each(api_objproperty, function(key, property) {
       propform_data = [
@@ -156,7 +147,7 @@ mod['obj'] = {
           id:property.id,
           name:property.name,
           type:def.property_type[property.type],
-          value:(property.id in propform_value)?propform_value[property.id]:null,
+          value:(property.id in api_obj)?api_obj[property.id]:null,
           readonly:!acl_save
         }]
      });
@@ -167,42 +158,28 @@ mod['obj'] = {
     $.each(api_objproperty, function(key, property) {
       if ([3, 4].includes(property.type)) {
         let select = propform_html.find(`#${property.id}`);
-        let value = (property.id in propform_value)?propform_value[property.id]:null;
+        let value = (property.id in api_obj)?api_obj[property.id]:null;
         select.empty();
         // Object Type
         if (property.type == 3) {
-          $.when(
-            api('get',`objecttype/${property.type_objtype}/object?format=short`)
-          ).done(function(otdata) {
-            if (otdata[0].id == null) {
-              let option = getObject(api_obj, 'id', property.id);
-              if (option != null) {
-                select.append($('<option/>').text(option.value_hr).val(option.id));
-              }
+          let otdata = apidata.meta.objecttype[property.type_objtype];
+          $.each(lsSort(otdata, 'name'), function(idx, option) {
+            let htopt = $('<option/>').text(option.name).val(option.id);
+            if (option.id == value) {
+              htopt.attr('selected','selected');
             }
-            else {
-              $.each(lsSort(otdata, 'name'), function(idx, option) {
-                let htopt = $('<option/>').text(option.name).val(option.id);
-                if (option.id == value) {
-                  htopt.attr('selected','selected');
-                }
-                select.append(htopt);
-              });
-            }
+            select.append(htopt);
           });
         }
         // Value Map
         if (property.type == 4) {
-          $.when(
-            api('get',`valuemap/${property.type_valuemap}/value`)
-          ).done(function(vmdata) {
-            $.each(vmdata, function(idx, option) {
-              let htopt = $('<option/>').text(option.name).val(option.id);
-              if (option.id == value) {
-                htopt.attr('selected','selected');
-              }
-              select.append(htopt);
-            });
+          let vmdata = apidata.meta.valuemap[property.type_valuemap];
+          $.each(vmdata, function(idx, option) {
+            let htopt = $('<option/>').text(option.name).val(option.id);
+            if (option.id == value) {
+              htopt.attr('selected','selected');
+            }
+            select.append(htopt);
           });
         }
       }
@@ -295,7 +272,7 @@ mod['obj'] = {
           }
         }),
         // -- Delete
-        (!api_objtype.acl.delete)?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
+        (id == null || !api_objtype.acl.delete)?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
           if (confirm('WARNING!: This action wil permanently delete this object, are you sure you want to continue?')) {
             $.when( api('delete',`objecttype/${type}/object/${id}`) ).always(function() { mod.obj.list(type); });
           }
@@ -367,7 +344,7 @@ mod['obj'] = {
       if (newrel) {
 
         $.when(
-          api('get',`/objecttype/${type}/object/${id}/relation/available?format=gui`)
+          api('get',`/objecttype/${type}/object/${id}/relation/available?format=aggr`)
         ).done(function(relations) {
 
           // Filter out selected
