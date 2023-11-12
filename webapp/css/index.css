@@ -48,7 +48,7 @@ move {
   height: var(--titlebar-height);
   color: var(--titlebar-color);
   background: var(--titlebar-background);
-  z-index: 40;
+  z-index: 199 !important;
 }
 .sidebar {
   top: var(--titlebar-height);
@@ -76,7 +76,7 @@ move {
   left: 0px;
   background: rgba(0,0,0,0.5);
   backdrop-filter: blur(4px);
-  z-index: 60;
+  z-index: 200;
 }
 .overlay-load {
   position : absolute;
@@ -96,7 +96,7 @@ move {
 }
 .center {
   display: block;
-  margin-top: 40px;
+  margin-top: 180px;
   margin-left: auto;
   margin-right: auto;
   width: 50%;

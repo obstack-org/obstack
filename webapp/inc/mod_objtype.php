@@ -17,6 +17,7 @@ class mod_objtype {
   private $db;
   private $format;
   private $cache;
+  private $display;
   private $valuetype = [1=>'varchar', 2=>'decimal', 3=>'uuid', 4=>'timestamp', 5=>'text'];
   private $acl;
 
@@ -26,9 +27,8 @@ class mod_objtype {
   public function __construct($db) {
     $this->db = $db;
     $this->acl = [];
-    if (isset($_GET['format'])) {
-      $this->format = $_GET['format'];
-    }
+    if (isset($_GET['format'])) { $this->format = $_GET['format']; }
+    if (isset($_GET['display'])) { $this->display = $_GET['display']; }
   }
 
   /******************************************************************
@@ -61,7 +61,7 @@ class mod_objtype {
    * Retrieve permissions
    ******************************************************************/
   public function acl($otid) {
-    if ($this->acl[$otid] == null) {
+    if (!in_array($otid, $this->acl)) {
       if ($_SESSION['sessman']['sa']) {
         if (count($this->db->query('SELECT id FROM objtype o WHERE id = :otid', [ 'otid'=>$otid ]))>0) {
           $this->acl[$otid] = (object)[ 'read'=>true, 'create'=>true, 'update'=>true, 'delete'=>true ];
@@ -132,11 +132,37 @@ class mod_objtype {
     if ($this->format == 'aggr') {
       $result = [];
       foreach ($this->db->query($dbquery, $dbq->params) as $ot) {
-        $result[] = (object)[
+
+        $meta = null;
+        $property_list = $this->property_list($ot->id);
+        if ($this->display == 'edit') {
+          $meta = (object)[ 'objecttype'=>(object)[], 'valuemap'=>(object)[] ];
+          $mod_obj = new mod_obj($this->db, $this);
+          $mod_valuemap = new mod_valuemap($this->db);
+          foreach($property_list as $property) {
+            if ($property->type == 3) {
+              $tobjtype = $property->type_objtype;
+              $meta->objecttype->$tobjtype = [];
+              foreach($mod_obj->list_short([$tobjtype], null) as $sid=>$sname) {
+                $meta->objecttype->$tobjtype[] = (object)[ 'id'=>$sid, 'name'=>$sname ];
+              }
+            }
+            if ($property->type == 4) {
+              $tvaluemap = $property->type_valuemap;
+              $meta->valuemap->$tvaluemap = $mod_valuemap->value_list($tvaluemap);
+            }
+          }
+        }
+        $otresult = (object)[
           'objecttype'=> $ot,
-          'property'=>$this->property_list($ot->id),
+          'property'=>$property_list,
+          'meta'=>$meta,
           'acl'=> $this->acl($ot->id)
         ];
+        if ($otresult->meta == null) {
+          unset($otresult->meta);
+        }
+        $result[] = $otresult;
       }
       return $result;
     }
@@ -219,7 +245,7 @@ class mod_objtype {
   /******************************************************************
    * List object type properties
    ******************************************************************/
-  public function property_list($otid, $id = null) {
+  public function property_list($otid, $id=null) {
     // Process ACL
     if (!$this->acl($otid)->read) { return null; }
     // Process list

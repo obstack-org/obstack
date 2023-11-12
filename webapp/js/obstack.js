@@ -35,8 +35,8 @@ const obinit = [
 
 // Content for loader screen
 const loader =
-  $('<div/>', { class:'content-wrapper', style:'z-index: 20' }).append(
-    $('<img/>', { src:'img/sqbf.gif', class:'center', width:40 })
+  $('<div/>', { class:'content-loader', style:'z-index: 20' }).append(
+    $('<img/>', { src:'img/sqbf.gif', class:'center', width:60 })
   )
 
 // Document onload function

@@ -44,6 +44,7 @@ mod['obj'] = {
 
       let columns = [];
       let columns_remove = [];
+      let columns_allowhtml = [];
       $.each(apidata_properties, function(id, column) {
         if (column.tbl_visible) {
           columns = [...columns, { id:column.id, name:column.name, orderable:column.tbl_orderable}];
@@ -52,6 +53,7 @@ mod['obj'] = {
           columns_remove = [...columns_remove, column.name];
         }
         if (column.type == 5) {
+          columns_allowhtml = [...columns_allowhtml, column.id];
           $.each(apidata_objects, function(idx, rec) {
             apidata_objects[idx][column.id] = htbool(apidata_objects[idx][column.id]);
           });
@@ -69,7 +71,8 @@ mod['obj'] = {
           data: apidata_objects,
           columns: columns,
           columns_resizable: true,
-          columns_hidden: ['id']
+          columns_hidden: ['id'],
+          columns_allowhtml: columns_allowhtml
         },
         search:   true,
         create:   (apidata_type.acl.create)?function() { mod.obj.open(type, null); } : null,
@@ -80,7 +83,7 @@ mod['obj'] = {
       });
 
       content.empty().append(new obContent({
-        name: apidata_type.objecttype.name,
+        name: $('<span/>', { text:apidata_type.objecttype.name }),
         content: objlist.html()
       }).html());
 
@@ -99,19 +102,22 @@ mod['obj'] = {
    *    id      : Object UUID
    ******************************************************************/
   open: function(type, id) {
+
+    // Loader
+    content.append(loader.removeClass('fadein').addClass('fadein'));
+
     // New
     if (id == null) {
       $.when(
-        api('get',`objecttype/${type}?format=aggr`),
-        api('get',`objecttype/${type}/property`)
-      ).done(function(api_objtype, api_objproperty) {
-        mod.obj.open_htgen(type, id, api_objtype[0], api_objproperty[0], {}, [{}], {}, {});
+        api('get',`objecttype/${type}?format=aggr&display=edit`)
+      ).done(function(apidata) {
+        mod.obj.open_htgen(type, id, apidata[0]);
       });
     }
     // Open
     else {
       $.when(
-        api('get',`objecttype/${type}/object/${id}?format=aggr`)
+        api('get',`objecttype/${type}/object/${id}?format=aggr&display=edit`)
       ).done(function(apidata) {
         mod.obj.open_htgen(type, id, apidata);
       });
@@ -128,16 +134,24 @@ mod['obj'] = {
    ******************************************************************/
   open_htgen: function(type, id, apidata) {
     // Reformat - temporary
-    api_objtype = apidata.objecttype;
+    let api_objtype = apidata.objecttype;
     api_objtype.acl = apidata.acl;
     api_objproperty = apidata.property;
-    api_obj_short = [{ name:apidata.name }];
-    api_relations = apidata.relation;
-    api_obj = apidata.object;
     api_log = [];
-    if (apidata.objecttype.log) {
-      api_log = apidata.log;
+    if (id == null) {
+      api_obj_short = [{ name:apidata.name }];
+      api_relations = [];
+      api_obj = [];
     }
+    else {
+      api_obj_short = [{ name:apidata.name }];
+      api_relations = apidata.relation;
+      api_obj = apidata.object;
+      if (apidata.objecttype.log) {
+        api_log = apidata.log;
+      }
+    }
+
     // Load
     let acl_save = (mod.user.self.sa)?true:(id==null)?api_objtype.acl.create:api_objtype.acl.update;
     let propform_data = [];
@@ -252,13 +266,13 @@ mod['obj'] = {
 
     // Draw
     let obtabs = new obTabs({ tabs: [
-      { title:'Properties', html:propform_html },
+      { title:'Properties', html:$('<div/>', { class:'content-tab-wrapper' }).append(propform_html) },
       { title:'Relations',  html:$('<div/>', { class:'content-tab-wrapper' }).append(rellist.html()) },
-      (logs==null)?null:{ title:'Log', html:logs }
+      (logs==null)?null:{ title:'Log', html:$('<div/>', { class:'content-tab-wrapper' }).append(logs) }
     ]});
 
     let obcontent = {
-      name: [$('<a/>', { class:'link', html:`${api_objtype.name}`, click:function() { mod.obj.list(type); } }), ` / ${(id==null)?'[new]':api_obj_short[0].name}`],
+      name: [$('<a/>', { class:'link', text:`${api_objtype.name}`, click:function() { mod.obj.list(type); } }), $('<span/>', { text:` / ${(id==null)?'[new]':api_obj_short[0].name}`})],
       content: obtabs.html(),
       control: [
         // -- Save
@@ -338,6 +352,13 @@ mod['obj'] = {
      ******************************************************************/
     open: function(type, id, table, row, acl_update) {
 
+      // Loader
+      let popup_loader = new obPopup({
+        content: loader,
+        control: null
+      });
+      $('#_obTab1-content').append(popup_loader.html());
+
       let newrel = (row == null);
 
       // Select new relation
@@ -416,9 +437,9 @@ mod['obj'] = {
           $('#_obTab1-content').append(popup.html());
 
           $.each(content.find('.obTable-tb'), function() { $(this).obTableRedraw(); });
+          popup_loader.remove();
 
         });
-
       }
 
       // Show related object properties
@@ -426,29 +447,29 @@ mod['obj'] = {
 
         let hdt = JSON.parse(row.attr('hdt'));
         $.when(
-          api('get',`objecttype/${hdt.objtype}/object/${hdt.id}?format=gui`)
+          api('get',`objecttype/${hdt.objtype}/object/${hdt.id}?format=full`)
         ).done(function(api_obj) {
 
           // Prepare
-          $.each(api_obj, function(id) {
-            api_obj[id].readonly = true;
-            api_obj[id].name = api_obj[id].label;
-            if ($.inArray(api_obj[id].type, [3, 4]) != -1) {
-              api_obj[id].type = "select";
-              api_obj[id].options = { 0:api_obj[id].value };
-              api_obj[id].value = 0;
-            }
-            else if (api_obj[id].type == 5) {
-              api_obj[id].type = "checkbox";
-            }
-            else {
-              api_obj[id].type = "string";
+          let frmdata = [];
+          $.each(api_obj[0], function(id, value) {
+            if (id != 'id') {
+              let field = { id:value.id, name:value.label, type:'string', value:value.value_text, readonly:true };
+              if ($.inArray(value.type, [3, 4]) != -1) {
+                field.type = "select";
+                field.options = { 0:value.value_text };
+                field.value = 0;
+              }
+              else if (value.type == 5) {
+                field.type = "checkbox";
+              }
+              frmdata = [...frmdata, field];
             }
           });
 
           // Popup
           let popup = new obPopup({
-            content: new obForm(api_obj).html(),
+            content: new obForm(frmdata).html(),
             control: [
               (!acl_update)?null:$('<input/>', { class:'btn', type:'submit', value:'Unassign' }).on('click', function() { row.addClass('delete'); popup.remove(); }),
               $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() { popup.remove(); })
@@ -456,6 +477,7 @@ mod['obj'] = {
           });
           popup.html().find('.tblwrap-control-search').removeClass('tblwrap-control-search').addClass('tblwrap-control-search-left');
           $('#_obTab1-content').append(popup.html());
+          popup_loader.remove();
 
         });
 

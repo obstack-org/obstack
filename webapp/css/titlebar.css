@@ -21,7 +21,7 @@
   top: var(--titlebar-height);
   width: 140px;
   background: var(--sidebar-background);
-  z-index: 120;
+  z-index: 199 !important;
 }
 .titlebar-dropdown-item {
   padding: 4px 0px 4px 10px;

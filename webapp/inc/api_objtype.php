@@ -4,9 +4,9 @@
  * objtype
  ******************************************************************/
 
-$objtype = new mod_objtype($db);
 $valuemap = new mod_valuemap($db);
-$obj = new mod_obj($db, $objtype, $valuemap);
+$objtype = new mod_objtype($db);
+$obj = new mod_obj($db, $objtype);
 
 // --> /objecttype
 if ($api->route('/objecttype')) {
