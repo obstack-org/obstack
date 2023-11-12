@@ -204,7 +204,7 @@ var obForm = function(fields) {
 
     form.append(
       $('<div/>').append(
-        $('<label/>', { for: field.id }).append(field.name, info),
+        $('<label/>', { for: field.id }).text(field.name, info),
         fieldelem.val(field.value)
       )
     );
@@ -408,6 +408,7 @@ var obTable = function(coptions) {
     columns_resizable: false,
     columns_orderable: false,
     columns_hidden : [],
+    columns_allowhtml : [],
     sortable: false,
     onclick: null
   }
@@ -464,7 +465,7 @@ var obTable = function(coptions) {
       let th = $('<th/>');
       th.attr('obtcid', column.id)
         .attr('obtcol', i)
-        .append(column.name);
+        .text(column.name);
       if (column.orderable) {
         th.attr('obtsrt', 0)
           .addClass('obTable-sort')
@@ -675,8 +676,11 @@ var obTable = function(coptions) {
       if ($.inArray(key, options.columns_hidden) != -1) {
         hdt[key] = value;
       }
+      else if ($.inArray(key, options.columns_allowhtml) != -1) {
+        row.append($('<td/>').html(value));
+      }
       else {
-        row.append($('<td/>').append(value));
+        row.append($('<td/>').text(value));
       }
     });
     row.attr('id', rowkey).attr('hdt', JSON.stringify(hdt));
@@ -840,15 +844,7 @@ var obFTable = function(coptions) {
   }
 
   this.addrow = function(data) {
-    let row = ellist.table.addrow(data);
-    if (options.open != null) {
-      $(row).addClass('pointer').on('click', 'td', function() {
-        if (!$(this).hasClass('obTable-drag')) {
-          options.open(this);
-        }
-      });
-    }
-    return row;
+    return ellist.table.addrow(data);
   }
 
   this.updaterow = function(row, data) {

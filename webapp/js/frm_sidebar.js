@@ -20,7 +20,7 @@ frm['sidebar'] = {
       sidebar.append(
         $('<div/>', {
           class: "sidebar-item",
-          html: type.name,
+          text: type.name,
           click: function() { mod.obj.list(type.id); }
         })
       );

@@ -1,7 +1,7 @@
 :root {
   --content-header-height: 40px;
 }
-.content-header, .content-wrapper  {
+.content-header, .content-wrapper, .content-loader  {
   position: absolute;
   top: 0px;
   left: 0px;
@@ -69,8 +69,8 @@
 }
 .content-tab-wrapper {
   position: absolute;
-  top: 45px;
-  bottom: 0px;
+  top: 55px;
+  bottom: 10px;
   left: 10px;
   right: 10px;
   padding: 10px;
@@ -90,6 +90,12 @@
   position: absolute;
   top: 0px;
   left: 0px;
+}
+.content-loader {
+  bottom: 0px;
+  background: rgba(240,240,240,0.5);
+  backdrop-filter: blur(4px);
+  z-index: 180 !important;
 }
 .content-form {
   margin: 22px 18px;

@@ -109,7 +109,7 @@ mod['objconf'] = {
         api('get',`objecttype/${id}/acl`)
       )
       .done(function(api_acl) {
-        mod.objconf.open_htgen(id, { ojbecttype: { prio:false }, property:{}, acl:api_acl });
+        mod.objconf.open_htgen(id, { objecttype: { prio:false }, property:{}, acl:api_acl });
       });
     }
     // Open
@@ -171,6 +171,7 @@ mod['objconf'] = {
         ],
         columns_resizable: true,
         columns_hidden: columns_hidden,
+        columns_allowhtml: ['httable', 'htform'],
         sortable: true
       },
       search:   true,
@@ -201,16 +202,17 @@ mod['objconf'] = {
     let acclist = new obFTable({
       table: {
         id: 'f35f45de66157761e7d7e4b7361beb840a3ec9ef',
-      data: api_acl,
-      columns: [
-        { id:'name', name:'Name' },
-        { id:'read', name:'Read' },
-        { id:'create', name:'Create' },
-        { id:'update', name:'Update' },
-        { id:'delete', name:'Delete' }
-      ],
-      columns_resizable: true,
-      columns_hidden: ['id']
+        data: api_acl,
+        columns: [
+          { id:'name', name:'Name' },
+          { id:'read', name:'Read' },
+          { id:'create', name:'Create' },
+          { id:'update', name:'Update' },
+          { id:'delete', name:'Delete' }
+        ],
+        columns_resizable: true,
+        columns_hidden: ['id'],
+        columns_allowhtml: ['read', 'create', 'update', 'delete' ]
       },
       search: true
     });
@@ -223,7 +225,7 @@ mod['objconf'] = {
     ] });
 
     content.append(new obContent({
-      name: [ $('<a/>', { class:'link', html:'Object types', click:function() { mod.objconf.list(); } }), ` / ${(id==null)?'[new]':api_conf.name}` ],
+      name: [ $('<a/>', { class:'link', html:'Object types', click:function() { mod.objconf.list(); } }), $('<span/>', { text:` / ${(id==null)?'[new]':api_conf.name}` })],
       content: obtabs.html(),
       control: [
         // -- Save

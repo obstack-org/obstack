@@ -138,7 +138,8 @@ mod['group'] = {
           { id: 'delete', name:'Delete' }
         ],
         columns_resizable: true,
-        columns_hidden: ['id']
+        columns_hidden: ['id'],
+        columns_allowhtml: ['active', 'delete']
       },
       search: true,
       create: function() { mod.group.members.open(id, usrlist); }
@@ -156,7 +157,8 @@ mod['group'] = {
           { id: 'delete', name:'Delete' }
         ],
         columns_resizable: true,
-        columns_hidden: ['id']
+        columns_hidden: ['id'],
+        columns_allowhtml: ['read', 'create', 'update', 'delete']
       },
       search: true
     });
@@ -169,7 +171,7 @@ mod['group'] = {
       ]
     });
 
-    content.append(new obContent({
+    content.empty().append(new obContent({
       name: [ $('<a/>', { class:'link', html:'Groups', click:function() { mod.group.list(); } }), ` / ${(id==null)?'[new]':api_group.groupname}` ],
       content: obtabs.html(),
       control: [
@@ -308,26 +310,30 @@ mod['group'] = {
               { id:'lastname', name:'Last name', orderable:true },
               { id:'active', name:'Active', orderable:true }
             ],
-            columns_hidden: ['id']
+            columns_hidden: ['id'],
+            columns_allowhtml: ['active']
           },
           search: true,
           open:   function(td) {
             let tr = $(td).parent('tr');
             let tds = [];
             $.each(tr.children('td'), function(){ tds = [...tds, $(this).html()]; });
-            let newrow = table.addrow([
-              ...tds,
-              $('<img/>', { class:'pointer', src:'img/icbin.png', width:14 })
-              .on('click', function() {
-                tr = $(this).parents('tr');
-                if (tr.hasClass('delete')) {
-                    tr.removeClass('delete');
-                }
-                else {
-                  tr.addClass('delete');
-                }
-              })
-            ]);
+            let newrow = table.addrow({
+              username:tds[0],
+              firstname:tds[1],
+              lastname:tds[2],
+              active:tds[3],
+              delete:$('<img/>', { class:'pointer', src:'img/icbin.png', width:14 })
+                .on('click', function() {
+                  tr = $(this).parents('tr');
+                  if (tr.hasClass('delete')) {
+                      tr.removeClass('delete');
+                  }
+                  else {
+                    tr.addClass('delete');
+                  }
+                })
+            });
             newrow.attr('hdt',tr.attr('hdt'));
             popup.remove();
           },

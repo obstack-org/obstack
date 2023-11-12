@@ -61,7 +61,8 @@ mod['user'] = {
             ],
             columns_orderable: true,
             columns_resizable: true,
-            columns_hidden: ['id']
+            columns_hidden: ['id'],
+            columns_allowhtml: ['active', 'tokens', 'sa']
           },
           search:   true,
           create:   function() { mod.user.open(null); },
@@ -177,7 +178,8 @@ mod['user'] = {
             { id:'delete', name:'Delete' },
           ],
           columns_resizable: true,
-          columns_hidden: ['id']
+          columns_hidden: ['id'],
+          columns_allowhtml: ['delete']
         },
         search:   true,
         create:   function() { mod.user.groups.open(id, grplist); }
@@ -216,7 +218,12 @@ mod['user'] = {
 
     // Draw
     content.append(new obContent({
-      name: (self)?'Profile':[$('<a/>', { class:'link', html:'Users', click: function() { mod.user.list(); } }), ` / ${(id==null)?'[new]':api_user.username}`],
+      name: (self)?'Profile':[$('<a/>', { class:'link', html:'Users', click: function() {
+        // $('.obTabs-tab-content').each(function() {
+        //   console.log(CryptoJS.SHA1($(this).prop('outerHTML')).toString());
+        // });
+        mod.user.list();
+      } }), ` / ${(id==null)?'[new]':api_user.username}`],
       content: obtabs.html(),
       control: [
         // -- Save
@@ -249,6 +256,10 @@ mod['user'] = {
         $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() { mod.user.close(id); })
       ]
     }).html());
+
+    // $('.obTabs-tab-content').each(function() {
+    //   console.log(CryptoJS.SHA1($(this).prop('outerHTML')).toString());
+    // });
 
     loader.remove();
 
@@ -361,19 +372,19 @@ mod['user'] = {
           open:   function(td) {
             td = $(td);
             let tr = td.parent('tr');
-            let newrow = table.addrow([
-              td.text(),
-              $('<img/>', { class:'pointer', src:'img/icbin.png', width:14 })
-              .on('click', function() {
-                tr = $(this).parents('tr');
-                if (tr.hasClass('delete')) {
-                    tr.removeClass('delete');
-                }
-                else {
-                  tr.addClass('delete');
-                }
-              })
-            ]);
+            let newrow = table.addrow({
+              name: td.text(),
+              delete: $('<img/>', { class:'pointer', src:'img/icbin.png', width:14 })
+                .on('click', function() {
+                  tr = $(this).parents('tr');
+                  if (tr.hasClass('delete')) {
+                      tr.removeClass('delete');
+                  }
+                  else {
+                    tr.addClass('delete');
+                  }
+                })
+            });
             newrow.attr('hdt',tr.attr('hdt'));
             popup.remove();
           },
