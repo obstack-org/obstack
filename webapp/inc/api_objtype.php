@@ -60,12 +60,12 @@ elseif ($api->route('/objecttype/{objecttype}/object/{object}')) {
 // --> /objecttype/[objecttype]/object/[object]/relation
 elseif ($api->route('/objecttype/{objecttype}/object/{object}/relation')) {
   if ($api->method('GET'))     { $result = $obj->relation_list($api->param('objecttype'), $api->param('object')); }
-  if ($api->method('POST'))    { if ($obj->relation_save($api->param('object'), $api->payload()['id'])) { $result = ['assign'=>true]; } }
+  if ($api->method('POST'))    { if ($obj->relation_save($api->param('objecttype'), $api->param('object'), $api->payload()['id'])) { $result = ['assign'=>true]; } }
 }
 
 // --> /objecttype/[objecttype]/object/[object]/relation/available
 elseif ($api->route('/objecttype/{objecttype}/object/{object}/relation/available')) {
-  if ($api->method('GET'))     { $result = $obj->relation_list($api->param('objecttype'), $api->param('object'), true); }
+  if ($api->method('GET'))     { $result = $obj->relation_list($api->param('objecttype'), $api->param('objecttype'), $api->param('object'), true); }
 }
 
 // --> /objecttype/[objecttype]/object/[object]/relation/[relation]
