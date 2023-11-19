@@ -53,7 +53,7 @@ class mod_obj {
    ******************************************************************/
   private function list2in($list, $prefix='i') {
     $result = (object)[ 'marks'=>[], 'params'=>[] ];
-    foreach($list as $id=>$value) {
+    foreach ($list as $id=>$value) {
       $result->marks[] = ":$prefix$id";
       $result->params[":$prefix$id"] = $value;
     }
@@ -155,7 +155,7 @@ class mod_obj {
       if (count($dbresult) > 0) {
         $id = null;
         $meta = [];
-        foreach($dbresult as $dbrow) {
+        foreach ($dbresult as $dbrow) {
           if ($dbrow->id != $id) {
             if ($id != null) {
               $this->cache->object[$id] = (object)[ 'short'=>$dbrow->short, 'meta'=>$meta ];
@@ -198,7 +198,7 @@ class mod_obj {
       $shortlist = $this->list_short(null, array_keys($xlist->object), $depth);
       foreach ($shortlist as $sid=>$svalue) {
         if (in_array($sid, array_keys($xlist->object))) {
-          foreach($xlist->object[$sid] as $oid=>$propid) {
+          foreach ($xlist->object[$sid] as $oid=>$propid) {
             $this->cache->object[$oid]->meta[$propid]->value_text = $shortlist[$sid];
           }
         }
@@ -210,7 +210,7 @@ class mod_obj {
       $dbqin = $this->list2in(array_keys($xlist->valuemap));
       foreach ($this->db->query("SELECT id, name FROM valuemap_value WHERE id IN ($dbqin->marks)", $dbqin->params) as $dbrow) {
         if (in_array($dbrow->id, array_keys($xlist->valuemap))) {
-          foreach($xlist->valuemap[$dbrow->id] as $oid=>$propid) {
+          foreach ($xlist->valuemap[$dbrow->id] as $oid=>$propid) {
             $this->cache->object[$oid]->meta[$propid]->value_text = $dbrow->name;
           }
         }
@@ -219,7 +219,7 @@ class mod_obj {
 
     // Result
     $result = [];
-    foreach($idlist as $id) {
+    foreach ($idlist as $id) {
       if ($id != null) {
         $object = (object)[ 'id'=>$id ];
         foreach ($this->cache->object[$id]->meta as $property=>$value) {
@@ -266,9 +266,9 @@ class mod_obj {
       // Gather data
       $objlist = $this->list_full($otidlist, $idlist, null, $depth);
       $otlist = [];
-      foreach($objlist as $obj) {
+      foreach ($objlist as $obj) {
         if ($obj->id != null) {
-          foreach($this->cache->object[$obj->id]->meta as $value) {
+          foreach ($this->cache->object[$obj->id]->meta as $value) {
             if ($value->type == 3) {
               $otlist[] = $value->value;
             }
@@ -278,11 +278,11 @@ class mod_obj {
       $tshort = $this->list_short(null, $otlist, $depth);
 
       // Generate shortname(s)
-      foreach($objlist as $obj) {
+      foreach ($objlist as $obj) {
         $max = 4;
         $short = [];
         if ($obj->id != null) {
-          foreach($this->cache->object[$obj->id]->meta as $value) {
+          foreach ($this->cache->object[$obj->id]->meta as $value) {
             if ($max > 0) {
               if ($value->type == 3) {
                 if (in_array($value->value, array_keys($tshort))) {
@@ -454,7 +454,7 @@ class mod_obj {
       $dbq = (object)[ 'filter'=>[], 'params'=>[] ];
       $dbq->params[":obj"] = $id;
       // Prepare
-      foreach($property as $value) {
+      foreach ($property as $value) {
         if ($data[$value->property] != null && in_array($value->property, array_keys($data)) && $value->value != $data[$value->property]) {
           $dbq->filter[] = "(:obj,:objproperty$dbc,:value$dbc)";
           $dbq->params[":objproperty$dbc"] = $value->property;
@@ -478,7 +478,7 @@ class mod_obj {
     }
     // Update log
     $vlog = implode(', ', $vlog);
-    if (strlen($vlog) > 0) {
+    if ($id != null && strlen($vlog) > 0) {
       $this->log_save($otid, $id, 2, $vlog);
     }
 
@@ -487,25 +487,27 @@ class mod_obj {
       $xlist = [];
       $otlist = [];
       // Current relations with log state
-      foreach($this->db->query('SELECT obj, obj_ref as ref FROM obj_obj WHERE obj=:obj OR obj_ref=:obj', [':obj'=>$id]) as $rec) {
+      foreach ($this->db->query('SELECT obj, obj_ref as ref FROM obj_obj WHERE obj=:obj OR obj_ref=:obj', [':obj'=>$id]) as $rec) {
         if (!isset($xlist[$rec->obj]) && $rec->obj != $id) { $xlist[] = $rec->obj; }
         elseif (!isset($xlist[$rec->ref]) && $rec->ref != $id) { $xlist[] = $rec->ref; }
       }
       $dbqin = $this->list2in(array_merge($xlist, $data['relations']));
-      foreach($this->db->query("SELECT id, objtype FROM obj WHERE id IN ($dbqin->marks)", $dbqin->params) as $dbrow) {
-        $otlist[$dbrow->id] = $dbrow->objtype;
+      if (count($dbqin->params) > 0) {
+        foreach ($this->db->query("SELECT id, objtype FROM obj WHERE id IN ($dbqin->marks)", $dbqin->params) as $dbrow) {
+          $otlist[$dbrow->id] = $dbrow->objtype;
+        }
       }
       // Detemine and save new relations
       $rlist = array_diff($data['relations'], $xlist);
       $this->relation_save($otid, $id, $rlist, true);
-      foreach($rlist as $rel) {
+      foreach ($rlist as $rel) {
         $this->log_save($otid, $id, 5, $this->list_short(null, [$rel])[$rel]);
         $this->log_save($otlist[$rel], $rel, 5, $this->list_short(null, [$id])[$id]);
       }
       // Determine and remove deleted relations
       $rlist = array_diff($xlist, $data['relations']);
       $this->relation_delete($otid, $id, $rlist, true);
-      foreach($rlist as $rel) {
+      foreach ($rlist as $rel) {
         $this->log_save($otid, $id, 6, $this->list_short(null, [$rel])[$rel]);
         $this->log_save($otlist[$rel], $rel, 6, $this->list_short(null, [$id])[$id]);
       }
@@ -518,23 +520,42 @@ class mod_obj {
    * delete object
    ******************************************************************/
   public function delete($otid, $id) {
-    // Process ACL
     $acl = $this->objtype->acl($otid);
     if (!$acl->delete) { return null; }
+
+    // Delete values
+    $tlist = [];
+    foreach ($this->db->query('SELECT * FROM objproperty WHERE objtype=:objtype', [':objtype'=>$otid]) as $dbrow) {
+      if (!isset($tlist[$dbrow->type])) {
+        $tlist[] = $dbrow->type;
+      }
+    }
+    foreach ($tlist as $type) {
+      $this->db->query("DELETE FROM value_".$this->datatype[$type]." WHERE obj=:id", [':id'=>$id]);
+    }
+
+    // Delete relations
+    $xlist = [];
+    $otlist = [];
+    foreach ($this->db->query('SELECT obj, obj_ref as ref FROM obj_obj WHERE obj=:obj OR obj_ref=:obj', [':obj'=>$id]) as $rec) {
+      if (!isset($xlist[$rec->obj]) && $rec->obj != $id) { $xlist[] = $rec->obj; }
+      elseif (!isset($xlist[$rec->ref]) && $rec->ref != $id) { $xlist[] = $rec->ref; }
+    }
+    $dbqin = $this->list2in($xlist);
+    if (count($dbqin->params) > 0) {
+      foreach ($this->db->query("SELECT id, objtype FROM obj WHERE id IN ($dbqin->marks)", $dbqin->params) as $dbrow) {
+        $otlist[$dbrow->id] = $dbrow->objtype;
+      }
+    }
+    foreach ($xlist as $rel) {
+      $this->log_save($otlist[$rel], $rel, 6, $this->list_short(null, [$rel])[$rel].' (deleted)');
+    }
+    $this->db->query('DELETE FROM obj_obj WHERE obj=:obj OR obj_ref=:obj', [':obj'=>$id]);
+
     // Delete object
-    foreach($this->db->query('SELECT * FROM obj_obj WHERE obj=:id OR obj_ref=:id', [':id'=>$id]) as $rec) {
-      if ($rec->obj == $id) {
-        $this->log_save(null, $rec->obj_ref, 6, $this->list_short(null, [$rec->obj])[$rec].' (deleted)');
-      }
-      else {
-        $this->log_save(null, $rec->obj, 6, $this->list_short(null, [$rec->obj_ref])[$rec].' (deleted)');
-      }
-    }
+    $this->log_save($otid, $id, 9, 'Object deleted');
     $this->db->query('DELETE FROM obj WHERE id=:id AND objtype=:objtype', [':objtype'=>$otid, ':id'=>$id]);
-    foreach (['decimal', 'text', 'timestamp', 'uuid', 'varchar'] as $table) {
-      $this->db->query("DELETE FROM value_$table WHERE obj=:id", [':id'=>$id]);
-    }
-    $this->db->query('DELETE FROM obj_obj WHERE obj=:id OR obj_ref=:id', [':id'=>$id]);
+
     return true;
   }
 
@@ -601,7 +622,7 @@ class mod_obj {
     }
     if ($this->format('aggr')) {
       $result = [];
-      foreach($this->list_full(null, array_keys($xlist), 'text') as $rel) {
+      foreach ($this->list_full(null, array_keys($xlist), 'text') as $rel) {
         if (in_array($rel->id, array_keys($xlist))) {
           $tmprel = (object)[
             'id'=>$rel->id,
@@ -638,7 +659,7 @@ class mod_obj {
     if (!is_array($ref)) { $ref = [ $ref ]; }
     $dbc = 0;
     $dbq = (object)[ 'filter'=>[], 'params'=>[] ];
-    foreach($ref as $id_ref) {
+    foreach ($ref as $id_ref) {
       $dbq->filter[] = ($id > $id_ref) ? "(:objx$dbc,:objy$dbc)" : "(:objy$dbc,:objx$dbc)";
       $dbq->params[":objx$dbc"] = $id;
       $dbq->params[":objy$dbc"] = $id_ref;
@@ -662,7 +683,7 @@ class mod_obj {
     if (!is_array($ref)) { $ref = [ $ref ]; }
     $dbc = 0;
     $dbq = (object)[ 'filter'=>[], 'params'=>[] ];
-    foreach($ref as $id_ref) {
+    foreach ($ref as $id_ref) {
       $dbq->filter[] = ($id > $id_ref) ? "(obj=:objx$dbc AND obj_ref=:objy$dbc)" : "(obj=:objy$dbc AND obj_ref=:objx$dbc)";
       $dbq->params[":objx$dbc"] = $id;
       $dbq->params[":objy$dbc"] = $id_ref;

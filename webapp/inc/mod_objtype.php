@@ -16,11 +16,10 @@ class mod_objtype {
 
   private $db;
   private $format;
-  private $cache;
   private $display;
-  private $valuetype = [1=>'varchar', 2=>'decimal', 3=>'uuid', 4=>'timestamp', 5=>'text'];
   private $acl;
   private $log;
+  private $valuetype = [1=>'varchar', 2=>'decimal', 3=>'uuid', 4=>'timestamp', 5=>'text'];
 
   /******************************************************************
    * Initialize
@@ -51,7 +50,7 @@ class mod_objtype {
    ******************************************************************/
   private function list2in($list, $prefix='i') {
     $result = (object)[ 'marks'=>[], 'params'=>[] ];
-    foreach($list as $id=>$value) {
+    foreach ($list as $id=>$value) {
       $result->marks[] = ":$prefix$id";
       $result->params[":$prefix$id"] = $value;
     }
@@ -115,12 +114,12 @@ class mod_objtype {
       $dbq->filter[] = "ot.id IN ($dbqin->marks)";
       $dbq->params = $dbqin->params;
     }
-    if (!$_SESSION['sessman']['sa']) {
-      $groups = str_replace('"','\'',substr(json_encode($_SESSION['sessman']['groups']),1,-1));
-      $dbq->filter[] = "ota.smgroup IN ($groups) AND ota.read";
-      $dbq->join[] = 'LEFT JOIN objtype_acl AS ota ON ota.objtype = ot.id';
-    }
     $dbq->select[] = 'DISTINCT ot.id AS id, ot.name AS name';
+    if (!$_SESSION['sessman']['sa']) {
+      $dbq->join[] = 'LEFT JOIN objtype_acl oa ON oa.objtype = ot.id LEFT JOIN sessman_usergroups su ON su.smgroup = oa.smgroup';
+      $dbq->filter[] = 'su.smuser = :userid AND oa.read';
+      $dbq->params[':userid'] = $_SESSION['sessman']['userid'];
+    }
     if (in_array($this->format, [ 'expand', 'full', 'aggr' ])) {
       $dbq->select[] = 'ot.short AS short, ot.log AS log';
     }
@@ -144,18 +143,17 @@ class mod_objtype {
     if ($this->format == 'aggr') {
       $result = [];
       foreach ($this->db->query($dbquery, $dbq->params) as $ot) {
-
         $meta = null;
         $property_list = $this->property_list($ot->id);
         if ($this->display == 'edit') {
           $meta = (object)[ 'objecttype'=>(object)[], 'valuemap'=>(object)[] ];
           $mod_obj = new mod_obj($this->db, $this);
           $mod_valuemap = new mod_valuemap($this->db);
-          foreach($property_list as $property) {
+          foreach ($property_list as $property) {
             if ($property->type == 3) {
               $tobjtype = $property->type_objtype;
               $meta->objecttype->$tobjtype = [];
-              foreach($mod_obj->list_short([$tobjtype], null) as $sid=>$sname) {
+              foreach ($mod_obj->list_short([$tobjtype], null) as $sid=>$sname) {
                 $meta->objecttype->$tobjtype[] = (object)[ 'id'=>$sid, 'name'=>$sname ];
               }
             }
@@ -244,7 +242,7 @@ class mod_objtype {
    ******************************************************************/
   public function delete($otid) {
     $dbparams = [':otid'=>$otid];
-    foreach($this->valuetype as $type) {
+    foreach ($this->valuetype as $type) {
       $this->db->query("DELETE FROM value_$type WHERE objproperty IN (SELECT id FROM objproperty WHERE objtype=:otid)", $dbparams);
     }
     $this->db->query('DELETE FROM obj WHERE objtype=:otid', $dbparams);
