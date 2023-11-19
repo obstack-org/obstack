@@ -20,6 +20,7 @@ class mod_objtype {
   private $display;
   private $valuetype = [1=>'varchar', 2=>'decimal', 3=>'uuid', 4=>'timestamp', 5=>'text'];
   private $acl;
+  private $log;
 
   /******************************************************************
    * Initialize
@@ -27,6 +28,7 @@ class mod_objtype {
   public function __construct($db) {
     $this->db = $db;
     $this->acl = [];
+    $this->log = [];
     if (isset($_GET['format'])) { $this->format = $_GET['format']; }
     if (isset($_GET['display'])) { $this->display = $_GET['display']; }
   }
@@ -85,6 +87,16 @@ class mod_objtype {
       }
     }
     return $this->acl[$otid];
+  }
+
+  /******************************************************************
+   * Retrieve Log state
+   ******************************************************************/
+  public function log($otid) {
+    if (!in_array($otid, $this->log)) {
+      $this->log[$otid] = $this->db->query('SELECT log FROM objtype WHERE id=:otid', [':otid'=>$otid])[0];
+    }
+    return $this->log[$otid];
   }
 
   /******************************************************************

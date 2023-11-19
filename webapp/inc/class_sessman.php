@@ -171,7 +171,6 @@ class sessman {
     }
     // Unauthorized, reset session id
     session_destroy();
-    session_regenerate_id();
     session_id(bin2hex(random_bytes(random_int(56,64))));
     session_start();
     return false;
@@ -255,7 +254,7 @@ class sessman {
     ldap_set_option($ldapconn, LDAP_OPT_REFERRALS, 0);
     ldap_set_option($ldapconn, LDAP_OPT_NETWORK_TIMEOUT, 10);
     // LDAP connection
-    if (ldap_bind($ldapconn, "uid=$username,".$this->config_ldap['userdn'], $secret)) {
+    if (@ldap_bind($ldapconn, "uid=$username,".$this->config_ldap['userdn'], $secret)) {
       // Database groups
       $dbgroups = [];
       foreach ($this->db->query('SELECT id, ldapcn FROM sessman_group', []) as $dbrec) {
