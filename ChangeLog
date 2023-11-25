@@ -2,19 +2,20 @@
  CHANGES
 *********
 
-v1.1.2 (xx-xx-2023):
+v1.1.5 (xx-xx-2023):
 - Manage users in groups screen
 - Add GUI hints
-- Add not saved notifications
+- Add unsaved changes notifications
 - Add HTML entity coding on text inputs
 - Full backend refactoring
+- Fix versioning
 
-v1.1.1 (12-10-2023):
+v1.1.4 (12-10-2023):
 - Full frontend refactoring
 - Replace jsonForm plugin
 - Revise loading
 
-v1.1.0 (17-06-2023):
+v1.1.3 (17-06-2023):
 - Add groups with ACL's
 - Fix type order
 - Logs limited to SA

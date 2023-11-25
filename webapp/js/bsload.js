@@ -8,7 +8,7 @@
 
 // Development options
 const debug = false;
-const build = '231119'
+const build = '231125'
 
 // Loading options
 const hthead = $('head');
@@ -46,7 +46,7 @@ function bsdbg(reset) {
   let strbld = localStorage.getItem('obstack:build');
   if ((strbld != build) || debug) {
     dbg = `?_=${$.now()}`;
-    if (reset == true) {
+    if (typeof reset == 'boolean' && reset) {
       localStorage.setItem('obstack:build', build);
     }
   }

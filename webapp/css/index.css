@@ -28,16 +28,6 @@ input[type='checkbox'] {
   width: 30px;
   cursor: pointer;
 }
-info {
-  font-size: 14px;
-  font-style: bold;
-  vertical-align: super;
-  cursor: help;
-}
-move {
-  padding-left: 5px;
-  cursor: move;
-}
 .titlebar, .sidebar, .content {
   position: absolute;
   top: 0px;

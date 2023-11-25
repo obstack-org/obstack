@@ -108,8 +108,8 @@ mod['group'] = {
 
     let grpform = new obForm([
       { id:'groupname',  name:'Name',  type:'string', regex_validate:/^.+/, value:(id==null)?'':api_group.groupname },
-      { id:'ldapcn',     name:'LDAP CN', type:'string', value:(id==null)?'':api_group.ldapcn },
-      { id:'radiusattr', name:'Radius Attribute', type:'string', value:(id==null)?'':api_group.radiusattr }
+      { id:'ldapcn',     name:'LDAP Group mapping', type:'string', value:(id==null)?'':api_group.ldapcn, info:'LDAP group CN for automatic membership, see documentation for more info' },
+      { id:'radiusattr', name:'Radius Attribute mapping', type:'string', value:(id==null)?'':api_group.radiusattr, info:'Radius attribute for automatic membership, see documentation for more info' }
     ]);
 
     for (let i=0; i<api_member.length; i++) {
@@ -172,13 +172,14 @@ mod['group'] = {
     });
 
     content.empty().append(new obContent({
-      name: [ $('<a/>', { class:'link', html:'Groups', click:function() { mod.group.list(); } }), ` / ${(id==null)?'[new]':api_group.groupname}` ],
+      name: [ $('<a/>', { class:'link', html:'Groups', click:function() { if (change.check()) { mod.group.list(); } } }), ` / ${(id==null)?'[new]':api_group.groupname}` ],
       content: obtabs.html(),
       control: [
         // -- Save
         $('<input/>', { class: 'btn', type: 'submit', value: 'Save' }).on('click', function() {
           let grpform_data = grpform.validate();
           if (grpform_data != null) {
+            change.reset();
             mod.group.save(id, grpform_data, usrlist.table(), acclist.table());
           }
         }),
@@ -191,15 +192,20 @@ mod['group'] = {
               $.when(
                 api('delete',`auth/group/${id}`)
               ).always(function() {
+                change.reset();
                 mod.group.close();
               });
             });
           }
         }),
         // -- Close
-        $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function() { mod.group.close(); }),
+        $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function() {
+          if (change.check()) { mod.group.close(); }
+        }),
       ]
     }).html());
+
+    change.observe();
 
   },
 

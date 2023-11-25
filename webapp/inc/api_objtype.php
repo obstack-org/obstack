@@ -54,13 +54,13 @@ elseif ($api->route('/objecttype/{objecttype}/object')) {
 elseif ($api->route('/objecttype/{objecttype}/object/{object}')) {
   if ($api->method('GET'))     { $result = $obj->open($api->param('objecttype'), $api->param('object')); }
   if ($api->method('PUT'))     { $result = $obj->save($api->param('objecttype'), $api->param('object'), $api->payload()); }
-  if ($api->method('DELETE'))  { if ($obj->delete($api->param('objecttype'), $api->param('object'))) { $result = ['delete'=>true]; } }
+  if ($api->method('DELETE') && ($obj->delete($api->param('objecttype'), $api->param('object')))) { $result = ['delete'=>true]; }
 }
 
 // --> /objecttype/[objecttype]/object/[object]/relation
 elseif ($api->route('/objecttype/{objecttype}/object/{object}/relation')) {
   if ($api->method('GET'))     { $result = $obj->relation_list($api->param('objecttype'), $api->param('object')); }
-  if ($api->method('POST'))    { if ($obj->relation_save($api->param('objecttype'), $api->param('object'), $api->payload()['id'])) { $result = ['assign'=>true]; } }
+  if ($api->method('POST') && ($obj->relation_save($api->param('objecttype'), $api->param('object'), $api->payload()['id']))) { $result = ['assign'=>true]; }
 }
 
 // --> /objecttype/[objecttype]/object/[object]/relation/available
@@ -70,7 +70,7 @@ elseif ($api->route('/objecttype/{objecttype}/object/{object}/relation/available
 
 // --> /objecttype/[objecttype]/object/[object]/relation/[relation]
 elseif ($api->route('/objecttype/{objecttype}/object/{object}/relation/{relation}')) {
-  if ($api->method('DELETE'))  { if ($obj->relation_delete($api->param('object'), $api->param('relation'))) { $result = ['delete'=>true]; } }
+  if ($api->method('DELETE') && ($obj->relation_delete($api->param('object'), $api->param('relation')))) { $result = ['delete'=>true]; }
 }
 
 // --> /objecttype/[objecttype]/object/[object]/log

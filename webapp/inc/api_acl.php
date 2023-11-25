@@ -15,10 +15,10 @@ if ($api->route('/auth/group/{group}/acl')) {
   if ($api->method('DELETE'))   { $result = $acl->group_delete($api->param('group')); }
 }
 
-// --> /objecttype/[objecttype]/acl
+// --> /objecttype/[objecttype] (append ACL)
 elseif ($api->route('/objecttype/{objecttype}')) {
   checkSA();
-  if ($api->method('GET'))      { $result[0]->acl = $acl->objtype_list($api->param('objecttype')); }
+  if ($api->method('GET'))      { $result->acl = $acl->objtype_list($api->param('objecttype')); }
 }
 
 // --> /objecttype/[objecttype]/acl

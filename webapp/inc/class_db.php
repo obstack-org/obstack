@@ -20,6 +20,7 @@ class db {
   private $dbconn;
   private $dbuser;
   private $dbpass;
+  private $persistent;
 
   /******************************************************************
    * Initialize with connection string
@@ -35,14 +36,14 @@ class db {
         $this->dbconn = new PDO($args[0]);
       }
       elseif (count($args) == 2) {
-        $this->persistent = ($args[1] == true);
+        $this->persistent = (is_bool($args[1]) && $args[1]);
         $this->dbconn = new PDO($args[0], null, null, [PDO::ATTR_PERSISTENT=>$this->persistent]);
       }
       elseif (count($args) == 3) {
         $this->dbconn = new PDO($args[0], $this->dbuser, $this->dbpass);
       }
       else {
-        $this->persistent = ($args[3] == true);
+        $this->persistent = (is_bool($args[3]) && $args[3]);
         $this->dbconn = new PDO($args[0], $this->dbuser, $this->dbpass, [PDO::ATTR_PERSISTENT=>$this->persistent]);
       }
     }

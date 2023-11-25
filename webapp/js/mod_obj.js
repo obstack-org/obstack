@@ -38,14 +38,13 @@ mod['obj'] = {
       api('get',`objecttype/${type}?format=aggr`),
       api('get',`objecttype/${type}/object?format=text&display=table`)
     ).done(function(apidata_type, apidata_objects) {
-      apidata_type = apidata_type[0][0];
+      apidata_type = apidata_type[0];
       apidata_objects = apidata_objects[0];
-      apidata_properties = apidata_type.property;
 
       let columns = [];
       let columns_remove = [];
       let columns_allowhtml = [];
-      $.each(apidata_properties, function(id, column) {
+      $.each(apidata_type.property, function(id, column) {
         if (column.tbl_visible) {
           columns = [...columns, { id:column.id, name:column.name, orderable:column.tbl_orderable}];
         }
@@ -111,7 +110,7 @@ mod['obj'] = {
       $.when(
         api('get',`objecttype/${type}?format=aggr&display=edit`)
       ).done(function(apidata) {
-        mod.obj.open_htgen(type, id, apidata[0]);
+        mod.obj.open_htgen(type, id, apidata);
       });
     }
     // Open
@@ -133,18 +132,15 @@ mod['obj'] = {
    *    api_..  : API data
    ******************************************************************/
   open_htgen: function(type, id, apidata) {
-    // Reformat - temporary
     let api_objtype = apidata.objecttype;
     api_objtype.acl = apidata.acl;
-    api_objproperty = apidata.property;
-    api_log = [];
-    if (id == null) {
-      api_obj_short = [{ name:apidata.name }];
-      api_relations = [];
-      api_obj = [];
-    }
-    else {
-      api_obj_short = [{ name:apidata.name }];
+
+    let api_obj = [];
+    let api_log = [];
+    let api_obj_short = [{ name:apidata.name }];
+    let api_relations = [];
+
+    if (id != null) {
       api_relations = apidata.relation;
       api_obj = apidata.object;
       if (apidata.objecttype.log) {
@@ -155,7 +151,7 @@ mod['obj'] = {
     // Load
     let acl_save = (mod.user.self.sa)?true:(id==null)?api_objtype.acl.create:api_objtype.acl.update;
     let propform_data = [];
-    $.each(api_objproperty, function(key, property) {
+    $.each(apidata.property, function(key, property) {
       propform_data = [
         ...propform_data, {
           id:property.id,
@@ -169,7 +165,7 @@ mod['obj'] = {
      let propform_html = propform.html();
 
     // Options for selects
-    $.each(api_objproperty, function(key, property) {
+    $.each(apidata.property, function(key, property) {
       if ([3, 4].includes(property.type)) {
         let select = propform_html.find(`#${property.id}`);
         let value = (property.id in api_obj)?api_obj[property.id]:null;
@@ -272,13 +268,14 @@ mod['obj'] = {
     ]});
 
     let obcontent = {
-      name: [$('<a/>', { class:'link', text:`${api_objtype.name}`, click:function() { mod.obj.list(type); } }), $('<span/>', { text:` / ${(id==null)?'[new]':api_obj_short[0].name}`})],
+      name: [$('<a/>', { class:'link', text:`${api_objtype.name}`, click:function() { if (change.check()) { mod.obj.list(type); } } }), $('<span/>', { text:` / ${(id==null)?'[new]':api_obj_short[0].name}`})],
       content: obtabs.html(),
       control: [
         // -- Save
         (!acl_save)?null:$('<input/>', { class:'btn', type:'submit', value:'Save'  }).on('click', function() {
           let propform_data = propform.validate();
           if (propform_data != null) {
+            change.reset();
             mod.obj.save(type, id, propform_data, rellist.table());
           }
           else {
@@ -288,16 +285,22 @@ mod['obj'] = {
         // -- Delete
         (id == null || !api_objtype.acl.delete)?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
           if (confirm('WARNING!: This action wil permanently delete this object, are you sure you want to continue?')) {
-            $.when( api('delete',`objecttype/${type}/object/${id}`) ).always(function() { mod.obj.list(type); });
+            $.when( api('delete',`objecttype/${type}/object/${id}`) ).always(function() {
+              change.reset();
+              mod.obj.list(type);
+            });
           }
         }),
         // -- Close
-        $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() { mod.obj.list(type); })
+        $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() {
+          if (change.check()) { mod.obj.list(type); }
+        })
       ]
     };
 
     content.empty().append(new obContent(obcontent).html());
     loader.remove();
+    change.observe();
 
   },
 
@@ -354,7 +357,7 @@ mod['obj'] = {
 
       // Loader
       let popup_loader = new obPopup({
-        content: loader,
+        content: loader.removeClass('fadein').addClass('fadein'),
         control: null
       });
       $('#_obTab1-content').append(popup_loader.html());
@@ -377,21 +380,19 @@ mod['obj'] = {
             if (rec.id == id) {
               delete relations[idx];
             }
+            else if (relations_selected.indexOf(relations[idx].id) != -1) {
+              delete relations[idx];
+            }
             else {
-              if ( relations_selected.indexOf(relations[idx].id) != -1) {
-                delete relations[idx];
-              }
-              else {
-                let colnr = 0;
-                $.each(rec, function(key, value) {
-                  if (colnr > 6) {
-                    delete relations[idx][key];
-                  }
-                  colnr++;
-                });
-                for (let i=colnr; i<=6; i++) {
-                  relations[idx][`dmy${i}`] = null;
+              let colnr = 0;
+              $.each(rec, function(key, value) {
+                if (colnr > 6) {
+                  delete relations[idx][key];
                 }
+                colnr++;
+              });
+              for (let i=colnr; i<=6; i++) {
+                relations[idx][`dmy${i}`] = null;
               }
             }
           });
@@ -448,11 +449,14 @@ mod['obj'] = {
         let hdt = JSON.parse(row.attr('hdt'));
         $.when(
           api('get',`objecttype/${hdt.objtype}/object/${hdt.id}?format=full`)
-        ).done(function(api_obj) {
+        ).fail(function() {
+          popup_loader.remove();
+        })
+        .done(function(api_obj) {
 
           // Prepare
           let frmdata = [];
-          $.each(api_obj[0], function(id, value) {
+          $.each(api_obj, function(id, value) {
             if (id != 'id') {
               let field = { id:value.id, name:value.label, type:'string', value:value.value_text, readonly:true };
               if ($.inArray(value.type, [3, 4]) != -1) {
