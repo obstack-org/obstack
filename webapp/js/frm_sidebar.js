@@ -21,7 +21,7 @@ frm['sidebar'] = {
         $('<div/>', {
           class: "sidebar-item",
           text: type.name,
-          click: function() { mod.obj.list(type.id); }
+          click: function() { if (change.check()) { mod.obj.list(type.id); } }
         })
       );
     });

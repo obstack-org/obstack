@@ -93,25 +93,22 @@ mod['user'] = {
       mod.user.open_htgen(null, { active:true }, {}, {});
     }
     // Open
+    else if (id == 'self') {
+      $.when(
+        api('get',`auth/user/${id}`),
+        api('get',`auth/user/${id}/token`)
+      ).done(function(api_user, api_tokens) {
+        mod.user.open_htgen(id, api_user[0], {}, api_tokens[0]);
+      });
+    }
     else {
-      // self
-      if (id == 'self') {
-        $.when(
-          api('get',`auth/user/${id}`),
-          api('get',`auth/user/${id}/token`)
-        ).done(function(api_user, api_tokens) {
-          mod.user.open_htgen(id, api_user[0], {}, api_tokens[0]);
-        });
-      }
-      else {
-        $.when(
-          api('get',`auth/user/${id}`),
-          api('get',`auth/user/${id}/group`),
-          api('get',`auth/user/${id}/token`)
-        ).done(function(api_user, api_groups, api_tokens) {
-          mod.user.open_htgen(id, api_user[0], api_groups[0], api_tokens[0]);
-        });
-      }
+      $.when(
+        api('get',`auth/user/${id}`),
+        api('get',`auth/user/${id}/group`),
+        api('get',`auth/user/${id}/token`)
+      ).done(function(api_user, api_groups, api_tokens) {
+        mod.user.open_htgen(id, api_user[0], api_groups[0], api_tokens[0]);
+      });
     }
   },
 
@@ -146,11 +143,11 @@ mod['user'] = {
     // Form (extend)
     if (!self) {
       usrform_config = [...usrform_config,
-        { id:'firstname', name:'First name',  type:'string', regex_validate:/^.{2,}$/, value:api_user.firstname },
-        { id:'lastname',  name:'Last name',   type:'string', regex_validate:/^.{2,}$/, value:api_user.lastname },
+        { id:'firstname', name:'First name',  type:'string', regex_validate:/^.{2,}$/, info:'Minimum length: 2', value:api_user.firstname },
+        { id:'lastname',  name:'Last name',   type:'string', regex_validate:/^.{2,}$/, info:'Minimum length: 2', value:api_user.lastname },
         { id:'active',    name:'Active',      type:'checkbox', value:api_user.active },
         { id:'tokens',    name:'Tokens',      type:'checkbox', value:api_user.tokens, info:'Change requires save to activate' },
-        { id:'sa',        name:'Admin',       type:'checkbox', value:api_user.sa },
+        { id:'sa',        name:'Admin',       type:'checkbox', info:'Full access to all components', value:api_user.sa },
       ]
     };
     let usrform = new obForm(usrform_config);
@@ -219,10 +216,7 @@ mod['user'] = {
     // Draw
     content.append(new obContent({
       name: (self)?'Profile':[$('<a/>', { class:'link', html:'Users', click: function() {
-        // $('.obTabs-tab-content').each(function() {
-        //   console.log(CryptoJS.SHA1($(this).prop('outerHTML')).toString());
-        // });
-        mod.user.list();
+        if (change.check()) { mod.user.list(); };
       } }), ` / ${(id==null)?'[new]':api_user.username}`],
       content: obtabs.html(),
       control: [
@@ -239,6 +233,7 @@ mod['user'] = {
                 delete usrform_data.password;
               }
               delete usrform_data.passvrfy;
+              change.reset();
               mod.user.save(id, usrform_data, (grplist == null)?null:grplist.table());
             }
           }
@@ -249,19 +244,21 @@ mod['user'] = {
         // -- Delete
         ((id==null)||(id=='self'))?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
           if (confirm('Are you sure you want to delete this user?')) {
-            $.when( api('delete',`auth/user/${id}`) ).always(function() { mod.user.close(); });
+            $.when( api('delete',`auth/user/${id}`) ).always(function() {
+              change.reset();
+              mod.user.close();
+            });
           }
         }),
         // -- Close
-        $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() { mod.user.close(id); })
+        $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() {
+          if (change.check()) { mod.user.close(id); }
+        })
       ]
     }).html());
 
-    // $('.obTabs-tab-content').each(function() {
-    //   console.log(CryptoJS.SHA1($(this).prop('outerHTML')).toString());
-    // });
-
     loader.remove();
+    change.observe();
 
   },
 

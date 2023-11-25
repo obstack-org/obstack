@@ -122,9 +122,8 @@ var obForm = function(fields) {
     }
     let info = null;
     if (field.info != null) {
-      info = $('<info/>', { title:field.info }).text(' 🛈');
+      info = $('<span/>', { class:'obForm-info', title:field.info }).text(' 🛈');
     }
-    //form.append($('<label/>', { for: field.id }).append(field.name, info));
 
     var fieldelem = $('<input disabled/>').text('[undefined]');
     var fieldattr = {
@@ -204,7 +203,8 @@ var obForm = function(fields) {
 
     form.append(
       $('<div/>').append(
-        $('<label/>', { for: field.id }).text(field.name, info),
+        $('<label/>', { for: field.id }).text(field.name),
+        info,
         fieldelem.val(field.value)
       )
     );

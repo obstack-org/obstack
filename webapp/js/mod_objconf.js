@@ -118,7 +118,7 @@ mod['objconf'] = {
         api('get',`objecttype/${id}?format=aggr&acl=group`)
       )
       .done(function(api_conf) {
-        mod.objconf.open_htgen(id, api_conf[0]);
+        mod.objconf.open_htgen(id, api_conf);
       });
     }
   },
@@ -141,7 +141,7 @@ mod['objconf'] = {
     // Form
     let obtform = new obForm([
       { id:'name',  name:'Name', type:'string', regex_validate:/^.+/, value:api_conf.name },
-      { id:'short', name:'Fields in shortname', regex_validate:/^.+/, type:'select', options:{1:1, 2:2, 3:3, 4:4}, value:api_conf.short },
+      { id:'short', name:'Shortname length', regex_validate:/^.+/, type:'select', options:{1:1, 2:2, 3:3, 4:4}, value:api_conf.short, info:'Number of fields used in shortname, used in e.g. dropdown selects'},
       { id:'log',   name:'Log', type:'select',  options:{0:'Disabled', 1:'Enabled'}, value:(api_conf.log)?1:0 },
     ]);
 
@@ -164,14 +164,14 @@ mod['objconf'] = {
         id: 'e0886e40f251333fcb4d2bc3ed17ac90b397a3b5',
         data: api_property,
         columns: [
-          { id:'property_name',  name:'Name' },
-          { id:'property_type',  name:'Type' },
-          { id:'property_table', name:'Table' },
-          { id:'property_form',  name:'Form' }
+          { id:'htname',  name:'Name' },
+          { id:'httype',  name:'Type' },
+          { id:'httable', name:'Table' },
+          { id:'htform',  name:'Form' }
         ],
         columns_resizable: true,
         columns_hidden: columns_hidden,
-        columns_allowhtml: ['httable', 'htform'],
+        columns_allowhtml: [ 'httable', 'htform', 2, 3 ],
         sortable: true
       },
       search:   true,
@@ -225,13 +225,14 @@ mod['objconf'] = {
     ] });
 
     content.append(new obContent({
-      name: [ $('<a/>', { class:'link', html:'Object types', click:function() { mod.objconf.list(); } }), $('<span/>', { text:` / ${(id==null)?'[new]':api_conf.name}` })],
+      name: [ $('<a/>', { class:'link', html:'Object types', click:function() { if (change.check()) { mod.objconf.list(); } } }), $('<span/>', { text:` / ${(id==null)?'[new]':api_conf.name}` })],
       content: obtabs.html(),
       control: [
         // -- Save
         $('<input/>', { class:'btn', type:'submit', value:'Save'  }).on('click', function() {
           let obtform_data = obtform.validate();
           if (obtform_data != null) {
+            change.reset();
             mod.objconf.save(id, obtform_data, proplist.table(), acclist.table());
           }
           else {
@@ -242,16 +243,22 @@ mod['objconf'] = {
         (id == null)?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
           if (confirm('WARNING!: This action wil permanently delete this object type, all related objects and all related values. Are you sure you want to continue?')) {
             if (confirm('WARNING!: Deleting object type. This can NOT be undone, are you really really sure?')) {
-              $.when( api('delete',`objecttype/${id}`) ).always(function() { mod.objconf.list(); });
+              $.when( api('delete',`objecttype/${id}`) ).always(function() {
+                change.reset();
+                mod.objconf.list();
+              });
             }
           }
         }),
         // -- Close
-        $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() { mod.objconf.list(); })
+        $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() {
+          if (change.check()) { mod.objconf.list(); }
+        })
       ]
     }).html());
 
     loader.remove();
+    change.observe();
 
   },
 
@@ -264,6 +271,9 @@ mod['objconf'] = {
    *   ptable   : Properties table (second tab)
    ******************************************************************/
   save: function(id, objtype_config, proplist, acclist) {
+
+    // Loader
+    content.append(loader.removeClass('fadein').addClass('fadein'));
 
     // Prepare data formats
     let dtsave = objtype_config;
@@ -321,17 +331,17 @@ mod['objconf'] = {
      * ==================
      * Array for generating the properties form
      ******************************************************************/
-    form: {
-      schema: {
-        name:   {title: 'Name', type: 'string' },
-        type:   {title: 'Type', type: 'string', enum: [] },
-        tsrc:   {title: 'Source', type: 'select', enum: [] },
-        reqr:   {title: 'Required', type: 'select', enum: [] },
-        table:  {title: 'Display in Table', type: 'string', enum: [] },
-        form:   {title: 'Display on Form', type: 'string', enum: [] }
-      },
-      form: ['*']
-    },
+    // form: {
+    //   schema: {
+    //     name:   {title:'Name', type:'string' },
+    //     type:   {title:'Type', type:'string', enum:[], info:'Cannot be changed after save' },
+    //     tsrc:   {title:'Source', type:'select', enum:[], info:'Cannot be changed after save' },
+    //     reqr:   {title:'Required', type:'select', enum:[], info:'Enable when field cannot be empty' },
+    //     table:  {title:'Display in Table', type:'string', enum:[] },
+    //     form:   {title:'Display on Form', type:'string', enum:[] }
+    //   },
+    //   form: ['*']
+    // },
 
     /******************************************************************
      * mod.objconf.properties.open(ptable)
@@ -351,9 +361,9 @@ mod['objconf'] = {
       }
       let propform = new obForm([
         {id:'name', name:'Name', type: 'string', regex_validate:/^.+/, value:rdata.name },
-        {id:'type', name:'Type', type: 'select', regex_validate:/^.+/, options: def.property, value:rdata.type, readonly:(!newrec&&rdata.id!=null) },
-        {id:'tsrc', name:'Source', type: 'select', readonly:(!newrec&&rdata.id!=null) },
-        {id:'reqr', name:'Required', type: 'select', options: { 0:'No', 1:'Yes' }, value:(rdata.required)?1:0 },
+        {id:'type', name:'Type', type: 'select', regex_validate:/^.+/, options: def.property, value:rdata.type, readonly:(!newrec&&rdata.id!=null), info:'Cannot be changed after save' },
+        {id:'tsrc', name:'Source', type: 'select', readonly:(!newrec&&rdata.id!=null), info:'Cannot be changed after save' },
+        {id:'reqr', name:'Required', type: 'select', options: { 0:'No', 1:'Yes' }, value:(rdata.required)?1:0, info:'Enable when field cannot be empty' },
         {id:'table', name:'Display in Table', type: 'select', options: { 1:'Show', 2:'Show - Sortable', 9:'Hide' }, value:(rdata.tbl_visible)?((rdata.tbl_orderable)?2:1):9 },
         {id:'form', name:'Display on Form', type: 'select', options: { 1:'Show', 2:'Show - Readonly', 9:'Hide' }, value:(rdata.frm_visible)?((rdata.frm_readonly)?2:1):9 }
       ]);

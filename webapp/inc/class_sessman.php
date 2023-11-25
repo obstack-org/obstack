@@ -44,7 +44,7 @@ class sessman {
    *   'group-sa'      => 'cn=mygroup-sa,cn=groups,cn=accounts,dc=example,dc=local'
    * ];
    ******************************************************************/
-  public $config_ldap = false;
+  public $config_ldap = null;
 
   /******************************************************************
    * $config_radius = [
@@ -58,7 +58,7 @@ class sessman {
    * ];
    * (groups match if name is in comma separated list of 'attr' value)
    ******************************************************************/
-  public $config_radius = false;
+  public $config_radius = null;
 
   /******************************************************************
    * $db = new db($db_connectionstring);
@@ -111,11 +111,11 @@ class sessman {
    ******************************************************************/
   public function login($username, $secret) {
     // auth_ldap
-    if ($this->config_ldap != false && $this->config_ldap['enabled'] && $this->auth_ldap($username, $secret)) {
+    if ($this->config_ldap != null && $this->config_ldap['enabled'] && $this->auth_ldap($username, $secret)) {
       return true;
     }
     // auth_radius
-    if ($this->config_radius != false && ($this->config_radius['enabled'] && $this->auth_radius($username, $secret))) {
+    if ($this->config_radius != null && ($this->config_radius['enabled'] && $this->auth_radius($username, $secret))) {
       return true;
     }
     // auth_db
@@ -723,7 +723,6 @@ class sessman {
    ******************************************************************/
   public function groupmember_save($groupid, $data) {
     if (!$this->SA())  { return false; }
-    if ($userid == 'self') { return false; }
     return $this->db->query('INSERT INTO sessman_usergroups VALUES (:smuser, :smgroup)', [':smuser'=>$data['id'], ':smgroup'=>$groupid]);
   }
 

@@ -26,10 +26,10 @@ class mod_acl {
       SELECT
         ot.id,
         ot.name,
-        ota.read,
-        ota.create,
-        ota.update,
-        ota.delete
+        CASE ota.read WHEN true THEN true ELSE false END AS read,
+        CASE ota.create WHEN true THEN true ELSE false END AS create,
+        CASE ota.update WHEN true THEN true ELSE false END AS update,
+        CASE ota.delete WHEN true THEN true ELSE false END AS delete
       FROM objtype AS ot
       LEFT JOIN (
         SELECT
@@ -96,10 +96,10 @@ class mod_acl {
         SELECT
           g.id,
           g.groupname,
-          ota.read,
-          ota.create,
-          ota.update,
-          ota.delete
+          CASE ota.read WHEN true THEN true ELSE false END AS read,
+          CASE ota.create WHEN true THEN true ELSE false END AS create,
+          CASE ota.update WHEN true THEN true ELSE false END AS update,
+          CASE ota.delete WHEN true THEN true ELSE false END AS delete
         FROM sessman_group AS g
         LEFT JOIN (
           SELECT

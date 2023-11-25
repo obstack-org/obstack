@@ -25,7 +25,7 @@ frm['titlebar'] = {
    ******************************************************************/
   items: {
     'icusr': [15, {
-      "Logout"      : function() { $.when(api('delete', 'auth')).always(function() { location.reload(true); }); }
+      "Logout"      : function() { $.when(api('delete', 'auth')).always(function() { if (change.check()) { location.reload(true); } }); }
     }],
     'iccnf': [45, {
       "Users"       : function() { mod.user.list(); },
@@ -83,7 +83,7 @@ frm['titlebar'] = {
       frm.titlebar.dropdown.append(
         $('<div/>', { class: 'titlebar-dropdown-item' })
           .html(key)
-          .on('click', function() { frm.titlebar.items[select][1][key](); }),
+          .on('click', function() { if (change.check()) { frm.titlebar.items[select][1][key](); } }),
       )
     });
     frm.titlebar.dropdown.slideDown('fast');

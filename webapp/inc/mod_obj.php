@@ -169,7 +169,7 @@ class mod_obj {
           $meta[$dbrow->property] = (object)[
             'label'=>($format->expand || $format->full) ? $dbrow->label : '',
             'type'=>$dbrow->type,
-            'type_text'=>$this->propertytype[$dbrow->type],
+            'type_text'=>(isset($this->propertytype[$dbrow->type])) ? $this->propertytype[$dbrow->type] : '',
             'value'=>$dbrow->value
           ];
           if ($dbrow->type == 2) {
@@ -222,22 +222,24 @@ class mod_obj {
     foreach ($idlist as $id) {
       if ($id != null) {
         $object = (object)[ 'id'=>$id ];
-        foreach ($this->cache->object[$id]->meta as $property=>$value) {
-          if ($format->text) {
-            $object->$property = $value->value_text;
-          }
-          elseif ($format->expand) {
-            $object->$property = (object) [
-              'name'=>$value->label,
-              'value'=>$value->value,
-              'value_text'=>$value->value_text,
-            ];
-          }
-          elseif ($format->full) {
-            $object->$property = $value;
-          }
-          else {
-            $object->$property = $value->value;
+        if (isset($this->cache->object[$id]->meta)) {
+          foreach ($this->cache->object[$id]->meta as $property=>$value) {
+            if ($format->text) {
+              $object->$property = $value->value_text;
+            }
+            elseif ($format->expand) {
+              $object->$property = (object) [
+                'name'=>$value->label,
+                'value'=>$value->value,
+                'value_text'=>$value->value_text,
+              ];
+            }
+            elseif ($format->full) {
+              $object->$property = $value;
+            }
+            else {
+              $object->$property = $value->value;
+            }
           }
         }
         $result[] = $object;
@@ -326,27 +328,27 @@ class mod_obj {
   public function open($otid=null, $id=null, $display_overwrite=null) {
     if (!$this->objtype->acl($otid)->read) { return null; }
     if (is_array($otid) || is_array($id)) { return null; }
-    $obj = $this->list_full($otid, $id);
+    $obj = $this->list_full($otid, $id)[0];
     $rel = $this->relation_list($otid, $id);
-    if (count($obj) > 0) {
+    if ($obj != null) {
       if ($this->format('aggr')) {
         $objecttype = $this->objtype->list($otid, $display_overwrite);
         $obj = (object)[
           'name'=>$this->list_short(null, [$id])[$id],
-          'object'=>$obj[0],
+          'object'=>$obj,
           'relation'=>$rel,
           'meta'=>null,
-          'objecttype'=>$objecttype[0]->objecttype,
-          'property'=>$objecttype[0]->property,
-          'acl'=>$objecttype[0]->acl
+          'objecttype'=>$objecttype->objecttype,
+          'property'=>$objecttype->property,
+          'acl'=>$objecttype->acl
         ];
-        if (isset($objecttype[0]->meta)) {
-          $obj->meta = $objecttype[0]->meta;
+        if (isset($objecttype->meta)) {
+          $obj->meta = $objecttype->meta;
         }
         else {
           unset($obj->meta);
         }
-        if ($objecttype[0]->objecttype->log) {
+        if ($objecttype->objecttype->log) {
           $obj->log = $this->log_list_full($id);
         }
       }
@@ -404,9 +406,9 @@ class mod_obj {
             $dbc++;
           }
         }
-        if ($this->db->query("SELECT count(*) AS dbc FROM ".$ttable[$xid]." WHERE ".implode(' OR ', $dbq->filter), $dbq->params)[0]->dbc != $dbc) {
+        if ((count($dbq->filter) > 0) && ($this->db->query("SELECT count(*) AS dbc FROM ".$ttable[$xid]." WHERE ".implode(' OR ', $dbq->filter), $dbq->params)[0]->dbc != $dbc)) {
           return null;
-        };
+        }
       }
     }
 
@@ -443,9 +445,11 @@ class mod_obj {
     }
 
     // Save Object
+    $chlog = true;
     if ($id == null) {
       $id = $this->db->query('INSERT INTO obj (objtype) VALUES (:otid) RETURNING id', [':otid'=>$otid])[0]->id;
       $this->log_save($otid, $id, 1, 'Object created');
+      $chlog = false;
     }
     $vlog = [];
     // Process per value type / table
@@ -478,7 +482,7 @@ class mod_obj {
     }
     // Update log
     $vlog = implode(', ', $vlog);
-    if ($id != null && strlen($vlog) > 0) {
+    if ($chlog && strlen($vlog) > 0) {
       $this->log_save($otid, $id, 2, $vlog);
     }
 
@@ -548,7 +552,7 @@ class mod_obj {
       }
     }
     foreach ($xlist as $rel) {
-      $this->log_save($otlist[$rel], $rel, 6, $this->list_short(null, [$rel])[$rel].' (deleted)');
+      $this->log_save($otlist[$rel], $rel, 6, $this->list_short(null, [$rel])[$rel].' (object deleted)');
     }
     $this->db->query('DELETE FROM obj_obj WHERE obj=:obj OR obj_ref=:obj', [':obj'=>$id]);
 
@@ -569,6 +573,17 @@ class mod_obj {
     if (!$this->objtype->acl($otid)->read) { return null; }
     $xlist = [];
     if ($available) {
+      $dbq = (object)[ 'join'=>[ 'LEFT JOIN objtype ot ON ot.id = o.objtype' ], 'filter'=>[], 'params'=>[] ];
+      if (!$_SESSION['sessman']['sa']) {
+        $dbqin = $this->list2in($_SESSION['sessman']['groups'], 'smg');
+        if (count($dbqin->params) > 0) {
+          $dbq->join[] = 'LEFT JOIN objtype_acl oa ON oa.objtype = ot.id';
+          $dbq->filter[] = "oa.smgroup IN ($dbqin->marks) AND oa.read";
+          $dbq->params = $dbqin->params;
+        }
+      }
+      $dbq->join = implode(' ', $dbq->join);
+      $dbq->filter = (count($dbq->filter) > 0) ? $dbq->filter = 'WHERE '.implode(' AND ', $dbq->filter) : '';
       $dbquery = "
         SELECT
           o.id AS id,
@@ -576,9 +591,10 @@ class mod_obj {
           ot.name AS objtype_name,
           ot.short AS short
         FROM obj o
-        LEFT JOIN objtype ot ON ot.id = o.objtype
+        $dbq->join
+        $dbq->filter
       ";
-      foreach ($this->db->query($dbquery, []) as $rel) {
+      foreach ($this->db->query($dbquery, $dbq->params) as $rel) {
         $xlist[$rel->id] = $rel;
       }
     }
@@ -620,8 +636,8 @@ class mod_obj {
         }
       }
     }
+    $result = [];
     if ($this->format('aggr')) {
-      $result = [];
       foreach ($this->list_full(null, array_keys($xlist), 'text') as $rel) {
         if (in_array($rel->id, array_keys($xlist))) {
           $tmprel = (object)[
@@ -639,21 +655,18 @@ class mod_obj {
           $result[] = $tmprel;
         }
       }
-      return $result;
     }
     else {
-      return $this->list_full(null, array_keys($xlist));
+      $result = $this->list_full(null, array_keys($xlist));
     }
-    return [];
+    return $result;
   }
 
   /******************************************************************
    * Create/Save relation
    ******************************************************************/
   public function relation_save($otid, $id, $ref, $private=false) {
-    if (!$private) {
-      if (!$this->objtype->acl($otid)->update) { return null; }
-    }
+    if (!$private && !$this->objtype->acl($otid)->update) { return null; }
     if ($otid == null || $id == null || $ref == null) { return null; }
 
     if (!is_array($ref)) { $ref = [ $ref ]; }
@@ -675,9 +688,7 @@ class mod_obj {
    * Delete relation
    ******************************************************************/
   public function relation_delete($otid, $id, $ref, $private=false) {
-    if (!$private) {
-      if (!$this->objtype->acl($otid)->delete) { return null; }
-    }
+    if (!$private && !$this->objtype->acl($otid)->delete) { return null; }
     if ($otid == null || $id == null || $ref == null) { return null; }
 
     if (!is_array($ref)) { $ref = [ $ref ]; }
