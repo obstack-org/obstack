@@ -23,15 +23,6 @@ class mod_valuemap {
   }
 
   /******************************************************************
-   * Boolean as string
-   ******************************************************************/
-  private function bool2str($var) {
-    if ($var) { return 'true'; }
-    if ($var == '1') { return 'true'; }
-    return 'false';
-  }
-
-  /******************************************************************
    * List valuemaps
    *  [ { id, name, prio }, {} ]
    ******************************************************************/
@@ -48,42 +39,47 @@ class mod_valuemap {
    * Save valuemap (create/update)
    ******************************************************************/
   public function save($id, $data) {
-    $dbparams = [];
-    // Valuemap configuration
-    if (isset($data['name'])) { $dbparams['name'] = $data['name']; }
-    if (isset($data['prio'])) { $dbparams['prio'] = $this->bool2str($data['prio']); }
-    // Valuemap create / update
+
+    // Prepare
+    $dbq = (object)[ 'params'=>[] ];
+    if (isset($data['name'])) { $dbq->params['name'] = $data['name']; }
+    if (isset($data['prio'])) { $dbq->params['prio'] = ($data['prio'] || $data['prio'] == '1') ? 'true' : 'false'; }
+
+    // Create
     if ($id == null) {
-      $id = $this->db->query('INSERT INTO valuemap (name, prio) VALUES (:name, :prio) RETURNING id', $dbparams)[0]->id;
+      $id = $this->db->query('INSERT INTO valuemap (name, prio) VALUES (:name, :prio) RETURNING id', $dbq->params)[0]->id;
       $result = $id;
     }
+    // Update
     else {
-      $dbparams[':id'] = $id;
-      $result = $this->db->query('UPDATE valuemap SET name=:name, prio=:prio WHERE id=:id', $dbparams);
+      $dbq->params[':id'] = $id;
+      $result = $this->db->query('UPDATE valuemap SET name=:name, prio=:prio WHERE id=:id', $dbq->params);
     }
-    // Valuemap values
+
+    // Values
     if (isset($data['value'])) {
-      // Values from HTTP request
+      // Current values
+      $xlist = [];
+      $vlist = [];
+      foreach ($this->db->query('SELECT id FROM valuemap_value WHERE valuemap=:id', [':id'=>$id]) as $dbrow) {
+        $xlist[] = $dbrow->id;
+      }
+      // New values
       $prio = 1;
-      $htlist = [];
-      foreach ($data['value'] as $rec) {
-        $tmpid = $this->value_save($id, $rec['id'], ['name'=>$rec['name'], 'prio'=>$prio])[0]->id;
-        if ($rec['id'] == null) {
-          $rec['id'] = $tmpid;
+      $vlist = [];
+      foreach ($data['value'] as $value) {
+        if (!isset($value['id'])) {
+          $vlist[] = $this->value_save($id, null, ['name'=>$value['name'], 'prio'=>$prio])[0]->id;
         }
-        array_push($htlist, $rec['id']);
+        else {
+          $vlist[] = $this->value_save($id, $value['id'], ['name'=>$value['name'], 'prio'=>$prio])[0]->id;
+        }
         $prio++;
       }
-      // Values from database
-      $dblist = [];
-      foreach ($this->db->query('SELECT id FROM valuemap_value WHERE valuemap=:id', [':id'=>$id]) as $dbrec) {
-        array_push($dblist, $dbrec->id);
-      }
+
       // Delete values
-      sort($htlist);
-      sort($dblist);
-      foreach (array_diff($dblist, $htlist) as $rec) {
-        $this->value_delete($id, $rec);
+      foreach (array_diff($xlist, $vlist) as $value) {
+        $this->value_delete($id, $value);
       }
     }
     return $result;
@@ -101,7 +97,7 @@ class mod_valuemap {
   /******************************************************************
    * value open
    ******************************************************************/
-  public function value_list($vmid, $id = null) {
+  public function value_list($vmid, $id=null) {
     if ($id == null) {
       $vmconfig = $this->db->query('SELECT prio FROM valuemap WHERE id=:vmid', [':vmid'=>$vmid])[0];
       $priosort = 'name';
@@ -119,23 +115,22 @@ class mod_valuemap {
    * value save
    ******************************************************************/
   public function value_save($vmid, $id, $data) {
-    $dbqprio = '';
-    $dbparams = [':vmid'=>$vmid, ':name'=>$data['name']];
+    $dbq = (object)[ 'fields'=>[ 'valuemap', 'name' ], 'insert'=>[ ':vmid', ':name' ], 'update'=>[ 'name=:name' ], 'params'=>[ ':vmid'=>$vmid, ':name'=>$data['name'] ] ];
+    if (isset($data['prio'])) {
+      $dbq->fields[] = 'prio';
+      $dbq->insert[] = ':prio';
+      $dbq->update[] = 'prio=:prio';
+      $dbq->params[':prio'] = $data['prio'];
+    }
+    $dbq->fields = implode(',', $dbq->fields);
+    $dbq->insert = implode(',', $dbq->insert);
+    $dbq->update = implode(',', $dbq->update);
     if ($id == null) {
-      if (array_key_exists('prio', $data)) {
-        $dbqprio1 = 'prio,';
-        $dbqprio2 = ':prio,';
-        $dbparams[':prio'] = $data['prio'];
-      }
-      return $this->db->query("INSERT INTO valuemap_value (valuemap, $dbqprio1 name) VALUES (:vmid, $dbqprio2 :name) RETURNING id", $dbparams);
+      return $this->db->query("INSERT INTO valuemap_value ($dbq->fields) VALUES ($dbq->insert) RETURNING id", $dbq->params);
     }
     else {
-      $dbparams[':id'] = $id;
-      if (array_key_exists('prio', $data)) {
-        $dbqprio = ',prio=:prio';
-        $dbparams[':prio'] = $data['prio'];
-      }
-      return $this->db->query("UPDATE valuemap_value SET name=:name $dbqprio WHERE valuemap=:vmid AND id=:id", $dbparams);
+      $dbq->params['id'] = $id;
+      return $this->db->query("UPDATE valuemap_value SET $dbq->update WHERE valuemap=:vmid AND id=:id RETURNING id", $dbq->params);
     }
   }
 

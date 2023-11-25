@@ -35,9 +35,34 @@ const obinit = [
 
 // Content for loader screen
 const loader =
-  $('<div/>', { class:'content-wrapper', style:'z-index: 20' }).append(
-    $('<img/>', { src:'img/sqbf.gif', class:'center', width:40 })
+  $('<div/>', { class:'content-loader', style:'z-index: 20' }).append(
+    $('<img/>', { src:'img/sqbf.gif', class:'center', width:60 })
   )
+
+// Change observer
+let change = {
+  state: false,
+  check: function(){
+    let result = false;
+    if (change.state) { result = confirm('You have unsaved changes, do you want to continue?'); }
+    else { result = true; }
+    if (result) { change.reset(); }
+    return result;
+  },
+  reset: function(){
+    change.observer.disconnect();
+    change.state = false;
+  },
+  observer: new MutationObserver(function() { change.state = true; }),
+  observe: function(){
+    change.observer.disconnect();
+    $.each(content.find('.obTable-tb'), function() {
+      change.observer.observe(this, { subtree:true, childList:true, characterData:true, attributes:true, attributeFilter:['class'] });
+    });
+    $('.obTabs-tab-content').find('form').on('change', function(){ change.state = true; });
+    $('.obTabs-tab-content').find('table').find('input').on('change', function(){ change.state = true; });
+  }
+}
 
 // Document onload function
 $(document).ready( function () {

@@ -8,7 +8,7 @@
 
 // Development options
 const debug = false;
-const build = '231013'
+const build = '231125'
 
 // Loading options
 const hthead = $('head');
@@ -20,6 +20,7 @@ const htinit = [
   "css/content.css",
   "lib/obui/obui.js",
   "lib/obui/obui.css",
+  "lib/crypto-js/crypto-js.js",
   "js/obstack.js",
 ];
 
@@ -45,7 +46,7 @@ function bsdbg(reset) {
   let strbld = localStorage.getItem('obstack:build');
   if ((strbld != build) || debug) {
     dbg = `?_=${$.now()}`;
-    if (reset == true) {
+    if (typeof reset == 'boolean' && reset) {
       localStorage.setItem('obstack:build', build);
     }
   }

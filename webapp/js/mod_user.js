@@ -61,7 +61,8 @@ mod['user'] = {
             ],
             columns_orderable: true,
             columns_resizable: true,
-            columns_hidden: ['id']
+            columns_hidden: ['id'],
+            columns_allowhtml: ['active', 'tokens', 'sa']
           },
           search:   true,
           create:   function() { mod.user.open(null); },
@@ -92,25 +93,22 @@ mod['user'] = {
       mod.user.open_htgen(null, { active:true }, {}, {});
     }
     // Open
+    else if (id == 'self') {
+      $.when(
+        api('get',`auth/user/${id}`),
+        api('get',`auth/user/${id}/token`)
+      ).done(function(api_user, api_tokens) {
+        mod.user.open_htgen(id, api_user[0], {}, api_tokens[0]);
+      });
+    }
     else {
-      // self
-      if (id == 'self') {
-        $.when(
-          api('get',`auth/user/${id}`),
-          api('get',`auth/user/${id}/token`)
-        ).done(function(api_user, api_tokens) {
-          mod.user.open_htgen(id, api_user[0], {}, api_tokens[0]);
-        });
-      }
-      else {
-        $.when(
-          api('get',`auth/user/${id}`),
-          api('get',`auth/user/${id}/group`),
-          api('get',`auth/user/${id}/token`)
-        ).done(function(api_user, api_groups, api_tokens) {
-          mod.user.open_htgen(id, api_user[0], api_groups[0], api_tokens[0]);
-        });
-      }
+      $.when(
+        api('get',`auth/user/${id}`),
+        api('get',`auth/user/${id}/group`),
+        api('get',`auth/user/${id}/token`)
+      ).done(function(api_user, api_groups, api_tokens) {
+        mod.user.open_htgen(id, api_user[0], api_groups[0], api_tokens[0]);
+      });
     }
   },
 
@@ -145,11 +143,11 @@ mod['user'] = {
     // Form (extend)
     if (!self) {
       usrform_config = [...usrform_config,
-        { id:'firstname', name:'First name',  type:'string', regex_validate:/^.{2,}$/, value:api_user.firstname },
-        { id:'lastname',  name:'Last name',   type:'string', regex_validate:/^.{2,}$/, value:api_user.lastname },
+        { id:'firstname', name:'First name',  type:'string', regex_validate:/^.{2,}$/, info:'Minimum length: 2', value:api_user.firstname },
+        { id:'lastname',  name:'Last name',   type:'string', regex_validate:/^.{2,}$/, info:'Minimum length: 2', value:api_user.lastname },
         { id:'active',    name:'Active',      type:'checkbox', value:api_user.active },
-        { id:'tokens',    name:'Tokens',      type:'checkbox', value:api_user.tokens },
-        { id:'sa',        name:'Admin',       type:'checkbox', value:api_user.sa },
+        { id:'tokens',    name:'Tokens',      type:'checkbox', value:api_user.tokens, info:'Change requires save to activate' },
+        { id:'sa',        name:'Admin',       type:'checkbox', info:'Full access to all components', value:api_user.sa },
       ]
     };
     let usrform = new obForm(usrform_config);
@@ -177,7 +175,8 @@ mod['user'] = {
             { id:'delete', name:'Delete' },
           ],
           columns_resizable: true,
-          columns_hidden: ['id']
+          columns_hidden: ['id'],
+          columns_allowhtml: ['delete']
         },
         search:   true,
         create:   function() { mod.user.groups.open(id, grplist); }
@@ -216,7 +215,9 @@ mod['user'] = {
 
     // Draw
     content.append(new obContent({
-      name: (self)?'Profile':[$('<a/>', { class:'link', html:'Users', click: function() { mod.user.list(); } }), ` / ${(id==null)?'[new]':api_user.username}`],
+      name: (self)?'Profile':[$('<a/>', { class:'link', html:'Users', click: function() {
+        if (change.check()) { mod.user.list(); };
+      } }), ` / ${(id==null)?'[new]':api_user.username}`],
       content: obtabs.html(),
       control: [
         // -- Save
@@ -232,6 +233,7 @@ mod['user'] = {
                 delete usrform_data.password;
               }
               delete usrform_data.passvrfy;
+              change.reset();
               mod.user.save(id, usrform_data, (grplist == null)?null:grplist.table());
             }
           }
@@ -242,15 +244,21 @@ mod['user'] = {
         // -- Delete
         ((id==null)||(id=='self'))?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
           if (confirm('Are you sure you want to delete this user?')) {
-            $.when( api('delete',`auth/user/${id}`) ).always(function() { mod.user.close(); });
+            $.when( api('delete',`auth/user/${id}`) ).always(function() {
+              change.reset();
+              mod.user.close();
+            });
           }
         }),
         // -- Close
-        $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() { mod.user.close(id); })
+        $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() {
+          if (change.check()) { mod.user.close(id); }
+        })
       ]
     }).html());
 
     loader.remove();
+    change.observe();
 
   },
 
@@ -361,19 +369,19 @@ mod['user'] = {
           open:   function(td) {
             td = $(td);
             let tr = td.parent('tr');
-            let newrow = table.addrow([
-              td.text(),
-              $('<img/>', { class:'pointer', src:'img/icbin.png', width:14 })
-              .on('click', function() {
-                tr = $(this).parents('tr');
-                if (tr.hasClass('delete')) {
-                    tr.removeClass('delete');
-                }
-                else {
-                  tr.addClass('delete');
-                }
-              })
-            ]);
+            let newrow = table.addrow({
+              name: td.text(),
+              delete: $('<img/>', { class:'pointer', src:'img/icbin.png', width:14 })
+                .on('click', function() {
+                  tr = $(this).parents('tr');
+                  if (tr.hasClass('delete')) {
+                      tr.removeClass('delete');
+                  }
+                  else {
+                    tr.addClass('delete');
+                  }
+                })
+            });
             newrow.attr('hdt',tr.attr('hdt'));
             popup.remove();
           },

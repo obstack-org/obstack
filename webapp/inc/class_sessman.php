@@ -44,7 +44,7 @@ class sessman {
    *   'group-sa'      => 'cn=mygroup-sa,cn=groups,cn=accounts,dc=example,dc=local'
    * ];
    ******************************************************************/
-  public $config_ldap = false;
+  public $config_ldap = null;
 
   /******************************************************************
    * $config_radius = [
@@ -58,7 +58,7 @@ class sessman {
    * ];
    * (groups match if name is in comma separated list of 'attr' value)
    ******************************************************************/
-  public $config_radius = false;
+  public $config_radius = null;
 
   /******************************************************************
    * $db = new db($db_connectionstring);
@@ -111,11 +111,11 @@ class sessman {
    ******************************************************************/
   public function login($username, $secret) {
     // auth_ldap
-    if ($this->config_ldap != false && $this->config_ldap['enabled'] && $this->auth_ldap($username, $secret)) {
+    if ($this->config_ldap != null && $this->config_ldap['enabled'] && $this->auth_ldap($username, $secret)) {
       return true;
     }
     // auth_radius
-    if ($this->config_radius != false && ($this->config_radius['enabled'] && $this->auth_radius($username, $secret))) {
+    if ($this->config_radius != null && ($this->config_radius['enabled'] && $this->auth_radius($username, $secret))) {
       return true;
     }
     // auth_db
@@ -171,7 +171,6 @@ class sessman {
     }
     // Unauthorized, reset session id
     session_destroy();
-    session_regenerate_id();
     session_id(bin2hex(random_bytes(random_int(56,64))));
     session_start();
     return false;
@@ -255,7 +254,7 @@ class sessman {
     ldap_set_option($ldapconn, LDAP_OPT_REFERRALS, 0);
     ldap_set_option($ldapconn, LDAP_OPT_NETWORK_TIMEOUT, 10);
     // LDAP connection
-    if (ldap_bind($ldapconn, "uid=$username,".$this->config_ldap['userdn'], $secret)) {
+    if (@ldap_bind($ldapconn, "uid=$username,".$this->config_ldap['userdn'], $secret)) {
       // Database groups
       $dbgroups = [];
       foreach ($this->db->query('SELECT id, ldapcn FROM sessman_group', []) as $dbrec) {
@@ -444,7 +443,7 @@ class sessman {
       if (isset($data['groups'])) {
         foreach($data['groups'] as $groupid) { $this->usergroup_save($id, ['id'=>$groupid]); }
       }
-      return [ [ 'id'=>$id ] ];
+      return [ ['id'=>$id] ];
     }
     // Update user
     else {
@@ -670,12 +669,20 @@ class sessman {
     if ($id == null) {
       $dbqcol = substr($dbqcol,2);
       $dbqval = substr($dbqval,2);
-      return $this->db->query("INSERT INTO sessman_group ($dbqcol) VALUES ($dbqval) RETURNING id", $dbparams);
+      $id = $this->db->query("INSERT INTO sessman_group ($dbqcol) VALUES ($dbqval) RETURNING id", $dbparams)[0]->id;
+      if (isset($data['users'])) {
+        foreach($data['users'] as $userid) { $this->groupmember_save($id, ['id'=>$userid]); }
+      }
+      return [ ['id'=>$id] ];
     }
     // Update group
     else {
       $dbqupd = substr($dbqupd,2);
       $dbparams['id'] = $id;
+      if (isset($data['users'])) {
+        $this->db->query('DELETE FROM sessman_usergroups WHERE smgroup=:smgroup', [':smgroup'=>$id]);
+        foreach($data['users'] as $userid) { $this->groupmember_save($id, ['id'=>$userid]); }
+      }
       return $this->db->query("UPDATE sessman_group SET $dbqupd WHERE id=:id", $dbparams);
     }
   }
@@ -689,6 +696,34 @@ class sessman {
     $this->db->query('DELETE FROM sessman_usergroups WHERE smgroup=:id', [':id'=>$id]);
     $count = count($this->db->query('DELETE FROM sessman_group WHERE id=:id RETURNING *', [':id'=>$id]));
     return $count > 0;
+  }
+
+  /******************************************************************
+   * List group members (SA only)
+   *    $id = ......    Members by group UUID
+   ******************************************************************/
+  public function groupmember_list($id = null) {
+    if (!$this->SA())  { return false; }
+    $dbquery = '
+      SELECT
+        su.id,
+        su.username,
+        su.firstname,
+        su.lastname,
+        su.active
+      FROM sessman_usergroups sg
+      LEFT JOIN sessman_user su ON su.id = sg.smuser
+      WHERE sg.smgroup = :id
+    ';
+    return $this->db->query($dbquery, [':id'=>$id]);
+  }
+
+  /******************************************************************
+   * Save user group (SA only)
+   ******************************************************************/
+  public function groupmember_save($groupid, $data) {
+    if (!$this->SA())  { return false; }
+    return $this->db->query('INSERT INTO sessman_usergroups VALUES (:smuser, :smgroup)', [':smuser'=>$data['id'], ':smgroup'=>$groupid]);
   }
 
 }

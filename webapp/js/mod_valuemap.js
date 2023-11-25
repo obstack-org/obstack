@@ -118,7 +118,7 @@
 
     let vmform = new obForm([
       { id:'name', name:'Name',       type:'string', regex_validate:/^.+/, value:api_conf.name },
-      { id:'prio', name:'Sorting by', type:'select', options:{ 0:'Name', 1:'Order'}, value:(api_conf.prio)?1:0 }
+      { id:'prio', name:'Sorting by', type:'select', options:{ 0:'Name', 1:'Order'}, info:'Change requires save to activate', value:(api_conf.prio)?1:0 }
     ]);
 
     let obtabs = new obTabs({ tabs: [
@@ -127,13 +127,14 @@
     ]});
 
     content.empty().append(new obContent({
-      name: [$('<a/>', { class:'link', html:'Value maps', click:function() { mod.valuemap.list(); } }), ` / ${(id==null)?'[new]':api_conf.name}`],
+      name: [$('<a/>', { class:'link', html:'Value maps', click:function() { if (change.check()) { mod.valuemap.list(); } } }), ` / ${(id==null)?'[new]':api_conf.name}`],
       content: obtabs.html(),
       control: [
         // -- Save
         $('<input/>', { class:'btn', type:'submit', value:'Save'  }).on('click', function() {
           let vmform_data = vmform.validate();
           if (vmform_data != null) {
+            change.reset();
             mod.valuemap.save(id, vmform_data, vallist.table());
           }
         }),
@@ -141,16 +142,22 @@
         (id==null)?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
           if (confirm('WARNING!: This action wil permanently delete this valuemap, affecting all concerning objects. Are you sure you want to continue?')) {
             if (confirm('WARNING!: Deleting valuemap. This can NOT be undone, are you really really sure?')) {
-              $.when( api('delete',`valuemap/${id}`) ).always(function() { mod.valuemap.list(); });
+              $.when( api('delete',`valuemap/${id}`) ).always(function() {
+                change.reset();
+                mod.valuemap.list();
+              });
             }
           }
         }),
         // -- Close
-        $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() { mod.valuemap.list(); })
+        $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() {
+          if (change.check()) { mod.valuemap.list(); }
+        })
       ]
     }).html());
 
     loader.remove();
+    change.observe();
 
   },
 
@@ -237,13 +244,11 @@
               if (frmnewrec) {
                 table.addrow([newvalue]);
               }
+              else if (rowsort) {
+                $(row.find('td')[1]).text(newvalue);
+              }
               else {
-                if (rowsort) {
-                  $(row.find('td')[1]).text(newvalue);
-                }
-                else {
-                  $(row.find('td')[0]).text(newvalue);
-                }
+                $(row.find('td')[0]).text(newvalue);
               }
               $(table).find('.obTable-tb').obTableSort(0);
               popup.remove()
@@ -255,11 +260,9 @@
               row.remove();
               popup.remove();
             }
-            else {
-              if (confirm('Are you sure you want to mark this item for deletion?')) {
-                row.addClass('delete');
-                popup.remove();
-              }
+            else if (confirm('Are you sure you want to mark this item for deletion?')) {
+              row.addClass('delete');
+              popup.remove();
             }
           }),
           // -- Close

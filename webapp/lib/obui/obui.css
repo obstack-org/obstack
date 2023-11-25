@@ -123,7 +123,7 @@
 .obTable-resize {
   position: absolute;
   display: none;
-  z-index: 1000;
+  z-index: 90;
   top: 0px;
   left: 0px;
   width: 2px;
@@ -137,7 +137,7 @@
   right: 0px;
   width: 18px;
   height: 36px;
-  z-index: 1000;
+  z-index: 90;
   background-color: #f1f1f1;
 }
 
@@ -151,6 +151,12 @@
 }
 .obForm-field {
   display: block;
+}
+.obForm-info {
+  font-size: 14px;
+  font-style: bold;
+  vertical-align: super;
+  cursor: help;
 }
 input.obForm-field[type=number]::-webkit-inner-spin-button,
 input.obForm-field[type=number]::-webkit-outer-spin-button
@@ -174,7 +180,7 @@ input.obForm-field[type=number]::-webkit-outer-spin-button
 .ui-resizable-handle {
   display: block;
   position: absolute;
-  padding-top: 6px;
+  padding-top: 4px;
   font-size: 22px;
   font-style: normal;
   text-align: right;

@@ -2,9 +2,8 @@
 /******************************************************************
  *
  * api_objtype($db)
- *  -> list()
- *  -> list_short($id, $obj)
- *  -> open($id)
+ *  -> acl($id)
+ *  -> list($id=null)
  *  -> save($id)
  *  -> delete($id)
  *  -> property_list($otid, $id)
@@ -16,7 +15,10 @@
 class mod_objtype {
 
   private $db;
-  private $format = null;
+  private $format;
+  private $display;
+  private $acl;
+  private $log;
   private $valuetype = [1=>'varchar', 2=>'decimal', 3=>'uuid', 4=>'timestamp', 5=>'text'];
 
   /******************************************************************
@@ -24,9 +26,10 @@ class mod_objtype {
    ******************************************************************/
   public function __construct($db) {
     $this->db = $db;
-    if (isset($_GET['format'])) {
-      $this->format = $_GET['format'];
-    }
+    $this->acl = [];
+    $this->log = [];
+    if (isset($_GET['format'])) { $this->format = $_GET['format']; }
+    if (isset($_GET['display'])) { $this->display = $_GET['display']; }
   }
 
   /******************************************************************
@@ -40,325 +43,212 @@ class mod_objtype {
   }
 
   /******************************************************************
-   * Boolean as string
+   * Convert array to marks and params for SQL query:
+   * $db->query(
+   *    "... WHERE value IN ($list2in->marks)",
+   *    $list2in->params )
    ******************************************************************/
-  private function bool2str($var) {
-    if ($var) { return 'true'; }
-    else { return 'false'; }
+  private function list2in($list, $prefix='i') {
+    $result = (object)[ 'marks'=>[], 'params'=>[] ];
+    foreach ($list as $id=>$value) {
+      $result->marks[] = ":$prefix$id";
+      $result->params[":$prefix$id"] = $value;
+    }
+    $result->marks = implode(',', $result->marks);
+    return $result;
   }
 
   /******************************************************************
-   * Active permissions
+   * Retrieve permissions
    ******************************************************************/
-  private function acl($otid) {
-    if ($_SESSION['sessman']['sa']) {
-      return (object)[ 'read'=>true, 'create'=>true, 'update'=>true, 'delete'=>true ];
+  public function acl($otid) {
+    if (!in_array($otid, $this->acl)) {
+      if ($_SESSION['sessman']['sa']) {
+        if (count($this->db->query('SELECT id FROM objtype o WHERE id = :otid', [ 'otid'=>$otid ]))>0) {
+          $this->acl[$otid] = (object)[ 'read'=>true, 'create'=>true, 'update'=>true, 'delete'=>true ];
+        }
+      }
+      else {
+        $groups = str_replace('"','\'',substr(json_encode($_SESSION['sessman']['groups']),1,-1));
+        if (strlen($groups) > 0) {
+          $dbquery = "
+            SELECT
+              CAST(MAX(CAST(read AS int)) AS bool) AS read,
+              CAST(MAX(CAST(\"create\" AS int)) AS bool) AS \"create\",
+              CAST(MAX(CAST(update AS int)) AS bool) AS update,
+              CAST(MAX(CAST(delete AS int)) AS bool) AS delete
+            FROM objtype_acl AS ota
+            WHERE ota.smgroup IN ($groups)
+            AND ota.objtype = :otid
+          ";
+          $this->acl[$otid] = $this->db->query($dbquery, [':otid'=>$otid])[0];
+        }
+      }
     }
-    else {
-      $groups = str_replace('"','\'',substr(json_encode($_SESSION['sessman']['groups']),1,-1));
-      $dbquery = "
-        SELECT
-          CAST(MAX(CAST(read AS int)) AS bool) AS read,
-          CAST(MAX(CAST(\"create\" AS int)) AS bool) AS \"create\",
-          CAST(MAX(CAST(update AS int)) AS bool) AS update,
-          CAST(MAX(CAST(delete AS int)) AS bool) AS delete
-        FROM objtype_acl AS ota
-        WHERE ota.smgroup IN ($groups)
-        AND ota.objtype = :otid
-      ";
-      return $this->db->query($dbquery, [':otid'=>$otid])[0];
+    return $this->acl[$otid];
+  }
+
+  /******************************************************************
+   * Retrieve Log state
+   ******************************************************************/
+  public function log($otid) {
+    if (!in_array($otid, $this->log)) {
+      $this->log[$otid] = $this->db->query('SELECT log FROM objtype WHERE id=:otid', [':otid'=>$otid])[0]->log;
     }
+    return $this->log[$otid];
   }
 
   /******************************************************************
    * List object types
    ******************************************************************/
-  public function list($id = null) {
-    // Process list
-    if ($id == null) {
-      if ($_SESSION['sessman']['sa']) {
-        return $this->db->query('SELECT id, name FROM objtype ORDER BY name', []);
+  public function list($otid=null) {
+    // Prepare
+    $dbq = (object)[ 'select'=>[], 'join'=>[], 'filter'=>[], 'params'=>[] ];
+
+    // Filter
+    if ($otid != null) {
+      if (!is_array($otid)) {
+        $otid = [ $otid ];
       }
-      else {
-        $groups = str_replace('"','\'',substr(json_encode($_SESSION['sessman']['groups']),1,-1));
-        $dbquery = "
-          SELECT
-            ot.id AS id,
-            ot.name AS name
-          FROM objtype AS ot
-          LEFT JOIN objtype_acl AS ota ON ota.objtype = ot.id
-          WHERE ota.smgroup IN ($groups)
-          AND ota.read
-        ";
-        return $this->db->query($dbquery, []);
+      $dbqin = $this->list2in($otid, 'otid');
+      $dbq->filter[] = "ot.id IN ($dbqin->marks)";
+      $dbq->params = $dbqin->params;
+    }
+    $dbq->select[] = 'DISTINCT ot.id AS id, ot.name AS name';
+    if (!$_SESSION['sessman']['sa']) {
+      $dbqin = $this->list2in($_SESSION['sessman']['groups'], 'smg');
+      if (count($dbqin->params) > 0) {
+        $dbq->join[] = 'LEFT JOIN objtype_acl oa ON oa.objtype = ot.id';
+        $dbq->filter[] = "oa.smgroup IN ($dbqin->marks) AND oa.read";
+        $dbq->params = array_merge($dbq->params, $dbqin->params);
       }
     }
+    if (in_array($this->format, [ 'expand', 'full', 'aggr' ])) {
+      $dbq->select[] = 'ot.short AS short, ot.log AS log';
+    }
+    if (count($dbq->filter) > 0) {
+      $dbq->filter = 'WHERE '.implode(' AND ', $dbq->filter);
+    }
     else {
-      // Process ACL
-      $acl = $this->acl($id);
-      if (!$acl->read) { return null; }
-      // Process list
-      $result = $this->db->query('SELECT name, log, short FROM objtype WHERE id=:id', [':id'=>$id])[0];
-      if ($this->format('gui')) {
-        $result->acl = $acl;
+      $dbq->filter = '';
+    }
+    $dbq->select = implode(', ', $dbq->select);
+    $dbq->join = implode(' ', $dbq->join);
+
+    // Retrieve object types
+    $dbquery = "
+      SELECT
+        $dbq->select
+      FROM objtype AS ot
+      $dbq->join $dbq->filter
+      GROUP BY ot.id
+    ";
+    if ($this->format == 'aggr') {
+      foreach ($this->db->query($dbquery, $dbq->params) as $ot) {
+        $meta = null;
+        $property_list = $this->property_list($ot->id);
+        if ($this->display == 'edit') {
+          $meta = (object)[ 'objecttype'=>(object)[], 'valuemap'=>(object)[] ];
+          $mod_obj = new mod_obj($this->db, $this);
+          $mod_valuemap = new mod_valuemap($this->db);
+          foreach ($property_list as $property) {
+            if ($property->type == 3) {
+              $tobjtype = $property->type_objtype;
+              $meta->objecttype->$tobjtype = [];
+              foreach ($mod_obj->list_short([$tobjtype], null) as $sid=>$sname) {
+                $meta->objecttype->$tobjtype[] = (object)[ 'id'=>$sid, 'name'=>$sname ];
+              }
+            }
+            if ($property->type == 4) {
+              $tvaluemap = $property->type_valuemap;
+              $meta->valuemap->$tvaluemap = $mod_valuemap->value_list($tvaluemap);
+            }
+          }
+        }
+        $result = (object)[
+          'objecttype'=> $ot,
+          'property'=>$property_list,
+          'meta'=>$meta,
+          'acl'=> $this->acl($ot->id)
+        ];
+        if ($result->meta == null) {
+          unset($result->meta);
+        }
       }
       return $result;
     }
-  }
-
-  /******************************************************************
-   * Generate list of object with short names with a maximun depth
-   *   For both $id and $obj set to null to ignore
-   *     list_short(null,null);     All objects in the system
-   *     list_short([id],null);     All objects from objtype [id]
-   *     list_short([id],[obj]);    Only the selected object
-   ******************************************************************/
-  public function list_short($id, $obj) {
-    // Call limited function to prevent infinite loop
-    $short = $this->list_short_limit($id, $obj, 0);
-    // Return correct format on empty result
-    if (count($short) == 1 && $short[0]['id'] == null) {
-      return [];
+    else {
+      $result = $this->db->query($dbquery, $dbq->params);
+      return ($otid == null) ? $result : $result[0];
     }
-    // Return result
-    return $short;
-  }
-
-  /******************************************************************
-   * Functionality of list_short() with a maximum depth
-   ******************************************************************/
-  private function list_short_limit($id, $obj, $depth) {
-    // Prepare values based on $obj
-    $dbqobj = '';
-    $dbqobjtype = '';
-    $dbparams = [];
-    if ($obj != null) {
-      $dbqobj = 'AND o.id=:obj';
-      $dbparams['obj'] = $obj;
-    }
-    if ($id != null) {
-      $dbqobjtype = 'AND ot.id=:id';
-      $dbparams['id'] = $id;
-    }
-    // Query
-    $dbquery = "
-      SELECT
-        o.id AS id,
-        op.name AS label,
-        op.type AS type,
-        CASE op.type
-          WHEN 1 THEN vv.value
-          WHEN 2 THEN rtrim(TO_CHAR(vd.value, 'FM99999999.99999999'),'.')
-          WHEN 3 THEN vu.value::varchar
-          WHEN 4 THEN vo.name
-          WHEN 5 THEN
-            CASE
-              WHEN (TO_CHAR(vd.value,'FM9') = '1') THEN 'V'
-              ELSE 'X'
-            END
-          WHEN 6 THEN vx.value
-          WHEN 7 THEN '•••••'
-          WHEN 8 THEN TO_CHAR(vt.value,'YYYY-MM-DD')
-          WHEN 9 THEN TO_CHAR(vt.value,'YYYY-MM-DD HH24:MI')
-          END AS value,
-        ot.short as short
-      FROM obj o
-      LEFT JOIN objtype ot ON ot.id = o.objtype
-      LEFT JOIN objproperty op ON op.objtype = ot.id
-      LEFT JOIN value_decimal   vd ON vd.objproperty = op.id AND vd.obj = o.id
-      LEFT JOIN value_text      vx ON vx.objproperty = op.id AND vx.obj = o.id
-      LEFT JOIN value_timestamp vt ON vt.objproperty = op.id AND vt.obj = o.id
-      LEFT JOIN value_uuid      vu ON vu.objproperty = op.id AND vu.obj = o.id
-      LEFT JOIN value_varchar   vv ON vv.objproperty = op.id AND vv.obj = o.id
-      LEFT JOIN valuemap_value  vo ON vo.id = vu.value
-      WHERE 1=1 $dbqobj $dbqobjtype
-      ORDER BY o.id, op.prio, op.name
-    ";
-    // Format result
-    $tmpid = null;
-    $cache = '';
-    $length = 0;
-    $result = [];
-    foreach ($this->db->query($dbquery, $dbparams) as $rec) {
-      // When ID changes
-      if ($tmpid != $rec->id) {
-        // Add "previous" data array to result, except on the firt run (then cache is empty)
-        if (strlen($cache) > 0) {
-          array_push($result, ['id'=>$tmpid, 'name'=>substr($cache,2)]);
-        }
-        // Reset id + cache
-        $tmpid = $rec->id;
-        $cache = '';
-        $length = 0;
-      }
-      // Add value
-      if ($length < $rec->short) {
-        if ($rec->type == 3) {
-          // Objtype, with loop protection when selecting self
-          if ($depth < 3 && $rec->value != null) {
-            $cache .= ' / '.$this->list_short_limit(null, $rec->value, $depth+1)[0]['name'];
-          }
-        }
-        // Any other value
-        else {
-          $cache .= ', '.$rec->value;
-        }
-      }
-      $length++;
-    }
-    // Add the last data array
-    array_push($result, ['id'=>$tmpid, 'name'=>substr($cache,2)]);
-    // Return result
-    return $result;
-  }
-
-  /******************************************************************
-   * Open object type
-   ******************************************************************/
-  public function open($otid) {
-    // Process ACL
-    $acl = $this->acl($otid);
-    if (!$acl->read) {
-      if ($this->format('short')) {
-        return [ [ 'id'=>null, 'name'=>'🛇' ] ];
-      }
-      return null;
-    }
-    // Handle formats
-    if ($this->format('short'))   { return $this->list_short($otid, null); }
-    $result = [];
-    $dbqvaluemap = ['vu.value::varchar', ''];
-    $dbqcheckbox = "TO_CHAR(vd.value,'FM9')";
-    $dbqpw = '*****';
-    if ($this->format('hr')) {
-      $dbqvaluemap = ['vo.name', 'LEFT JOIN valuemap_value vo ON vo.id = vu.value'];
-      $dbqcheckbox = "
-        CASE
-          WHEN (TO_CHAR(vd.value,'FM9') = '1') THEN 'V'
-          ELSE 'X'
-        END
-      ";
-    }
-    if ($this->format('gui')) {
-      $dbqvaluemap = ['vo.name', 'LEFT JOIN valuemap_value vo ON vo.id = vu.value'];
-      $dbqcheckbox = "
-        CASE
-          WHEN (TO_CHAR(vd.value,'FM9') = '1') THEN '&nbsp;✓'
-          ELSE '&nbsp;✗'
-        END
-      ";
-      $dbqpw = '•••••';
-    }
-    // Gather data
-    $dbquery = "
-      SELECT
-        o.id AS id,
-        op.name AS label,
-        op.type AS type,
-        CASE op.type
-          WHEN 1 THEN vv.value
-          WHEN 2 THEN rtrim(TO_CHAR(vd.value, 'FM99999999.99999999'),'.')
-          WHEN 3 THEN vu.value::varchar
-          WHEN 4 THEN $dbqvaluemap[0]
-          WHEN 5 THEN $dbqcheckbox
-          WHEN 6 THEN vx.value
-          WHEN 7 THEN '$dbqpw'
-          WHEN 8 THEN TO_CHAR(vt.value,'YYYY-MM-DD')
-          WHEN 9 THEN TO_CHAR(vt.value,'YYYY-MM-DD HH24:MI')
-        END AS value
-      FROM obj o
-      LEFT JOIN objtype ot ON ot.id = o.objtype
-      LEFT JOIN objproperty op ON op.objtype = ot.id
-      LEFT JOIN value_decimal    vd ON vd.objproperty = op.id AND vd.obj = o.id
-      LEFT JOIN value_text       vx ON vx.objproperty = op.id AND vx.obj = o.id
-      LEFT JOIN value_timestamp vt ON vt.objproperty = op.id AND vt.obj = o.id
-      LEFT JOIN value_uuid       vu ON vu.objproperty = op.id AND vu.obj = o.id
-      LEFT JOIN value_varchar   vv ON vv.objproperty = op.id AND vv.obj = o.id
-      $dbqvaluemap[1]
-      WHERE ot.id = :id
-      ORDER BY o.id, op.prio, op.name
-    ";
-    // Format data
-    $tmpid = null;
-    $cache = [];
-    foreach ($this->db->query($dbquery, [':id'=>$otid]) as $rec) {
-      if ($tmpid != $rec->id) {
-        if (!empty($cache)) {
-          array_push($result, $cache);
-        }
-        $tmpid = $rec->id;
-        $cache = ['id'=>$rec->id];
-      }
-      if ($rec->type == 3) {
-        if ($rec->value != null) {
-          $cache[$rec->label] = $this->list_short(null, $rec->value)[0]['name'];
-        }
-        else {
-          $cache[$rec->label] = null;
-        }
-      }
-      else {
-        $cache[$rec->label] = $rec->value;
-      }
-    }
-    array_push($result, $cache);
-    if ($result[0] == []) {
-      $result = [];
-    }
-    return $result;
   }
 
   /******************************************************************
    * Save object type
    ******************************************************************/
   public function save($id, $data) {
-    // Objtype configuration
-    $dbparams = [];
-    if (isset($data['name']))   { $dbparams['name'] = $data['name']; }
-    if (isset($data['log']))    { $dbparams['log'] = $this->bool2str($data['log']); }
-    if (isset($data['short']))  { $dbparams['short'] = $data['short']; }
-    // Objtype create / update
+    // Prepare
+    $log = null;
+    $dbq = (object)[ 'fields'=>[], 'update'=>[], 'params'=>[] ];
+    foreach ([ 'name', 'log', 'short' ] as $field) {
+      if (isset($data[$field])) {
+        $dbq->fields[] = $field;
+        $dbq->update[] = "$field=:$field";
+        $dbq->params[":$field"] = $data[$field];
+      }
+    }
+    if (isset($data['log'])) {
+      $log = ($data['log'] || $data['log'] == 'true' || $data['log'] == '1') ? true : false;
+      $dbq->params[':log'] = ($log) ? 'true' : 'false';
+    }
+    $dbq->fields = implode(', ', $dbq->fields);
+    $dbq->update = implode(', ', $dbq->update);
+
+    // ObjType
     if ($id == null) {
-      $id = $this->db->query('INSERT INTO objtype (name, log, short) VALUES (:name, :log, :short) RETURNING id', $dbparams)[0]->id;
+      $id = $this->db->query("INSERT INTO objtype ($dbq->fields) VALUES (".implode(', ', array_keys($dbq->params)).") RETURNING id", $dbq->params)[0]->id;
       $result = [ 'id'=>$id ];
     }
     else {
-      if (isset($data['log'])) {
-        $logstate = ($data['log'] == "1") ? true : false;
-        if ($this->db->query('SELECT log FROM objtype WHERE id=:id', [':id'=>$id])[0]->log != $logstate) {
-          $logmsg = ($logstate) ? 'enabled' : 'disabled';
-          foreach ($this->db->query('SELECT id FROM obj WHERE objtype=:id', [':id'=>$id]) as $rec) {
-            $this->db->query('INSERT INTO obj_log VALUES (:obj,now(),:username,10,:detail)', [':obj'=>$rec->id, ':username'=>$_SESSION['sessman']['username'], ':detail'=>"Logging $logmsg"]);
-          }
+      $dbq->params[':id'] = $id;
+      $chlog = ($log !== null && $log != $this->log($id));
+      $result = $this->db->query("UPDATE objtype SET $dbq->update WHERE id=:id", $dbq->params);
+      // Object logs
+      if ($chlog) {
+        $logmsg = ($log) ? 'enabled' : 'disabled';
+        $dbc = 0;
+        $dbq = (object)[ 'values'=>[], 'params'=>[ ':username'=>$_SESSION['sessman']['username'], ':detail'=>"Logging $logmsg" ] ];
+        foreach ($this->db->query('SELECT id FROM obj WHERE objtype=:id', [':id'=>$id]) as $dbrow) {
+          $dbq->values[] = "(:obj$dbc, now(), :username, 10, :detail)";
+          $dbq->params[":obj$dbc"] = $dbrow->id;
+          $dbc++;
         }
+        $dbq->values = implode(',', $dbq->values);
+        $this->db->query("INSERT INTO obj_log VALUES $dbq->values", $dbq->params);
       }
-      $dbparams[':id'] = $id;
-      $result = $this->db->query('UPDATE objtype SET name=:name, log=:log, short=:short WHERE id=:id', $dbparams);
     }
     // Objtype properties
     if (isset($data['property'])) {
-      // Properties from HTTP request
+      // Current properties
+      $xlist = [];
+      $proplist = [];
+      foreach ($this->db->query('SELECT id FROM objproperty WHERE objtype=:id ORDER BY prio', [':id'=>$id]) as $dbrec) {
+        $xlist[] = $dbrec->id;
+      }
+      // New properties
       $prio = 1;
-      $htlist = [];
-      foreach ($data['property'] as $rec) {
-        $rec['prio'] = $prio;
-        $tmpid = $this->property_save($id, $rec['id'], $rec)[0]->id;
-        if ($rec['id'] == null) {
-          $rec['id'] = $tmpid;
+      foreach ($data['property'] as $prop) {
+        $prop['prio'] = $prio;
+        $tmpid = $this->property_save($id, $prop['id'], $prop)[0]->id;
+        if ($prop['id'] == null) {
+          $prop['id'] = $tmpid;
         }
-        array_push($htlist, $rec['id']);
+        $proplist[] = $prop['id'];
         $prio++;
       }
-      // Properties from database
-      $dblist = [];
-      foreach ($this->db->query('SELECT id FROM objproperty WHERE objtype=:id ORDER BY prio', [':id'=>$id]) as $dbrec) {
-        array_push($dblist, $dbrec->id);
-      }
-      // Delete values
-      sort($htlist);
-      sort($dblist);
-      foreach (array_diff($dblist, $htlist) as $rec) {
-        $this->property_delete($id, $rec);
+      // Delete properties
+      foreach (array_diff($xlist, $proplist) as $prop) {
+        $this->property_delete($id, $prop);
       }
     }
     return $result;
@@ -368,36 +258,37 @@ class mod_objtype {
    * Delete object type
    ******************************************************************/
   public function delete($otid) {
-    $dbparams = [':otid'=>$otid];
-    foreach($this->valuetype as $type) {
-      $this->db->query("DELETE FROM value_$type WHERE objproperty IN (SELECT id FROM objproperty WHERE objtype=:otid)", $dbparams);
+    $dbq = (object)[ 'params'=>[':otid'=>$otid] ];
+    foreach ($this->valuetype as $type) {
+      $this->db->query("DELETE FROM value_$type WHERE objproperty IN (SELECT id FROM objproperty WHERE objtype=:otid)", $dbq->params);
     }
-    $this->db->query('DELETE FROM obj WHERE objtype=:otid', $dbparams);
-    $this->db->query('DELETE FROM objproperty WHERE objtype=:otid', $dbparams);
-    $this->db->query('DELETE FROM objtype_acl WHERE objtype=:otid', $dbparams);
-    $count = count($this->db->query('DELETE FROM objtype WHERE id=:otid RETURNING *', $dbparams));
+    $this->db->query('DELETE FROM obj WHERE objtype=:otid', $dbq->params);
+    $this->db->query('DELETE FROM objproperty WHERE objtype=:otid', $dbq->params);
+    $this->db->query('DELETE FROM objtype_acl WHERE objtype=:otid', $dbq->params);
+    $count = count($this->db->query('DELETE FROM objtype WHERE id=:otid RETURNING id', $dbq->params));
     return $count > 0;
   }
 
   /******************************************************************
    * List object type properties
    ******************************************************************/
-  public function property_list($otid, $id = null) {
-    // Process ACL
-    $acl = $this->acl($otid);
-    if (!$acl->read) { return null; }
+  public function property_list($otid, $id=null) {
+    if (!$this->acl($otid)->read) { return null; }
+
     // Process list
-    $dbparams = [':otid'=>$otid];
-    $dbqid = 'op.id AS id,';
-    $dbqproperty = '';
-    if ($id != null) {
-      $dbparams[':id'] = $id;
-      $dbqid = '';
-      $dbqproperty = 'AND op.id = :id';
+    $dbq = (object)[ 'select'=>[], 'filter'=>[ 'ot.id=:otid' ], 'params'=>[ ':otid'=>$otid ] ];
+    if ($id == null) {
+      $dbq->select[] = 'op.id AS id,';
     }
+    else {
+      $dbq->filter[] = 'op.id = :id';
+      $dbq->params[':id'] = $id;
+    }
+    $dbq->select = implode('', $dbq->select);
+    $dbq->filter = implode(' AND ', $dbq->filter);
     $dbquery = "
       SELECT
-        $dbqid
+        $dbq->select
         op.name AS name,
         op.type AS type,
         op.type_objtype AS type_objtype,
@@ -409,56 +300,42 @@ class mod_objtype {
         op.tbl_orderable AS tbl_orderable
       FROM objproperty AS op
       LEFT JOIN objtype ot ON ot.id = op.objtype
-      WHERE ot.id = :otid
-      $dbqproperty
+      WHERE $dbq->filter
       ORDER BY op.prio, op.name
     ";
-    $result = $this->db->query($dbquery, $dbparams);
-    if ($id == null) {
-      return $result;
-    }
-    else {
-      return $result[0];
-    }
+    $result = $this->db->query($dbquery, $dbq->params);
+    return ($id == null) ? $result : $result[0];
   }
 
   /******************************************************************
    * Save object type property
    ******************************************************************/
   public function property_save($otid, $id, $data) {
-    $fields = 'objtype';
-    $insert = ':objtype';
-    $update = '';
-    $dbparams = [':objtype'=>$otid];
-    $statickeys = ['id'];
-    if ($id != null) {
-      $statickeys = ['id', 'type', 'type_objtype', 'type_valuemap'];
+    if ($id == null && $data['id'] != null) {
+      $id = $data['id'];
     }
-    foreach ($data as $key => $value) {
-      if (!in_array($key, $statickeys)) {
-        $fields .= ", $key";
-        $insert .= ", :$key";
-        $update .= ", $key=:$key";
-        if (is_bool($value)) {
-          $dbparams[":$key"] = $this->bool2str($value);
-        }
-        else {
-          $dbparams[":$key"] = $value;
-        }
+    $dbq = (object)[ 'fields'=>[ 'objtype' ], 'insert'=>[ ':objtype' ], 'update'=>[], 'params'=>[ ':objtype'=>$otid ] ];
+    $fields = [ 'name', 'type', 'prio', 'type_objtype', 'type_valuemap', 'required', 'frm_readonly', 'frm_visible', 'tbl_visible', 'tbl_orderable' ];
+    foreach ($fields as $field) {
+      if (isset($data[$field])) {
+        $dbq->fields[] = $field;
+        $dbq->insert[] = ":$field";
+        $dbq->update[] = "$field=:$field";
+        $dbq->params[":$field"] = (is_bool($data[$field])) ? (($data[$field] || $data[$field] == '1') ? 'true' : 'false') : $data[$field];
       }
     }
-    $update = substr($update, 2);
-    if ($data['id'] == null && $id != null) {
-      $data['id'] = $id;
-    }
-    if ($data['id'] == null) {
-      $dbquery = "INSERT INTO objproperty ($fields) VALUES($insert) RETURNING id";
+    $dbq->fields = implode(',', $dbq->fields);
+    $dbq->insert = implode(',', $dbq->insert);
+    $dbq->update = implode(',', $dbq->update);
+
+    if ($id == null) {
+      $dbquery = "INSERT INTO objproperty ($dbq->fields) VALUES ($dbq->insert) RETURNING id";
     }
     else {
-      $dbquery = "UPDATE objproperty SET $update WHERE id=:id AND objtype=:objtype";
-      $dbparams['id'] = $data['id'];
+      $dbq->params['id'] = $id;
+      $dbquery = "UPDATE objproperty SET $dbq->update WHERE id=:id AND objtype=:objtype RETURNING id";
     }
-    return $this->db->query($dbquery, $dbparams);
+    return $this->db->query($dbquery, $dbq->params);
   }
 
   /******************************************************************
