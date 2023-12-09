@@ -5,7 +5,7 @@
  ******************************************************************/
 
 // Configuration options
-const title = 'ObStack'
+let title = 'ObStack';
 const apibase = 'api.php';
 
 // Frame elements
@@ -17,6 +17,7 @@ let overlay;
 // Structural arrays
 let mod = {};
 let frm = {};
+let cfg = [];
 
 // ObStack source files
 const obauth = [
@@ -29,6 +30,7 @@ const obinit = [
   "js/mod_obj.js",
   "js/mod_user.js",
   "js/mod_group.js",
+  "js/mod_conf.js",
   "js/mod_objconf.js",
   "js/mod_valuemap.js"
 ];
@@ -49,6 +51,9 @@ let change = {
     if (result) { change.reset(); }
     return result;
   },
+  change: function(){
+    change.state = true;
+  },
   reset: function(){
     change.observer.disconnect();
     change.state = false;
@@ -60,79 +65,124 @@ let change = {
       change.observer.observe(this, { subtree:true, childList:true, characterData:true, attributes:true, attributeFilter:['class'] });
     });
     $('.obTabs-tab-content').find('form').on('change', function(){ change.state = true; });
+    $('.obTabs-tab-content').find('form').on('keydown', function(){ change.state = true; });
     $('.obTabs-tab-content').find('table').find('input').on('change', function(){ change.state = true; });
+  }
+}
+
+// State
+let state = {
+  set: function(mod, params=null){
+    let state = { mod:mod, ts:$.now() };
+    if (params != null) {
+      state.params = params;
+    }
+    localStorage.setItem('obstack:state', JSON.stringify(state));
+  },
+  reset: function(mod, params=null){
+    state.set(mod, params);
+    location.reload(true);
+  },
+  restore: function(){
+    let state = JSON.parse(localStorage.getItem('obstack:state'));
+    if (state != null && ($.now() - state.ts) < 600000) {
+      if (!state.params) {
+        mod[state.mod].list();
+      }
+      else {
+        mod[state.mod].list(state.params);
+      }
+      return true;
+    }
+    else {
+      return false;
+    }
+  },
+  forget: function(){
+    localStorage.removeItem('obstack:state');
   }
 }
 
 // Document onload function
 $(document).ready( function () {
-  titlebar = $('<div/>', { class:'titlebar'});
-  sidebar  = $('<div/>', { class:'sidebar'});
-  content  = $('<div/>', { class:'content'});
-  overlay  = $('<div/>', { class:'overlay'});
-  $('body').append(
-    titlebar,
-    sidebar,
-    content,
-    overlay.append(
-      $('<div/>', { class:'overlay-load fadein'}).append(
-        $('<img/>', { src:'img/sqbf.gif', class:'center' })
-      )
-    )
-  );
-
   $.when(
-    api('get', 'auth')
-  ).fail(function(auth) {
-    // Show login
+    api('get','config')
+  ).done(function(cfgdata) {
+    cfg=cfgdata;
+    setConfig(cfg.settings);
+    titlebar = $('<div/>', { class:'titlebar'});
+    sidebar  = $('<div/>', { class:'sidebar'});
+    content  = $('<div/>', { class:'content'});
+    overlay  = $('<div/>', { class:'overlay'});
+    $('body').append(
+      titlebar,
+      sidebar,
+      content
+    );
+
     $.when(
-      bsload(obauth)
-    ).always(function() {
-      overlay.remove();
-      frm.login.show();
-    });
-  }).done(function() {
-    // Load content
-    $.when(
-      bsload(obinit, true)
-    ).always(function() {
-      lockfuncts(mod);
-      lockfuncts(frm);
-      overlay.remove();
-      $.each(def.prop, function(key,value) {
-        mod.obj.jftypes[value.id] = value.jftype;
-        mod.objconf.options.type[value.id] = value.name;
-      });
+      api('get', 'auth')
+    ).fail(function() {
+      // Show login
       $.when(
-        api('get','auth/user/self'),
-        api('get','objecttype')
-      ).done(function(self, objecttypes) {
-        mod.user.self = self[0];
-        objecttypes = JSON.parse(JSON.stringify(objecttypes[0]));
-        objecttypes.sort(function (a, b) {
-          let data = [a,b];
-          for(let i = 0; i <= 1; i++) {
-            data[i] = data[i]['name'].trim();
-            if (data[i].match(/^\d*(\s|$)/)) {
-              data[i] = tbpad(data[i].slice(0, data[i].search(/[a-zA-Z\-\s_]/)),12) + data[i].slice(data[i].search(/[a-zA-Z\-\s_]/));
+        bsload(obauth)
+      ).always(function() {
+        overlay.remove();
+        frm.login.show();
+      });
+    }).done(function() {
+      // Load content
+      $.when(
+        bsload(obinit, true)
+      ).always(function() {
+        lockfuncts(mod);
+        lockfuncts(frm);
+        overlay.remove();
+        $.each(def.prop, function(key,value) {
+          mod.obj.jftypes[value.id] = value.jftype;
+          mod.objconf.options.type[value.id] = value.name;
+        });
+        $.when(
+          api('get','auth/user/self'),
+          api('get','objecttype?display=map'),
+          api('get','config')
+        ).done(function(self, objecttypes) {
+          mod.user.self = self[0];
+          objecttypes = JSON.parse(JSON.stringify(objecttypes[0]));
+          objecttypes.sort(function (a, b) {
+            let data = [a,b];
+            for(let i = 0; i <= 1; i++) {
+              data[i] = data[i]['name'].trim();
+              if (data[i].match(/^\d*(\s|$)/)) {
+                data[i] = tbpad(data[i].slice(0, data[i].search(/[a-zA-Z\-\s_]/)),12) + data[i].slice(data[i].search(/[a-zA-Z\-\s_]/));
+              }
+            }
+            return data[0].localeCompare(data[1]);
+          });
+          mod.config.navigation.maps = cfg.navigation;
+          frm.titlebar.show();
+          frm.sidebar.show(objecttypes, cfg.navigation);
+          if (objecttypes.length >= 1) {
+            if (!state.restore()) {
+              mod.obj.list(objecttypes[0].id,objecttypes[0].name);
             }
           }
-          return data[0].localeCompare(data[1]);
+          else {
+            content.empty().append(
+              $('<div/>', { class:'content-header' }).html(''),
+              $('<div/>', { class:'content-wrapper' }).html('No object types available.')
+            );
+          }
         });
-        frm.titlebar.show();
-        frm.sidebar.show(objecttypes);
-        if (objecttypes.length >= 1) {
-          mod.obj.list(objecttypes[0].id,objecttypes[0].name);
-        }
-        else {
-          content.empty().append(
-            $('<div/>', { class:'content-header' }).html(''),
-            $('<div/>', { class:'content-wrapper' }).html('No object types available.')
-          );
-        }
       });
     });
   });
+});
+
+$(window).bind('beforeunload',function(){
+  if (change.state) {
+    return 'You have unsaved changes, do you want to continue?';
+  }
 });
 
 // global default onclick
@@ -212,6 +262,20 @@ function lsSort(list, key) {
     return data[0].localeCompare(data[1]);
   });
   return list;
+}
+
+// Set layout etc
+function setConfig(data) {
+  let settings = {};
+  $.each(data, function(id, value) {
+    settings[value.name] = value.value;
+    if (value.name.indexOf('css_') == 0) {
+      $('body').get(0).style.setProperty('--'+value.name.substr(4), value.value);
+    }
+  });
+  if (typeof settings.title != 'undefined' && $.trim(settings.title).length > 0) {
+    title = 'ObStack - ' + settings.title;
+  }
 }
 
 // Numeric padding

@@ -32,6 +32,7 @@ mod['user'] = {
   list: function() {
 
     // Loader
+    state.set('user');
     content.append(loader.removeClass('fadein').addClass('fadein'));
 
     // Load and display data
@@ -46,7 +47,7 @@ mod['user'] = {
       });
 
       content.empty().append(new obContent({
-        name:     'Users',
+        name:     [ $('<img/>', { src: 'img/iccgs.png', class:'content-header-icon' }), 'Users' ],
         content:  new obFTable({
           table: {
             id: 'e1d79a905880b70f7cb789a9060cda9c23d7f87e',
@@ -215,9 +216,15 @@ mod['user'] = {
 
     // Draw
     content.append(new obContent({
-      name: (self)?'Profile':[$('<a/>', { class:'link', html:'Users', click: function() {
-        if (change.check()) { mod.user.list(); };
-      } }), ` / ${(id==null)?'[new]':api_user.username}`],
+      name: (self)?[
+        $('<img/>', { src: 'img/icuss.png', class:'content-header-icon' }),
+        'Profile'
+      ] : [
+        $('<img/>', { src: 'img/iccgs.png', class:'content-header-icon' }),
+        $('<a/>', { class:'link', html:'Users', click: function() {
+          if (change.check()) { mod.user.list(); };
+        } }), ` / ${(id==null)?'[new]':api_user.username}`
+      ],
       content: obtabs.html(),
       control: [
         // -- Save
@@ -371,7 +378,7 @@ mod['user'] = {
             let tr = td.parent('tr');
             let newrow = table.addrow({
               name: td.text(),
-              delete: $('<img/>', { class:'pointer', src:'img/icbin.png', width:14 })
+              delete: $('<img/>', { class:'tblc-icon', src:'img/icbin.png' })
                 .on('click', function() {
                   tr = $(this).parents('tr');
                   if (tr.hasClass('delete')) {

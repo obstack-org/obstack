@@ -123,6 +123,9 @@ class mod_objtype {
         $dbq->params = array_merge($dbq->params, $dbqin->params);
       }
     }
+    if (in_array($this->display, [ 'map' ]) || in_array($this->format, [ 'aggr' ])) {
+      $dbq->select[] = 'ot.map AS map';
+    }
     if (in_array($this->format, [ 'expand', 'full', 'aggr' ])) {
       $dbq->select[] = 'ot.short AS short, ot.log AS log';
     }
@@ -190,7 +193,7 @@ class mod_objtype {
     // Prepare
     $log = null;
     $dbq = (object)[ 'fields'=>[], 'update'=>[], 'params'=>[] ];
-    foreach ([ 'name', 'log', 'short' ] as $field) {
+    foreach ([ 'name', 'log', 'short', 'map' ] as $field) {
       if (isset($data[$field])) {
         $dbq->fields[] = $field;
         $dbq->update[] = "$field=:$field";
@@ -200,6 +203,9 @@ class mod_objtype {
     if (isset($data['log'])) {
       $log = ($data['log'] || $data['log'] == 'true' || $data['log'] == '1') ? true : false;
       $dbq->params[':log'] = ($log) ? 'true' : 'false';
+    }
+    if (!isset($data['map']) && array_key_exists('map', $data)) {
+      $dbq->update[] = "$field=NULL";
     }
     $dbq->fields = implode(', ', $dbq->fields);
     $dbq->update = implode(', ', $dbq->update);

@@ -56,6 +56,7 @@ mod['objconf'] = {
   list: function() {
 
     // Loader
+    state.set('objconf');
     content.append(loader.removeClass('fadein').addClass('fadein'));
 
     // Load and display data
@@ -65,7 +66,6 @@ mod['objconf'] = {
     ).done(function(api_objtype, api_valuemap) {
       mod.objconf.objtypes = api_objtype[0];
       mod.objconf.valuemap = api_valuemap[0];
-      frm.sidebar.show(mod.objconf.objtypes);
 
       let obtlist = new obFTable({
         table: {
@@ -85,7 +85,7 @@ mod['objconf'] = {
       });
 
       content.empty().append(new obContent({
-        name: 'Object Types',
+        name: [ $('<img/>', { src: 'img/iccgs.png', class:'content-header-icon' }), 'Object Types' ],
         content: obtlist.html()
       }).html());
 
@@ -138,9 +138,15 @@ mod['objconf'] = {
 
     content.empty().append(loader.removeClass('fadein').addClass('fadein'));
 
+    let maps = { 'null':'[top]' };
+    $.each(new obTree(mod.config.navigation.maps).data(true), function(idx, map) {
+      maps[map.id] = '\xA0\xA0\xA0\xA0'.repeat(map.depth) + '\xA0↳ ' + map.name;
+    });
+
     // Form
     let obtform = new obForm([
       { id:'name',  name:'Name', type:'string', regex_validate:/^.+/, value:api_conf.name },
+      { id:'map', name:'Map', type:'select', options:maps, value:(api_conf.map==null)?'null':api_conf.map },
       { id:'short', name:'Shortname length', regex_validate:/^.+/, type:'select', options:{1:1, 2:2, 3:3, 4:4}, value:api_conf.short, info:'Number of fields used in shortname, used in e.g. dropdown selects'},
       { id:'log',   name:'Log', type:'select',  options:{0:'Disabled', 1:'Enabled'}, value:(api_conf.log)?1:0 },
     ]);
@@ -225,7 +231,11 @@ mod['objconf'] = {
     ] });
 
     content.append(new obContent({
-      name: [ $('<a/>', { class:'link', html:'Object types', click:function() { if (change.check()) { mod.objconf.list(); } } }), $('<span/>', { text:` / ${(id==null)?'[new]':api_conf.name}` })],
+      name: [
+        $('<img/>', { src: 'img/iccgs.png', class:'content-header-icon' }),
+        $('<a/>', { class:'link', html:'Object types', click:function() { if (change.check()) { mod.objconf.list(); } } }),
+        $('<span/>', { text:` / ${(id==null)?'[new]':api_conf.name}` })
+      ],
       content: obtabs.html(),
       control: [
         // -- Save
@@ -277,6 +287,9 @@ mod['objconf'] = {
 
     // Prepare data formats
     let dtsave = objtype_config;
+    if (objtype_config.map == 'null') {
+      objtype_config.map = null;
+    }
     if (proplist != null) {
       dtsave['property'] = [];
       $.each(proplist.html().find('tbody').children('tr'), function() {
@@ -314,7 +327,7 @@ mod['objconf'] = {
       $.when(
         api('put',`objecttype/${id}`, dtsave),
         api('put',`objecttype/${id}/acl`, aclsave)
-      ).always(function() { mod.objconf.list(); });
+      ).always(function() { location.reload(true); });
     }
 
   },

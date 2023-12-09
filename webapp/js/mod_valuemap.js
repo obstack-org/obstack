@@ -21,6 +21,7 @@
   list: function() {
 
     // Loader
+    state.set('valuemap');
     content.append(loader.removeClass('fadein').addClass('fadein'));
 
     // Load and display data
@@ -45,7 +46,7 @@
       });
 
       content.empty().append(new obContent({
-        name: 'Value maps',
+        name: [ $('<img/>', { src: 'img/iccgs.png', class:'content-header-icon' }), 'Value maps' ],
         content: vmlist.html()
       }).html());
 
@@ -127,7 +128,10 @@
     ]});
 
     content.empty().append(new obContent({
-      name: [$('<a/>', { class:'link', html:'Value maps', click:function() { if (change.check()) { mod.valuemap.list(); } } }), ` / ${(id==null)?'[new]':api_conf.name}`],
+      name: [
+        $('<img/>', { src: 'img/iccgs.png', class:'content-header-icon' }),
+        $('<a/>', { class:'link', html:'Value maps', click:function() { if (change.check()) { mod.valuemap.list(); } } }), ` / ${(id==null)?'[new]':api_conf.name}`
+      ],
       content: obtabs.html(),
       control: [
         // -- Save

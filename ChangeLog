@@ -2,7 +2,11 @@
  CHANGES
 *********
 
-v1.1.5 (xx-xx-2023):
+v1.2.0 (xx-xx-2024):
+- Configuration to database
+- Sidebar treeview
+
+v1.1.5 (25-11-2023):
 - Manage users in groups screen
 - Add GUI hints
 - Add unsaved changes notifications
