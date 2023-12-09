@@ -23,32 +23,46 @@ $result = null;
  * API Routes
  ******************************************************************/
 
-// --> /auth
+// Session Manager
 require_once 'inc/class_sessman.php';
-require_once 'inc/api_auth.php';
+$sessman = new sessman($db, "obstack-app-dev_session");
+
 // SA shorthand
 function checkSA() {
   global $api, $sessman;
   if (!$sessman->SA())  { $api->http_error(403); }
 }
 
-// --> /auth/group  (extension to sessman)
-if (count($api->uri) >=3 && $api->uri[1] == 'auth' && $api->uri[2] == 'group') {
-  require_once 'inc/mod_acl.php';
-  require_once 'inc/api_acl.php';
+// --> /config
+if (count($api->uri) >=2 && $api->uri[1] == 'config') {
+  require_once 'inc/mod_conf.php';
+  require_once 'inc/api_conf.php';
 }
 
-// --> /valuemap
-if (count($api->uri) >=2 && ($api->uri[1] == 'valuemap' || $api->uri[1] == 'objecttype')) {
-  require_once 'inc/mod_valuemap.php';
-  require_once 'inc/api_valuemap.php';
-}
+else {
 
-// --> /objtype
-if (count($api->uri) >=2 && $api->uri[1] == 'objecttype') {
-  require_once 'inc/mod_objtype.php';
-  require_once 'inc/mod_obj.php';
-  require_once 'inc/api_objtype.php';
+  // --> /auth
+  require_once 'inc/api_auth.php';
+
+  // --> /auth/group  (extension to sessman)
+  if (count($api->uri) >=3 && $api->uri[1] == 'auth' && $api->uri[2] == 'group') {
+    require_once 'inc/mod_acl.php';
+    require_once 'inc/api_acl.php';
+  }
+
+  // --> /valuemap
+  if (count($api->uri) >=2 && ($api->uri[1] == 'valuemap' || $api->uri[1] == 'objecttype')) {
+    require_once 'inc/mod_valuemap.php';
+    require_once 'inc/api_valuemap.php';
+  }
+
+  // --> /objtype
+  if (count($api->uri) >=2 && $api->uri[1] == 'objecttype') {
+    require_once 'inc/mod_objtype.php';
+    require_once 'inc/mod_obj.php';
+    require_once 'inc/api_objtype.php';
+  }
+
 }
 
 /******************************************************************

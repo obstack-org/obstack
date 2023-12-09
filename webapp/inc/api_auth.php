@@ -1,6 +1,5 @@
 <?php
 
-$sessman = new sessman($db, "obstack-app_session");
 $sessman->settimeout($sessman_config['timeout']);
 $sessman->config_ldap = $sessman_config['ldap'];
 $sessman->config_radius = $sessman_config['radius'];

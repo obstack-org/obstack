@@ -18,7 +18,7 @@
  *
  * Example:
  * --------
- *  var obTabs = $('<div/>');
+ *  let obTabs = $('<div/>');
  *  $('#ParentDiv').append(obTabs);
  *  obTabs.obTabs({
  *    tabs: [
@@ -281,7 +281,7 @@ var obForm = function(fields) {
  *
  * Example:
  * --------
- *   var table = new obTable({
+ *   let table = new obTable({
  *     id: 'demotable',
  *     data: [
  *       { id: 1, Name:'Row 1', Value: 'Value 1' },
@@ -865,7 +865,7 @@ var obFTable = function(coptions) {
  *
  * Example:
  * --------
- *   var popup = new obPopup({
+ *   let popup = new obPopup({
  *     size: 'small',
  *     content: 'MyContent',
  *     control: [ btnElement1, btnElement2 ]
@@ -935,7 +935,7 @@ var obPopup = function(coptions) {
  *
  * Example:
  * --------
- *   var content = new obContent({
+ *   let content = new obContent({
  *     name: 'My Content',
  *     content: 'My Content',
  *     control: [ btnElement1, btnElement2 ]
@@ -982,9 +982,19 @@ var obContent = function(coptions) {
 }
 
 
-
-
-
+/*******************************************************************
+ *  obTabs(coptions)
+ * ==============
+ *   coptions      : Options
+ *
+ * Example:
+ * --------
+ *   let tabs = new obTabs({ tabs:[
+ *     { title:'myTab 1', html:myform.html(),
+ *     { title:'myTab 2', html:$('<div/>', { class: 'content-tab-wrapper' }).append(mylist.html()) },
+ *   ] }).html(),
+ *
+ ******************************************************************/
 
 var obTabs = function(coptions) {
 
@@ -1054,5 +1064,66 @@ var obTabs = function(coptions) {
       $(this).obTableRedraw();
     });
   }
+
+}
+
+
+/*******************************************************************
+ *  obTree(data, parent=null, depth=null)
+ * ==============
+ *   data      : Data - [ { id:'', parent:'', name:'' }, {...} ]
+ *   parent    : Parent id (null = root/top)
+ *   depth     : Current depth
+ *
+ * Example:
+ * --------
+ *   let tabs = new obTree(mydata).html()
+ *
+ ******************************************************************/
+
+var obTree = function(data, parent=null, depth=null) {
+
+  /******************************************************************
+   * Constructor
+   ******************************************************************/
+
+  const maxdepth = 32;
+  if (depth==null) {
+    depth = 0;
+    data = lsSort(data, 'name');
+  }
+
+  /******************************************************************
+   * Public
+   ******************************************************************/
+
+  // Retrieve element
+  this.data = function(flat=false) {
+    var result = [];
+    $.each(data, function (idx, rec) {
+      if (rec.parent == parent) {
+        let children = (depth <= maxdepth) ? new obTree(data, rec.id, depth+1).data() : [];
+        if (flat) {
+          rec.depth = depth;
+          result = [...result, rec ];
+          result = $.map([...result, (depth <= maxdepth) ? new obTree(data, rec.id, depth+1).data(true) : [] ], function(r) { return r; });
+        }
+        else {
+          rec.children = children;
+          result = [...result, rec ];
+        }
+      }
+    });
+    return result;
+  }
+
+  // Retrieve element
+  this.html = function() {
+    return [];
+  }
+
+  /******************************************************************
+   * Private
+   ******************************************************************/
 
 }

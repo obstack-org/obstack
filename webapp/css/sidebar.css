@@ -1,5 +1,39 @@
-.sidebar-item {
-  padding: 6px 0px 0px 10px;
+.sidebar-ul {
+  display: none;
+  list-style: none;
+  margin-left: 8px;
+  padding-left: 0px;
+}
+.sidebar-map {
+  list-style: none;
+  padding: 4px 0px 1px 8px;
   color: var(--sidebar-color);
   cursor: pointer;
+}
+.sidebar-map::before {
+  display: inline-block;
+  content: "\25B7";
+  color: var(--sidebar-color);
+  opacity: 0.4;
+  margin-right: 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.sidebar-map-down::before {
+  transform: rotate(45deg) !important;
+  cursor: pointer;
+}
+.sidebar-item {
+  list-style: none;
+  color: var(--sidebar-color);
+  padding: 4px 0px 0px 8px;
+  cursor: pointer;
+}
+.sidebar-item::before {
+  display: inline-block;
+  content: "🗋";
+  color: var(--sidebar-color);
+  opacity: 0.3;
+  margin-left: 0px;
+  margin-right: 6px;
 }

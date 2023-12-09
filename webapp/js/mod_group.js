@@ -21,6 +21,7 @@ mod['group'] = {
   list: function() {
 
     // Loader
+    state.set('group');
     content.append(loader.removeClass('fadein').addClass('fadein'));
 
     // Load and display data
@@ -46,7 +47,7 @@ mod['group'] = {
       });
 
       content.empty().append(new obContent({
-        name: 'Groups',
+        name: [ $('<img/>', { src: 'img/iccgs.png', class:'content-header-icon' }), 'Groups' ],
         content: grplist.html()
       }).html());
 
@@ -172,7 +173,10 @@ mod['group'] = {
     });
 
     content.empty().append(new obContent({
-      name: [ $('<a/>', { class:'link', html:'Groups', click:function() { if (change.check()) { mod.group.list(); } } }), ` / ${(id==null)?'[new]':api_group.groupname}` ],
+      name: [
+        $('<img/>', { src: 'img/iccgs.png', class:'content-header-icon' }),
+        $('<a/>', { class:'link', html:'Groups', click:function() { if (change.check()) { mod.group.list(); } } }), ` / ${(id==null)?'[new]':api_group.groupname}`
+      ],
       content: obtabs.html(),
       control: [
         // -- Save

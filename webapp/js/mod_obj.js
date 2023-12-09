@@ -31,6 +31,7 @@ mod['obj'] = {
   list: function(type) {
 
     // Loader
+    state.set('obj', [type]);
     content.append(loader.removeClass('fadein').addClass('fadein'));
 
     // Load and display data
