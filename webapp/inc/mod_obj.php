@@ -21,8 +21,8 @@ class mod_obj {
   private $display;
   private $objtype;
   private $cache;
-  private $datatype  = [ 1=>'varchar', 2=>'decimal', 3=>'uuid', 4=>'uuid', 5=>'decimal', 6=>'text', 7=>'varchar', 8=>'timestamp', 9=>'timestamp' ];
-  private $propertytype = [ 1=>'Text', 2=>'Number', 3=>'Object Type', 4=>'Value Map', 5=>'Checkbox', 6=>'Textbox', 7=>'Password', 8=>'Date', 9=>'DateTime' ];
+  private $datatype  = [ 1=>'varchar', 2=>'decimal', 3=>'uuid', 4=>'uuid', 5=>'decimal', 6=>'text', 8=>'timestamp', 9=>'timestamp', 10=>'timestamp', 11=>'varchar', 12=>'varchar' ];
+  private $propertytype = [ 1=>'Text', 2=>'Number', 3=>'Object Type', 4=>'Value Map', 5=>'Checkbox', 6=>'Textbox', 8=>'Date', 9=>'DateTime', 10=>'DateTime (now)', 11=>'Password (hash)', 12=>'Password (encrypt)' ];
 
   /******************************************************************
    * Initialize
@@ -136,9 +136,11 @@ class mod_obj {
             WHEN 4 THEN vu.value::varchar
             WHEN 5 THEN TO_CHAR(vd.value,'FM9')
             WHEN 6 THEN vx.value
-            WHEN 7 THEN '•••••'
             WHEN 8 THEN TO_CHAR(vt.value,'YYYY-MM-DD')
             WHEN 9 THEN TO_CHAR(vt.value,'YYYY-MM-DD HH24:MI')
+            WHEN 10 THEN TO_CHAR(vt.value,'YYYY-MM-DD HH24:MI')
+            WHEN 11 THEN '•••••'
+            WHEN 12 THEN '•••••'
           END AS value
         FROM obj o
         LEFT JOIN objtype ot ON ot.id = o.objtype
@@ -292,7 +294,7 @@ class mod_obj {
                 }
               }
               else {
-                if ($value->type != 7 && $value->value_text != null) {
+                if ($value->type != 11 && $value->value_text != null) {
                   $short[] = $value->value_text;
                 }
               }
@@ -413,13 +415,13 @@ class mod_obj {
     }
 
     // Format
-    if (isset($vlist[7])) {
-      for ($i=0; $i<count($vlist[7]); $i++) {
-        if (in_array($data[$vlist[7][$i]->property], [ null, '•••••' ])) {
-          unset($vlist[7][$i]);
+    if (isset($vlist[11])) {
+      for ($i=0; $i<count($vlist[11]); $i++) {
+        if (in_array($data[$vlist[11][$i]->property], [ null, '•••••' ])) {
+          unset($vlist[11][$i]);
         }
         else {
-          $data[$vlist[7][$i]->property] = password_hash($data[$vlist[7][$i]->property], PASSWORD_BCRYPT);
+          $data[$vlist[11][$i]->property] = password_hash($data[$vlist[11][$i]->property], PASSWORD_BCRYPT);
         }
       }
     }
@@ -501,14 +503,22 @@ class mod_obj {
           $otlist[$dbrow->id] = $dbrow->objtype;
         }
       }
-      // Detemine and save new relations
+
+      // Detemine, check, save and log new relations
       $rlist = array_diff($data['relations'], $xlist);
+      $relation_allow = [];
+      foreach ($this->relation_list($otid,$id,true) as $rel) {
+        $relation_allow[] = $rel->id;
+      }
+      foreach ($rlist as $rel) {
+        if (!in_array($rel, $relation_allow)) { return false; }
+      }
       $this->relation_save($otid, $id, $rlist, true);
       foreach ($rlist as $rel) {
         $this->log_save($otid, $id, 5, $this->list_short(null, [$rel])[$rel]);
         $this->log_save($otlist[$rel], $rel, 5, $this->list_short(null, [$id])[$id]);
       }
-      // Determine and remove deleted relations
+      // Determine, remove and log deleted relations
       $rlist = array_diff($xlist, $data['relations']);
       $this->relation_delete($otid, $id, $rlist, true);
       foreach ($rlist as $rel) {
@@ -573,13 +583,23 @@ class mod_obj {
     if (!$this->objtype->acl($otid)->read) { return null; }
     $xlist = [];
     if ($available) {
-      $dbq = (object)[ 'join'=>[ 'LEFT JOIN objtype ot ON ot.id = o.objtype' ], 'filter'=>[], 'params'=>[] ];
+      $dbq = (object)[
+        'join'=>[
+          'LEFT JOIN objtype ot ON ot.id = o.objtype',
+          'LEFT JOIN objtype_objtype oo ON oo.objtype = ot.id OR oo.objtype_ref = ot.id'
+        ],
+        'filter'=>[
+          'ot.id != :otid',
+          '((oo.objtype = :otid OR oo.objtype_ref = :otid) OR (oo.objtype = :otid AND oo.objtype_ref = :otid))'
+        ],
+        'params'=>[ ':otid'=>$otid ]
+      ];
       if (!$_SESSION['sessman']['sa']) {
         $dbqin = $this->list2in($_SESSION['sessman']['groups'], 'smg');
         if (count($dbqin->params) > 0) {
           $dbq->join[] = 'LEFT JOIN objtype_acl oa ON oa.objtype = ot.id';
           $dbq->filter[] = "oa.smgroup IN ($dbqin->marks) AND oa.read";
-          $dbq->params = $dbqin->params;
+          $dbq->params = array_merge($dbq->params, $dbqin->params);
         }
       }
       $dbq->join = implode(' ', $dbq->join);

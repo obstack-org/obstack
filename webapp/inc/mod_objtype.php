@@ -168,10 +168,24 @@ class mod_objtype {
             }
           }
         }
+        // Relations
+        $relation_list = [];
+        $dbrquery = '
+          SELECT id FROM objtype o
+          LEFT JOIN objtype_objtype oo ON oo.objtype = o.id OR oo.objtype_ref = o.id
+          WHERE o.id != :otid
+          AND (oo.objtype = :otid OR oo.objtype_ref = :otid)
+          OR (oo.objtype = :otid AND oo.objtype_ref = :otid)
+        ';
+        foreach ($this->db->query($dbrquery, [ ':otid'=>$ot->id ]) as $rel) {
+          $relation_list[] = $rel->id;
+        }
+        // Format result
         $result = (object)[
           'objecttype'=> $ot,
           'property'=>$property_list,
           'meta'=>$meta,
+          'relations'=>$relation_list,
           'acl'=> $this->acl($ot->id)
         ];
         if ($result->meta == null) {
@@ -257,6 +271,20 @@ class mod_objtype {
         $this->property_delete($id, $prop);
       }
     }
+    // Objtype relations
+    if (isset($data['relations']) && count($data['relations']) > 0) {
+      $dbc = 0;
+      $dbq = (object)[ 'insert'=>[], 'params'=>[] ];
+      foreach ($data['relations'] as $id_ref) {
+        $dbq->insert[] = ($id >= $id_ref) ? "(:otx$dbc,:oty$dbc)" : "(:oty$dbc,:otx$dbc)";
+        $dbq->params[":otx$dbc"] = $id;
+        $dbq->params[":oty$dbc"] = $id_ref;
+        $dbc++;
+      }
+      $dbq->insert = implode(',', $dbq->insert);
+      $this->db->query("DELETE FROM objtype_objtype WHERE objtype=:otid OR objtype_ref=:otid", [ ':otid'=>$id ]);
+      $this->db->query("INSERT INTO objtype_objtype VALUES $dbq->insert", $dbq->params);
+    }
     return $result;
   }
 
@@ -271,6 +299,7 @@ class mod_objtype {
     $this->db->query('DELETE FROM obj WHERE objtype=:otid', $dbq->params);
     $this->db->query('DELETE FROM objproperty WHERE objtype=:otid', $dbq->params);
     $this->db->query('DELETE FROM objtype_acl WHERE objtype=:otid', $dbq->params);
+    $this->db->query('DELETE FROM objtype_objtype WHERE objtype=:otid or objtype_ref=:otid', $dbq->params);
     $count = count($this->db->query('DELETE FROM objtype WHERE id=:otid RETURNING id', $dbq->params));
     return $count > 0;
   }

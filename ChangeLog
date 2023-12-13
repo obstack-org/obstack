@@ -5,6 +5,8 @@
 v1.2.0 (xx-xx-2024):
 - Configuration to database
 - Sidebar treeview
+- Add property type DateTime (now)
+- Add property Password (encrypt)
 
 v1.1.5 (25-11-2023):
 - Manage users in groups screen
