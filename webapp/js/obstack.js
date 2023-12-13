@@ -138,10 +138,10 @@ $(document).ready( function () {
         lockfuncts(mod);
         lockfuncts(frm);
         overlay.remove();
-        $.each(def.prop, function(key,value) {
-          mod.obj.jftypes[value.id] = value.jftype;
-          mod.objconf.options.type[value.id] = value.name;
-        });
+        // $.each(def.property, function(key,value) {
+        //   mod.obj.jftypes[value.id] = value;
+        //   mod.objconf.options.type[value.id] = def.property_type[key];
+        // });
         $.when(
           api('get','auth/user/self'),
           api('get','objecttype?display=map'),

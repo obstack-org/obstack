@@ -1,3 +1,4 @@
+
 CREATE TABLE settings (
 	id uuid NOT NULL DEFAULT uuid_generate_v4(),
 	name varchar(64) NOT NULL,
@@ -19,5 +20,15 @@ CREATE TABLE ntree (
 );
 
 ALTER TABLE objtype ADD map uuid;
-
 ALTER TABLE objtype ADD CONSTRAINT objtype_ntree_fk FOREIGN KEY (map) REFERENCES ntree(id);
+
+UPDATE objproperty SET type = 11 WHERE type = 7;
+
+CREATE TABLE objtype_objtype (
+	objtype uuid NOT NULL,
+	objtype_ref uuid NOT NULL,
+	CONSTRAINT objtype_objtype_check CHECK ((objtype >= objtype_ref)),
+	CONSTRAINT objtype_objtype_pkey PRIMARY KEY (objtype, objtype_ref),
+	CONSTRAINT objtype_objtype_fk FOREIGN KEY (objtype) REFERENCES objtype(id),
+	CONSTRAINT objtype_objtype_fk_1 FOREIGN KEY (objtype_ref) REFERENCES objtype(id)
+)

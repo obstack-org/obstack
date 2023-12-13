@@ -116,7 +116,7 @@ class mod_conf {
       $rlist = array_diff($xlist, $mlist);
       $dbqin = $this->list2in($rlist);
       if (count($dbqin->params) > 0) {
-        $this->db->query("UPDATE objtype SET ntree=null WHERE ntree IN ($dbqin->marks)", $dbqin->params);
+        $this->db->query("UPDATE objtype SET map=null WHERE map IN ($dbqin->marks)", $dbqin->params);
         $this->db->query("UPDATE ntree SET parent=null WHERE parent IN ($dbqin->marks)", $dbqin->params);
         $this->db->query("DELETE FROM ntree WHERE id IN ($dbqin->marks)", $dbqin->params);
       }
