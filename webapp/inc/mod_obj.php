@@ -14,6 +14,8 @@
  *
  ******************************************************************/
 
+require_once 'class_basebq.php';
+
 class mod_obj {
 
   private $db;
@@ -425,6 +427,16 @@ class mod_obj {
         }
       }
     }
+    if (isset($vlist[12])) {
+      for ($i=0; $i<count($vlist[12]); $i++) {
+        if (in_array($data[$vlist[12][$i]->property], [ null, '•••••' ])) {
+          unset($vlist[12][$i]);
+        }
+        else {
+          $data[$vlist[12][$i]->property] = basebq::encrypt($data[$vlist[12][$i]->property], $_SESSION['obstack']['basebq']);
+        }
+      }
+    }
     if (isset($vlist[8])) {
       for ($i=0; $i<count($vlist[8]); $i++) {
         if ($data[$vlist[8][$i]->property] == null) {
@@ -571,6 +583,31 @@ class mod_obj {
     $this->db->query('DELETE FROM obj WHERE id=:id AND objtype=:objtype', [':objtype'=>$otid, ':id'=>$id]);
 
     return true;
+  }
+
+  /******************************************************************
+   * List property values
+   * ====================
+   * $otid / $id    UUID or array of UUID's
+   * $available     List available relations
+   ******************************************************************/
+
+  public function property_list($otid, $id, $propid) {
+    if (!$this->objtype->acl($otid)->read) { return null; }
+    $dbquery = '
+      SELECT
+        op.name AS name,
+        op.type AS type,
+        vv.value AS value
+      FROM value_varchar vv
+      LEFT JOIN obj o ON o.id = vv.obj
+      LEFT JOIN objproperty op ON op.id = vv.objproperty
+      WHERE vv.objproperty = :propid
+      AND vv.obj = :id
+      AND o.objtype = :otid
+      AND TYPE IN (11,12)
+    ';
+    return $this->db->query($dbquery, [':otid'=>$otid, ':id'=>$id, ':propid'=>$propid])[0];
   }
 
   /******************************************************************

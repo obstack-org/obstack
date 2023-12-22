@@ -21,7 +21,8 @@ let cfg = [];
 
 // ObStack source files
 const obauth = [
-  "js/frm_login.js"
+  "js/frm_login.js",
+  "lib/qrcode/jquery.qrcode.min.js"
 ]
 const obinit = [
   "js/const.js",
@@ -32,7 +33,8 @@ const obinit = [
   "js/mod_group.js",
   "js/mod_conf.js",
   "js/mod_objconf.js",
-  "js/mod_valuemap.js"
+  "js/mod_valuemap.js",
+  "lib/crypto-js/crypto-js.js"
 ];
 
 // Content for loader screen
@@ -104,6 +106,7 @@ let state = {
 }
 
 // Document onload function
+let basebq = null;
 $(document).ready( function () {
   $.when(
     api('get','config')
@@ -138,10 +141,6 @@ $(document).ready( function () {
         lockfuncts(mod);
         lockfuncts(frm);
         overlay.remove();
-        // $.each(def.property, function(key,value) {
-        //   mod.obj.jftypes[value.id] = value;
-        //   mod.objconf.options.type[value.id] = def.property_type[key];
-        // });
         $.when(
           api('get','auth/user/self'),
           api('get','objecttype?display=map'),
@@ -176,6 +175,7 @@ $(document).ready( function () {
         });
       });
     });
+    basebq = getCookie('obstack_basebq');
   });
 });
 
@@ -247,6 +247,13 @@ function getObject(list, key, value) {
     }
   }
   return null;
+}
+
+// Get cookie
+function getCookie(name) {
+  var re = new RegExp(name + "=([^;]+)");
+  var value = re.exec(document.cookie);
+  return (value != null) ? decodeURIComponent(value[1]) : null;
 }
 
 // Sort list of objects

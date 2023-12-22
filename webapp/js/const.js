@@ -29,7 +29,7 @@ const def = {
       9:'DateTime',
       10:'DateTime (now)',
       11:'Password (hash)',
-      12:'Password (encrypt)',
+      12:'Password (recoverable)',
     },
     property_type: {
       1:'string',

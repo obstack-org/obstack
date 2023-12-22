@@ -142,8 +142,14 @@ mod['user'] = {
     ];
 
     // Form (extend)
+    if (self && api_user.totp) {
+      usrform_config = [...usrform_config,
+        { id:'totp_reset',      name:'2FA Reset',  type:'select',  options:{0:'No', 1:'Yes'}, value:0, info:'Reset your 2FA token on save' }
+      ];
+    }
     if (!self) {
       usrform_config = [...usrform_config,
+        { id:'totp',      name:'2-Factor authentication', type:'select',  options:{0:'Disabled', 1:'Enabled', 2:'Reset token'}, value:(api_user.totp)?1:0, info:'2FA TOTP using FreeOTP. Ignored on token login.' },
         { id:'firstname', name:'First name',  type:'string', regex_validate:/^.{2,}$/, info:'Minimum length: 2', value:api_user.firstname },
         { id:'lastname',  name:'Last name',   type:'string', regex_validate:/^.{2,}$/, info:'Minimum length: 2', value:api_user.lastname },
         { id:'active',    name:'Active',      type:'checkbox', value:api_user.active },
@@ -289,6 +295,18 @@ mod['user'] = {
           dtsave.groups = [...dtsave.groups, JSON.parse(tr.attr('hdt')).id];
         }
       });
+    }
+
+    // TOTP
+    if (id=='self') {
+      usrform.totp_reset = parseInt(usrform.totp_reset);
+    }
+    else {
+      usrform.totp = parseInt(usrform.totp);
+      if (usrform.totp == 2) {
+        delete usrform.totp;
+        usrform.totp_reset = 1;
+      }
     }
 
     // Save

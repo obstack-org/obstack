@@ -1067,6 +1067,53 @@ var obTabs = function(coptions) {
 
 }
 
+/*******************************************************************
+ *  obBase()
+ * ==============
+ *
+ * Example:
+ * --------
+ *   let code = (new obBase()).decode($encoded)
+ *
+ ******************************************************************/
+
+var obBase = function() {
+
+  this.decode = function(basestring) {
+    let i = 0;
+    let total = 0;
+    let result = '';
+    while (i<basestring.length) {
+      if ('>+%=/'.indexOf(basestring[i]) != -1) {
+        int = parseInt(basestring[i+1]+basestring[i+2], 16);
+        i = i + 3;
+      }
+      else {
+        int = basestring.charCodeAt(i);
+        if ((int >=48) && (int <=57)) {
+          int = int - 48;
+        }
+        else if ((int >=97) && (int <=122)) {
+          int = int - 87;
+        }
+        if ((int >=65) && (int <=90)) {
+          int = int - 29;
+        }
+        i++;
+      }
+      if ((total+int) < 128) {
+        total += int;
+      }
+      else {
+        result += String.fromCharCode(total);
+        total = 0;
+      }
+    }
+    return result;
+  }
+
+}
+
 
 /*******************************************************************
  *  obTree(data, parent=null, depth=null)
