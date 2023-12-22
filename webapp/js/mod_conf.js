@@ -17,7 +17,8 @@ mod['config'] = {
     'css_sidebar-color':'#bfcad0',
     'css_sidebar-background':'#1c1c1c',
     'css_content-color':'#444444',
-    'css_content-background':'#fafafa'
+    'css_content-background':'#fafafa',
+    'totp_default-enable':'0'
   },
 
   /******************************************************************
@@ -95,6 +96,9 @@ mod['config'] = {
             curval = parseInt(curval);
             value.prop('type', 'range').prop('min', '80').prop('max', '300').css('width', '300px').prop('value', curval);
           }
+        }
+        if (name.indexOf('totp_default-enable') == 0) {
+          value.prop('type', 'checkbox').removeClass('input-conf').addClass('nomrg').prop('checked', curval=='1');
         }
         cfglist.addrow([
           name,
@@ -175,6 +179,9 @@ mod['config'] = {
       let value = this.value;
       if (name.indexOf('css_') == 0 && name.indexOf('-width') == name.length-6) {
         value = `${value}px`;
+      }
+      if (name.indexOf('totp_default-enable') == 0) {
+        value = ($(this).prop('checked')) ? '1' : '0';
       }
       cfgsave = [ ...cfgsave, { name:name, value:value} ];
     });

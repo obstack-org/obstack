@@ -57,6 +57,11 @@ elseif ($api->route('/objecttype/{objecttype}/object/{object}')) {
   if ($api->method('DELETE') && ($obj->delete($api->param('objecttype'), $api->param('object')))) { $result = ['delete'=>true]; }
 }
 
+// --> /objecttype/[objecttype]/object/[object]/property/[property]
+elseif ($api->route('/objecttype/{objecttype}/object/{object}/property/{property}')) {
+  if ($api->method('GET'))     { $result = $obj->property_list($api->param('objecttype'), $api->param('object'), $api->param('property')); }
+}
+
 // --> /objecttype/[objecttype]/object/[object]/relation
 elseif ($api->route('/objecttype/{objecttype}/object/{object}/relation')) {
   if ($api->method('GET'))     { $result = $obj->relation_list($api->param('objecttype'), $api->param('object')); }

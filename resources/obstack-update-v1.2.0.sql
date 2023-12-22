@@ -8,7 +8,8 @@ CREATE TABLE settings (
 );
 
 INSERT INTO settings (name, value) VALUES
-('db_version','1.2.0');
+('db_version','1.2.0'),
+('totp_default-enable','0');
 
 CREATE TABLE ntree (
 	id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -18,6 +19,9 @@ CREATE TABLE ntree (
 	CONSTRAINT ntree_pk PRIMARY KEY (id),
 	CONSTRAINT ntree_ntree_fk FOREIGN KEY (parent) REFERENCES ntree(id)
 );
+
+ALTER TABLE sessman_user ADD COLUMN totp bool NOT NULL DEFAULT false;
+ALTER TABLE sessman_user ADD COLUMN totp_secret varchar;
 
 ALTER TABLE objtype ADD map uuid;
 ALTER TABLE objtype ADD CONSTRAINT objtype_ntree_fk FOREIGN KEY (map) REFERENCES ntree(id);

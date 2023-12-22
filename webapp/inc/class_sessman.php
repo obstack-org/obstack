@@ -32,6 +32,8 @@
  *
  ******************************************************************/
 
+require_once 'class_totp.php';
+
 class sessman {
 
   /******************************************************************
@@ -84,6 +86,7 @@ class sessman {
     $_SESSION['sessman'] = [];
     $_SESSION['sessman']['active'] = time();
     $_SESSION['sessman']['userid'] = $user->id;
+    $_SESSION['sessman']['tfc'] = $user->tfc;
     $_SESSION['sessman']['username'] = $user->username;
     $_SESSION['sessman']['groups'] = $user->groups;
     $_SESSION['sessman']['tokens'] = $user->tokens;
@@ -109,7 +112,7 @@ class sessman {
    * General login using username/password
    *   (tries LDAP and/or Radius login when enabled)
    ******************************************************************/
-  public function login($username, $secret) {
+  public function login($username, $secret, $otp=null) {
     // auth_ldap
     if ($this->config_ldap != null && $this->config_ldap['enabled'] && $this->auth_ldap($username, $secret)) {
       return true;
@@ -119,7 +122,7 @@ class sessman {
       return true;
     }
     // auth_db
-    return $this->auth_db($username, $secret);
+    return $this->auth_db($username, $secret, $otp);
   }
 
   /******************************************************************
@@ -152,6 +155,7 @@ class sessman {
         $user[0]->groups[] = $dbrec->smgroup;
       }
       $user[0]->ext = false;
+      $user[0]->tfc = false;
       $this->session_create($user[0]);
       return true;
     }
@@ -165,7 +169,7 @@ class sessman {
    ******************************************************************/
   public function authorized() {
     // Session state and timeout
-    if (isset($_SESSION['sessman']) && (time() < ($_SESSION['sessman']['active'] + $this->timeout))) {
+    if (isset($_SESSION['sessman']) && !$_SESSION['sessman']['tfc'] && (time() < ($_SESSION['sessman']['active'] + $this->timeout))) {
       $_SESSION['sessman']['active'] = time();
       return true;
     }
@@ -210,12 +214,12 @@ class sessman {
   /******************************************************************
    * Authentication by Database
    ******************************************************************/
-  private function auth_db($username, $secret) {
+  private function auth_db($username, $secret, $otp=null) {
     // MySQL/pSQL
     $dbqsecret = ($this->db->driver() == 'mysql') ? 'secret=PASSWORD(:secret)' : 'secret=crypt(:secret, secret)';
     // Determine session state
     $user = $this->db->query(
-      "SELECT id, username, firstname, lastname, tokens, sa FROM sessman_user WHERE username=:username AND $dbqsecret AND active=true",
+      "SELECT id, username, firstname, lastname, totp, totp_secret, tokens, sa FROM sessman_user WHERE username=:username AND $dbqsecret AND active=true",
       [':username'=>strtolower($username), ':secret'=>$secret]
     );
     if (!empty($user)) {
@@ -224,6 +228,37 @@ class sessman {
         $user[0]->groups[] = $dbrec->smgroup;
       }
       $user[0]->ext = false;
+      // TOTP
+      $user[0]->tfc = false;
+      $totp_default = false;
+      foreach ($this->db->query('SELECT value FROM settings WHERE name=\'totp_default-enable\'', []) as $dbrow) {
+        if ($dbrow->value == '1') {
+          $totp_default = true;
+        }
+      }
+      if ($user[0]->totp || $totp_default) {
+        $user[0]->tfc = true;
+        if ($user[0]->totp_secret == null) {
+          $totp_secret = TOTP::genSecret(56);
+          $user[0]->totp_secret = $totp_secret['secret'];
+          $this->db->query('UPDATE sessman_user SET totp_secret=:totp_secret WHERE id=:id', [':id'=>$user[0]->id, ':totp_secret'=>$user[0]->totp_secret]);
+          header('Content-Encoding: gzip');
+          print gzencode(json_encode(TOTP::genURI( $user[0]->username, $user[0]->totp_secret, 6, 30, 'ObStack', 'sha256' )), 9);
+        }
+        else {
+          if ($otp == null) {
+            header('Content-Encoding: gzip');
+            print gzencode(json_encode(['otp'=>'mooh']), 9);
+          }
+          else {
+            if ($otp == TOTP::getOTP($user[0]->totp_secret, 6, 30, 0, 'sha256')['otp']) {
+              $user[0]->tfc = false;
+            }
+          }
+        }
+      }
+
+      // Finish
       $this->session_create($user[0]);
       return true;
     }
@@ -373,7 +408,7 @@ class sessman {
       }
     }
     // Prepare response
-    $list = $this->db->query('SELECT id, username, firstname, lastname, active, tokens, sa FROM sessman_user WHERE id=:id', ['id'=>$id]);
+    $list = $this->db->query('SELECT id, username, totp, firstname, lastname, active, tokens, sa FROM sessman_user WHERE id=:id', ['id'=>$id]);
     if ($self) {
       unset($list[0]->id);
       unset($list[0]->active);
@@ -400,13 +435,17 @@ class sessman {
       // Always allow self
       if (!$this->authorized()) { return false; }
       $id = $_SESSION['sessman']['userid'];
-      $fieldlist = ['password'];
+      $fieldlist = ['password', 'totp_reset'];
     }
     else {
       // If not self only allow SA
       if (!$this->SA()) { return false; }
-      $fieldlist = ['username', 'password', 'firstname', 'lastname', 'active', 'tokens', 'sa'];
+      $fieldlist = ['username', 'password', 'firstname', 'lastname', 'active', 'tokens', 'sa', 'totp', 'totp_reset'];
     }
+    // // TOTP Reset
+    // if (isset($data['totp_reset'])) {
+    //   $data['totp_secret'] = '';
+    // }
     // Prepare SQL statement (MySQL/pSQL)
     $dbqcol = '';
     $dbqval = '';
@@ -422,6 +461,9 @@ class sessman {
             $dbqupd = ', secret=PASSWORD(:secret)';
           }
         }
+        elseif ($key=='totp_reset') {
+          $dbqupd .= ($data[$key]==1)?", totp_secret=NULL":'';
+        }
         else {
           $dbqcol .= ", $key";
           $dbqval .= ", :$key";
@@ -430,7 +472,7 @@ class sessman {
         if (in_array($key, ['active', 'tokens', 'sa'])) {
           $dbparams[$key] = $data[$key] ? 'true' : 'false';
         }
-        else {
+        elseif (!in_array($key, ['totp_reset'])) {
           $dbparams[$key] = $data[$key];
         }
       }
@@ -449,7 +491,10 @@ class sessman {
     else {
       $dbqupd = substr($dbqupd,2);
       $dbparams['id'] = $id;
-      $result = $this->db->query("UPDATE sessman_user SET $dbqupd WHERE id=:id", $dbparams);
+      $result = [[]];
+      if (strlen($dbqupd)>0) {
+        $result = $this->db->query("UPDATE sessman_user SET $dbqupd WHERE id=:id", $dbparams);
+      }
       if (isset($data['groups'])) {
         $this->db->query('DELETE FROM sessman_usergroups WHERE smuser=:smuser', [':smuser'=>$id]);
         foreach($data['groups'] as $groupid) { $this->usergroup_save($id, ['id'=>$groupid]); }

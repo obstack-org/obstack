@@ -58,6 +58,22 @@ mod['obj'] = {
             apidata_objects[idx][column.id] = htbool(apidata_objects[idx][column.id]);
           });
         }
+        if (column.type == 12) {
+          columns_allowhtml = [...columns_allowhtml, column.id];
+          $.each(apidata_objects, function(idx, rec) {
+            apidata_objects[idx][column.id] = [
+              ...apidata_objects[idx][column.id],
+              '&emsp;', $('<img/>', { class:'pointer', src:'img/iccpy.png', width:12 }).on('click', function(event) {
+                event.stopPropagation();
+                mod.obj.properties.open(apidata_type.objecttype.id, apidata_objects[idx].id, column.id, true);
+              }),
+              '&ensp;', $('<img/>', { class:'pointer', src:'img/icmgn.png', width:12 }).on('click', function(event) {
+                event.stopPropagation();
+                mod.obj.properties.open(apidata_type.objecttype.id, apidata_objects[idx].id, column.id);
+              }),
+            ];
+          });
+        }
       });
       for (let i=0; i<apidata_objects.length; i++) {
         $.each(columns_remove, function(idx, name) {
@@ -152,6 +168,7 @@ mod['obj'] = {
     // Load
     let acl_save = (mod.user.self.sa)?true:(id==null)?api_objtype.acl.create:api_objtype.acl.update;
     let propform_data = [];
+    let pwrecv = [];
     $.each(apidata.property, function(key, property) {
       propform_data = [
         ...propform_data, {
@@ -160,7 +177,10 @@ mod['obj'] = {
           type:def.property_type[property.type],
           value:(property.id in api_obj)?api_obj[property.id]:null,
           readonly:!acl_save
-        }]
+        }];
+      if (property.type == 12) {
+        pwrecv = [...pwrecv, property.id];
+      }
      });
      let propform = new obForm(propform_data);
      let propform_html = propform.html();
@@ -336,6 +356,39 @@ mod['obj'] = {
     }
 
   },
+
+
+  /******************************************************************
+   * mod.obj.properties
+   * ==================
+   * Array of properties and subarrays for gathering individual
+   * property data
+   ******************************************************************/
+  properties: {
+
+    open: function(type, id, property, copy=false) {
+
+      $.when(
+        api('get',`objecttype/${type}/object/${id}/property/${property}`)
+      ).done(function(apidata) {
+        let value = CryptoJS.AES.decrypt(apidata.value, (new obBase).decode(basebq)).toString(CryptoJS.enc.Utf8);
+        if (copy) {
+          if (!window.isSecureContext) {
+            alert('Copy to clipboard is only available on secure pages');
+          }
+          else {
+            navigator.clipboard.writeText(value);
+          }
+        }
+        else {
+          console.log(value);
+        }
+      });
+
+    }
+
+  },
+
 
   /******************************************************************
    * mod.obj.relations

@@ -31,7 +31,8 @@ class mod_valuemap {
       return $this->db->query('SELECT id, name FROM valuemap ORDER BY name', []);
     }
     else {
-      return $this->db->query('SELECT name, prio FROM valuemap WHERE id=:id', [':id'=>$id])[0];
+      $result = $this->db->query('SELECT name, prio FROM valuemap WHERE id=:id', [':id'=>$id])[0];
+      return $result;
     }
   }
 
@@ -60,13 +61,13 @@ class mod_valuemap {
     if (isset($data['value'])) {
       // Current values
       $xlist = [];
-      $vlist = [];
       foreach ($this->db->query('SELECT id FROM valuemap_value WHERE valuemap=:id', [':id'=>$id]) as $dbrow) {
         $xlist[] = $dbrow->id;
       }
       // New values
       $prio = 1;
       $vlist = [];
+      var_dump($data['value']);
       foreach ($data['value'] as $value) {
         if (!isset($value['id'])) {
           $vlist[] = $this->value_save($id, null, ['name'=>$value['name'], 'prio'=>$prio])[0]->id;

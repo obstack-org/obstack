@@ -7,6 +7,8 @@
  *
  ******************************************************************/
 
+require_once 'class_basebq.php';
+
 class mod_conf {
 
   private $db;
@@ -14,7 +16,7 @@ class mod_conf {
     'title', 'db_version',
     'css_titlebar-color', 'css_titlebar-background',
     'css_sidebar-width', 'css_sidebar-color', 'css_sidebar-background',
-    'css_content-color', 'css_content-background'
+    'css_content-color', 'css_content-background', 'totp_default-enable'
   ];
 
   /******************************************************************
@@ -62,9 +64,34 @@ class mod_conf {
   public function list($filter=true) {
     $result = [];
     $dbqin = $this->list2in($this->settings_base);
-    $result['settings'] = $this->db->query("SELECT id, name, value FROM settings WHERE name IN ($dbqin->marks)", $dbqin->params);
+    $result['settings'] = $this->db->query("SELECT id, name, value FROM settings WHERE name IN ($dbqin->marks) ORDER BY name", $dbqin->params);
     if (!$filter) {
       $result['navigation'] = $this->db->query("SELECT id, parent, name FROM ntree", []);
+
+      if (!isset($_SESSION['obstack'])) { $_SESSION['obstack'] = []; }
+      if (!isset($_SESSION['obstack']['basebq'])) {
+
+        // -->> Get config from file first !!
+
+        $hky = [ null, null, null ];
+        foreach ($this->db->query('SELECT name, value FROM settings WHERE name LIKE \'hky_ckey%\'', []) as $dbrow) {
+          $hky[intval(substr($dbrow->name,-1))] = $dbrow->value;
+        }
+        if ($hky[1] == null) {
+          $hky[1] = basebq::encode(basebq::rstr(9,14));
+          $this->db->query('INSERT INTO settings (name, value) values (\'hky_ckey1\', :key)', [ ':key'=>$hky[1] ]);
+        }
+        if ($hky[2] == null) {
+          $hky[2] = hash('sha384', $hky[1]);
+          $this->db->query('INSERT INTO settings (name, value) values (\'hky_ckey2\', :key)', [ ':key'=>$hky[2] ]);
+        }
+
+        $dkey = basebq::pstr(basebq::decode($hky[1])).basebq::pstr(basebq::decode($hky[1]));
+        $_SESSION['obstack']['basebq'] = $dkey;
+      }
+      setcookie('obstack_basebq',basebq::encode($_SESSION['obstack']['basebq']), [ 'expires'=>time()+10, 'samesite'=>'strict', 'path'=>'/' ]);
+
+
     }
     return $result;
   }
@@ -138,6 +165,10 @@ class mod_conf {
               $allow = true;
             }
           }
+          if (substr($rec['name'],0,5) == 'totp_') {
+            $allow = true;
+            $rec['value'] = ($rec['value']=='1') ? '1' : '0';
+          }
           if ($allow) {
             $this->db->query(
               "INSERT INTO settings (name, value) VALUES (:name, :value) ON CONFLICT (name) DO UPDATE SET value = :value RETURNING id",
@@ -150,6 +181,5 @@ class mod_conf {
 
     return [];
   }
-
 
 }
