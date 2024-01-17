@@ -1,23 +1,54 @@
 <?php
-require_once 'config.php';
-require_once 'inc/class_db.php';
-
 // PHP configuration
 date_default_timezone_set('UTC');
 error_reporting(E_ALL ^ E_NOTICE);
-
-// Ensure $debug state
-if (!$debug) { $debug = false; }
-
-// Database connection
-$db = new db($db_connectionstring, $db_persistent);
-$db->debug = $debug;
 
 // Prepare API response
 require_once 'inc/class_sAPI.php';
 $api = new sAPI(2);
 $payload = $api->payload();
 $result = null;
+
+// Base configuration
+require_once 'config.php';
+require_once 'inc/class_conf.php';
+$bcnf = new conf($obstack_conf);
+
+// Verify base configuration
+if ( count($bcnf->get()) == 0 || $bcnf->get('db_connectionstring') == null ) {
+  $api->http_error(428, 'Error in configuration<br><br>Please check:<br><a href="https://www.obstack.org/docs/?doc=general-configuration" target=_blank>https://www.obstack.org/docs/?doc=general-configuration</a>');
+}
+
+// Ensure $debug state
+$debug = false;
+if (in_array(strtolower($bcnf->get('debug')), ['yes', 'true'])) {
+  $debug = true;
+}
+
+// Database connection
+require_once 'inc/class_db.php';
+$db = new db($bcnf->get('db_connectionstring'), $bcnf->get('db_persistent'));
+$db->debug = $debug;
+
+// Pre-process configuration and/or data (if any)
+require_once 'inc/class_preprc.php';
+(new preprc($db))->migrate($sessman_config);
+
+// App configuration
+require_once 'inc/mod_conf.php';
+$acnf = new mod_conf($db, $bcnf->get());
+
+// Verify configuration
+if (
+  $db_connectionstring != null
+  || $sessman_config != null
+  || $debug == null
+) {
+  $api->http_error(428, 'Error in configuration<br><br>Please check:<br><a href="https://www.obstack.org/docs/?doc=general-configuration#upgrade-nodes" target=_blank>https://www.obstack.org/docs/?doc=general-configuration#upgrade-nodes</a>');
+}
+if (!$acnf->verify()) {
+  $api->http_error(428, 'Encryption check failed, contact your system administrator.<br><br><a href="https://www.obstack.org/docs/?doc=general-configuration" target=_blank>https://www.obstack.org/docs/?doc=general-configuration</a>');
+}
 
 /******************************************************************
  * API Routes
@@ -35,7 +66,6 @@ function checkSA() {
 
 // --> /config
 if (count($api->uri) >=2 && $api->uri[1] == 'config') {
-  require_once 'inc/mod_conf.php';
   require_once 'inc/api_conf.php';
 }
 

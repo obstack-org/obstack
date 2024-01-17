@@ -1,8 +1,19 @@
 <?php
 
-$sessman->settimeout($sessman_config['timeout']);
-$sessman->config_ldap = $sessman_config['ldap'];
-$sessman->config_radius = $sessman_config['radius'];
+// Sessman config
+if (!$sessman->authorized()) {
+  $sessman_config = [];
+  foreach($db->query("SELECT name, value FROM settings WHERE name LIKE 'session_%' OR name LIKE 'ldap_%' OR name LIKE 'radius_%'", []) as $dbrow) {
+    $cname = explode('_', $dbrow->name, 2);
+    if (!isset($sessman_config[$cname[0]])) { $sessman_config[$cname[0]] = []; }
+    if ($cname[1] == 'enabled') { $sessman_config[$cname[0]][$cname[1]] = ($dbrow->value == '1') ? true : false; }
+    elseif (in_array($cname[1], ['port','attr','timeout'])) { $sessman_config[$cname[0]][$cname[1]] = intval($dbrow->value); }
+    else { $sessman_config[$cname[0]][$cname[1]]  = $dbrow->value; }
+  }
+  $sessman->settimeout($sessman_config['session']['timeout']);
+  $sessman->config_ldap = $sessman_config['ldap'];
+  $sessman->config_radius = $sessman_config['radius'];
+}
 
 // Use token (Header: "X-API-Key":"[token]")
 if (isset($_SERVER['HTTP_X_API_KEY'])) {

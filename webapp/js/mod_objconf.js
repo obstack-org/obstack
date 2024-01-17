@@ -433,6 +433,9 @@ mod['objconf'] = {
       });
 
       let popup_html = popup.html();
+      if (basebq == null) {
+        popup_html.find('select[name=type]').find('option[value=12]').attr('disabled','disabled').append(' - [UNAVAILABLE]');
+      }
       popup_html.find('select[name=tsrc]').parent().hide();
       popup_html.find('select[name=reqr]').parent().hide();
       popup_html.find('select[name=type]').change(function() {

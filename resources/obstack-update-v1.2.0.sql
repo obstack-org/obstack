@@ -9,7 +9,7 @@ CREATE TABLE settings (
 
 INSERT INTO settings (name, value) VALUES
 ('db_version','1.2.0'),
-('totp_default-enable','0');
+('user_totp-default','0');
 
 CREATE TABLE ntree (
 	id uuid NOT NULL DEFAULT uuid_generate_v4(),

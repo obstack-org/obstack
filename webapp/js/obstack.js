@@ -143,8 +143,7 @@ $(document).ready( function () {
         overlay.remove();
         $.when(
           api('get','auth/user/self'),
-          api('get','objecttype?display=map'),
-          api('get','config')
+          api('get','objecttype?display=map')
         ).done(function(self, objecttypes) {
           mod.user.self = self[0];
           objecttypes = JSON.parse(JSON.stringify(objecttypes[0]));
@@ -176,6 +175,9 @@ $(document).ready( function () {
       });
     });
     basebq = getCookie('obstack_basebq');
+  })
+  .fail(function() {
+    // obAlert('Error in config file', null);
   });
 });
 
@@ -213,12 +215,20 @@ function api(httpmethod, path, data) {
         }
       }
       else if (response.status == 404) {
-        alert('No access to object');
+        obAlert('No access to object', null);
+      }
+      else {
+        obAlert(response.responseJSON.error, null);
       }
       // On debug log responses
-      else if (debug) {
+      if (debug) {
         console.log({status:response.status, request:`${httpmethod}: ${path}`, data:data});
         console.log(response.responseText);
+      }
+    },
+    success: function (response) {
+      if ('error' in response) {
+        obAlert(response.error, null);
       }
     }
   });
