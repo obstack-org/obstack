@@ -15,6 +15,9 @@
   font-size: 16px;
   font-family: 'Trebuchet MS', 'Segoe UI Symbol', 'Dejavu Sans', sans-serif;
 }
+body {
+  background-color: var(--content-color);
+}
 input, select, textarea {
   display: inline-block;
   width: 400px;
@@ -57,7 +60,7 @@ input[type='color'] {
   background: var(--sidebar-background);
   bottom: 0px;
   padding: 4px 0px 0px 2px;
-  z-index: 40;
+  z-index: 190;
 }
 .content {
   top: var(--titlebar-height);
@@ -110,8 +113,16 @@ input[type='color'] {
   50% { opacity: 0; }
   100% { opacity: 1; }
 }
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  50% { opacity: 0; }
+  100% { opacity: 0; }
+}
 .fadein {
   animation: fadeIn 0.5s;
+}
+.fadeout {
+  animation: fadeOut 0.5s;
 }
 .hidden {
   display: none;
@@ -133,6 +144,9 @@ input[type='color'] {
   font-size: 12px;
   padding-left: 30px;
   padding-bottom: 10px;
+}
+.icack {
+  content: url("../img/icack.png");
 }
 .float-left {
   float: left !important;

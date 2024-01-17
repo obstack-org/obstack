@@ -18,7 +18,21 @@ mod['config'] = {
     'css_sidebar-background':'#1c1c1c',
     'css_content-color':'#444444',
     'css_content-background':'#fafafa',
-    'totp_default-enable':'0'
+    'session_timeout': '600',
+    'user_totp-default':'0',
+    'ldap_enabled':'0',
+    'ldap_host':'',
+    'ldap_port':'389',
+    'ldap_userdn':'cn=users,cn=accounts,dc=example,dc=local',
+    'ldap_group-auth':'cn=obstack-auth,cn=groups,cn=accounts,dc=example,dc=local',
+    'ldap_group-sa':'cn=obstack-sa,cn=groups,cn=accounts,dc=example,dc=local',
+    'radius_enabled':'0',
+    'radius_host':'',
+    'radius_port':'1812',
+    'radius_secret':'',
+    'radius_attr':'230',
+    'radius_group-auth':'auth',
+    'radius_group-sa':'sa'
   },
 
   /******************************************************************
@@ -34,7 +48,7 @@ mod['config'] = {
 
     // Load and display data
     $.when(
-      api('get',`config`)
+      api('get','config?display=edit')
     ).done(function(apidata) {
 
       // Navigation
@@ -97,7 +111,7 @@ mod['config'] = {
             value.prop('type', 'range').prop('min', '80').prop('max', '300').css('width', '300px').prop('value', curval);
           }
         }
-        if (name.indexOf('totp_default-enable') == 0) {
+        if (name.indexOf('user_totp-default') == 0 || name.indexOf('ldap_enabled') == 0 || name.indexOf('radius_enabled') == 0) {
           value.prop('type', 'checkbox').removeClass('input-conf').addClass('nomrg').prop('checked', curval=='1');
         }
         cfglist.addrow([
@@ -149,8 +163,8 @@ mod['config'] = {
               }
             });
           }),
-          $('<input/>', { class:'btn', type:'submit', value:'Undo All', width:100 }).on('click', function() {
-          })
+          // $('<input/>', { class:'btn', type:'submit', value:'Undo All', width:100 }).on('click', function() {
+          // })
         )
       );
 
@@ -180,7 +194,7 @@ mod['config'] = {
       if (name.indexOf('css_') == 0 && name.indexOf('-width') == name.length-6) {
         value = `${value}px`;
       }
-      if (name.indexOf('totp_default-enable') == 0) {
+      if (name.indexOf('user_totp-default') == 0 || name.indexOf('ldap_enabled') == 0 || name.indexOf('radius_enabled') == 0) {
         value = ($(this).prop('checked')) ? '1' : '0';
       }
       cfgsave = [ ...cfgsave, { name:name, value:value} ];

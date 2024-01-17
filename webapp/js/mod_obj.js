@@ -52,6 +52,16 @@ mod['obj'] = {
         else {
           columns_remove = [...columns_remove, column.name];
         }
+        if (column.type == 1) {
+          $.each(apidata_objects, function(idx, rec) {
+            if (apidata_objects[idx][column.id] != null && apidata_objects[idx][column.id].trim().match(/^http/) && apidata_objects[idx][column.id].trim().match(/http[s]?\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}([a-zA-Z0-9\/?=&#%]*)?$/)) {
+              columns_allowhtml = [...columns_allowhtml, column.id];
+              apidata_objects[idx][column.id] = $('<a/>', { href:apidata_objects[idx][column.id], target:'_blank'}).text(apidata_objects[idx][column.id]).on('click').on('click', function(event) {
+                event.stopPropagation();
+              });
+            }
+          });
+        }
         if (column.type == 5) {
           columns_allowhtml = [...columns_allowhtml, column.id];
           $.each(apidata_objects, function(idx, rec) {
@@ -63,14 +73,11 @@ mod['obj'] = {
           $.each(apidata_objects, function(idx, rec) {
             apidata_objects[idx][column.id] = [
               ...apidata_objects[idx][column.id],
-              '&emsp;', $('<img/>', { class:'pointer', src:'img/iccpy.png', width:12 }).on('click', function(event) {
+              '&emsp;', $('<img/>', { class:'pointer', src:'img/iccpy.png', style:'margin-bottom:-3px;', width:14, title:'Copy' }).on('click', function(event) {
                 event.stopPropagation();
-                mod.obj.properties.open(apidata_type.objecttype.id, apidata_objects[idx].id, column.id, true);
-              }),
-              '&ensp;', $('<img/>', { class:'pointer', src:'img/icmgn.png', width:12 }).on('click', function(event) {
-                event.stopPropagation();
-                mod.obj.properties.open(apidata_type.objecttype.id, apidata_objects[idx].id, column.id);
-              }),
+                let img = $(this);
+                mod.obj.properties.open(apidata_type.objecttype.id, JSON.parse(img.parents('tr').attr('hdt')).id, column.id, img);
+              })
             ];
           });
         }
@@ -97,14 +104,14 @@ mod['obj'] = {
         },
         footer:   'Objects'
       });
+      let objlist_html = objlist.html();
 
       content.empty().append(new obContent({
         name: $('<span/>', { text:apidata_type.objecttype.name }),
-        content: objlist.html()
+        content: objlist_html
       }).html());
 
       $.each(content.find('.obTable-tb'), function() { $(this).obTableRedraw(); });
-
       loader.remove();
     });
 
@@ -216,6 +223,26 @@ mod['obj'] = {
       }
     });
 
+    // Options for Password field
+    $.each(apidata.property, function(key, property) {
+      if ([12].includes(property.type)) {
+        propform_html.find(`#${property.id}`)
+          .css('display','inline-block')
+          .before('<br>')
+          .after(
+            '&emsp;', $('<img/>', { class:'pointer', src:'img/icpsg.png', style:'margin-bottom:-3px;', width:16, title:'Generate' }).on('click', function(event) {
+              obPwgen($('#_obTab0-content'), $(this).siblings(':input'));
+            }),
+            '&emsp;', $('<img/>', { class:'pointer', src:'img/icmgn.png', style:'margin-bottom:-3px;', width:16, title:'Open' }).on('click', function(event) {
+              mod.obj.properties.open(type, id, property.id);
+            }),
+            '&ensp;', $('<img/>', { class:'pointer', src:'img/iccpy.png', style:'margin-bottom:-3px;', width:16, title:'Copy' }).on('click', function(event) {
+              mod.obj.properties.open(type, id, property.id, $(this));
+            })
+          );
+      }
+    });
+
     // Relations
     $.each(api_relations, function(idx, rec) {
       let colnr = 0;
@@ -295,6 +322,9 @@ mod['obj'] = {
         // -- Save
         (!acl_save)?null:$('<input/>', { class:'btn', type:'submit', value:'Save'  }).on('click', function() {
           let propform_data = propform.validate();
+          $.each(apidata.property, function(key, property) {
+            if ([12].includes(property.type)) { propform_html.find(`#${property.id}`) .css('display','inline-block'); }
+          });
           if (propform_data != null) {
             change.reset();
             mod.obj.save(type, id, propform_data, rellist.table());
@@ -366,25 +396,58 @@ mod['obj'] = {
    ******************************************************************/
   properties: {
 
-    open: function(type, id, property, copy=false) {
+    open: function(type, id, property, cpsrc=null) {
 
       $.when(
         api('get',`objecttype/${type}/object/${id}/property/${property}`)
       ).done(function(apidata) {
         let value = CryptoJS.AES.decrypt(apidata.value, (new obBase).decode(basebq)).toString(CryptoJS.enc.Utf8);
-        if (copy) {
+        if (cpsrc!=null) {
           if (!window.isSecureContext) {
-            alert('Copy to clipboard is only available on secure pages');
+            obAlert('Copy to clipboard is only available on secure pages (https)');
           }
           else {
             navigator.clipboard.writeText(value);
+            cpsrc.addClass('icack');
+            setTimeout(function() { cpsrc.removeClass('icack'); }, 500);
           }
         }
         else {
-          console.log(value);
+          const fieldid = '757c8b7445742f39d04749bd3bdaa66d';
+          let popup = new obPopup2({
+            content: new obForm([{ id:fieldid, name:'Password', type:'string', value:value }]).html(),
+            control: { 'Close (5)':null },
+            size: { width:400, height:120 }
+          });
+          $('#_obTab0-content').append(popup.html());
+          let pwfield = popup.html().find(`#${fieldid}`);
+          pwfield
+            .on('focus', function() { pwfield.select(); })
+            .on('keydown', function(event) {
+              if (event.ctrlKey == true && event.which == '67') {
+                return true;
+              }
+              else if (event.which == '27') {
+                popup.remove();
+              }
+              else {
+                event.preventDefault();
+                return false;
+              }
+            });
+          pwfield.focus();
+          let cntdown = 5;
+          let btnClose = popup.html().find('input.btn');
+          let autoclose = setInterval(function() {
+            cntdown--;
+            btnClose.val(`Close (${cntdown})`);
+            if (cntdown === 0) {
+              clearInterval(autoclose);
+              popup.remove();
+            }
+          }, 1000);
         }
       });
-
     }
 
   },

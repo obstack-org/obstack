@@ -4,7 +4,8 @@
  * ========================
  *
  * Requires: jQuery, jQueryUI
- * Functions: obTabs, obForm, obTable, obFTable, obContent, obPopup
+ * Functions: obTabs, obForm, obTable, obFTable, obContent,
+ *            obBase, obTree, obPopup, obAlert, obPwgen
  *
  * Part of ObStack (https://www.obstack.org). License: GPL-3.0
  *
@@ -217,7 +218,13 @@ var obForm = function(fields) {
 
   // Retrieve element
   this.html = function() {
+    setTimeout(function() { form.find(':input').first().focus(); },0);
     return form;
+  }
+
+  // Set focus to first element
+  this.focus = function() {
+    form.find(':input').first().focus();
   }
 
   // Validate & return data
@@ -924,6 +931,186 @@ var obPopup = function(coptions) {
   this.remove = function() {
     popup.element.remove();
   }
+
+}
+
+// ##################################################################################################
+// ##################################################################################################
+// ##################################################################################################
+
+var obPopup2 = function(coptions) {
+
+  /******************************************************************
+   * Constructor
+   ******************************************************************/
+
+  var options = {
+    ontop: null,
+    size: null,
+    content: null,
+    control: null
+  };
+  $.extend(options, coptions);
+
+  var style = '';
+  if (options.size == null) {
+    style = 'top:15%;left:50%;margin-left:-350px;width:700px;height:400px';
+  }
+  else {
+    var margin_left = options.size.width / 2;
+    style = `top:15%;left:50%;margin-left:-${margin_left}px;width:${options.size.width}px;height:${options.size.height}px`;
+  }
+
+  var popup = {
+    element: $('<div/>'),
+    wrapper: $('<div/>', { class: 'obPopup', style:style }),
+    control: $('<div/>', { class: 'obPopup-control' }),
+    content: $('<div/>')
+  };
+
+  if (options.content != null) {
+    popup.content.append(options.content);
+  }
+  if (options.control != null) {
+    $.each(options.control, function(key,fnc) {
+      let btn = $('<input/>', { class:'btn', type:'submit', value:key });
+      if (fnc == null) {
+        btn.on('click', function() { popup.element.remove(); })
+      }
+      else {
+        btn.on('click', function() { fnc(); popup.element.remove(); })
+      }
+      popup.control.append(btn);
+    });
+
+  }
+
+  var style = 'background:rgba(250,250,250,0.5);';
+  if (options.ontop != null) {
+    var style = `background:rgba(0,0,0,0.5);z-index:200;`;
+  }
+  popup.element.append(
+    $('<div/>', { class: 'obPopup-overlay', style:style }).append(
+      popup.wrapper.append(
+        popup.content,
+        popup.control
+      )
+    )
+  );
+
+  // Retrieve element
+  this.html = function() {
+    return popup.element;
+  }
+
+  // Delete element
+  this.remove = function() {
+    popup.element.remove();
+  }
+
+}
+
+
+function obAlert(msg, control={ Ok:null }) {
+
+  $('body').append(
+    new obPopup2({
+      content: msg,
+      control: control,
+      size: { width:500, height:100 },
+      ontop: true
+    }).html()
+  );
+
+}
+
+function obPwgen(parent, target) {
+
+  // Settings
+  let settings = { lcase:true, ucase:true, numeric:true, symbols:true, custom:false, custom_value:'_-+=$&()[]{}|\\/:;<>?!^~', length:12 };
+  try {
+    $.extend(settings, JSON.parse(localStorage.getItem('obstack:pwgen')));
+  } catch (e) {}
+
+  // Elements
+  let pwfield = $('<input/>', { type:'password', placeholder:'Generate password' });
+  let pwtoggle = $('<span/>', { class:'pointer', style:'font-size:24px;margin:5px 0px 0px 10px;' }).html('👁').on('click', function() {
+    pwfield.prop('type', (pwfield.prop('type')=='text')?'password':'text');
+  });
+  let length = $('<span/>');
+  length.text(settings.length);
+  let options = $('<div/>', { id:'obPwgen-options', style:'margin-top:8px;' }).append(
+    $('<div/>', { style:'float:left; margin:0px 8px 12px 8px;' }).append(
+      $('<label/>', { for:'obPwgen-length' }).text('Password length:'), '&emsp;',
+      $('<input/>', { type:'range', id:'obPwgen-length', style:'margin:0px;padding:0px;margin-bottom:-6px;width:252px;', min:7, max:28, value:settings.length }).on('input', function() {
+        length.text($(this).val());
+      }), '&emsp;', length, $('<br/>')
+    ),
+    $('<div/>', { style:'float:left;width:220px;height:80px;' }).append(
+      $('<input/>', { type:'checkbox', id:'obPwgen-lcase' }).prop('checked', settings.lcase),   $('<label/>', { for:'obPwgen-lcase' }).text('Lower case (a-z)'), $('<br/>'),
+      $('<input/>', { type:'checkbox', id:'obPwgen-ucase' }).prop('checked', settings.ucase),   $('<label/>', { for:'obPwgen-ucase' }).text('Upper case (A-Z)'), $('<br/>'),
+      $('<input/>', { type:'checkbox', id:'obPwgen-numeric' }).prop('checked', settings.numeric), $('<label/>', { for:'obPwgen-numeric' }).text('Numeric (0-9)')
+    ),
+    $('<div/>', { style:'float:left;width:220px;height:80px;' }).append(
+      $('<input/>', { type:'checkbox', id:'obPwgen-symbols' }).prop('checked', settings.symbols), $('<label/>', { for:'obPwgen-symbols' }).text('Symbols (.,@#%*)'), $('<br/>'),
+      $('<input/>', { type:'checkbox', id:'obPwgen-custom' }).prop('checked', settings.custom), $('<label/>', { for:'obPwgen-symbols' }).text('Custom:'), $('<br/>'),
+      $('<input/>', { id:'obPwgen-custom_value', style:'margin:2px 0px 0px 8px;padding:4px;width:210px;', value:settings.custom_value })
+    )
+  );
+
+  // Change event
+  options.find(':input').change(function() {
+    let type = this.id.split('-')[1];
+    if (type in settings) {
+      if (this.type == 'checkbox') {
+        settings[type] = $(this).prop('checked');
+      }
+      else {
+        settings[type] = $(this).val();
+      }
+    }
+    localStorage.setItem('obstack:pwgen', JSON.stringify(settings));
+  });
+  let control = {
+    Ok: function() {
+      let value = pwfield.val();
+      if (value.length) {
+        target.val(pwfield.val());
+        change.change();
+      }
+    },
+    Cancel:null
+  }
+
+  // Draw
+  parent.append(
+    new obPopup2({
+      content: [ pwfield, pwtoggle, options ],
+      control: control,
+      size: { width:440, height:240 }
+    }).html()
+  );
+
+  // Generate
+  $('.obPopup-control').prepend(
+    $('<input/>', { class:'btn', type:'submit', value:'Generate', style:'width:100px;margin-right:20px;' }).on('click', function() {
+      let base = '';
+      let pass = '';
+      base = ''.concat(
+        (settings.lcase) ? 'abcdefghijklmnopqrstuvwxyz' : '',
+        (settings.ucase) ? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' : '',
+        (settings.numeric) ? '0123456789' : '',
+        (settings.symbols) ? '.,@#%*' : '',
+        (settings.custom) ? settings.custom_value : ''
+      );
+      base = base.split('').map(v => [v, Math.random()]).sort((a, b) => a[1] - b[1]).map(v => v[0]).join('');
+      for (let i=1; i <= settings.length; i++) {
+        let cpos = Math.floor(Math.random()*base.length);
+        pass += base.substring(cpos, cpos+1);
+      }
+      pwfield.val(pass);
+    })
+  );
 
 }
 

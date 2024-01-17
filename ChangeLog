@@ -3,8 +3,10 @@
 *********
 
 v1.2.0 (xx-xx-2024):
-- Configuration to database
+- Manage allowed relations
 - Sidebar treeview
+- Configuration to database
+- Add link on web address in text field
 - Add property type DateTime (now)
 - Add property Password (encrypt)
 - Add 2-Factor authentication (db users)

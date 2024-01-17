@@ -12,18 +12,30 @@ require_once 'class_basebq.php';
 class mod_conf {
 
   private $db;
-  private $settings_base = [
-    'title', 'db_version',
+  private $display;
+  private $options;
+  private $basepass;
+  private $settings_public = [
     'css_titlebar-color', 'css_titlebar-background',
     'css_sidebar-width', 'css_sidebar-color', 'css_sidebar-background',
-    'css_content-color', 'css_content-background', 'totp_default-enable'
+    'css_content-color', 'css_content-background'
+  ];
+  private $settings_private = [
+    'title','session_timeout'
+  ];
+  private $settings_admin = [
+    'user_totp-default',
+    'ldap_enabled', 'ldap_host', 'ldap_port', 'ldap_userdn', 'ldap_group-auth', 'ldap_group-sa',
+    'radius_enabled', 'radius_host', 'radius_port', 'radius_secret', 'radius_attr', 'radius_group-auth', 'radius_group-sa'
   ];
 
   /******************************************************************
    * Initialize
    ******************************************************************/
-  public function __construct($db) {
+  public function __construct($db, $obstack_conf=null) {
     $this->db = $db;
+    $this->options = $obstack_conf;
+    if (isset($_GET['display'])) { $this->display = $_GET['display']; }
   }
 
   /******************************************************************
@@ -56,42 +68,61 @@ class mod_conf {
   }
 
   /******************************************************************
-   * List Configuration
-   * ==================
-   *  $filter     Limit settings (eg for non authorized users)
+   * Verify Configuration
    ******************************************************************/
 
-  public function list($filter=true) {
-    $result = [];
-    $dbqin = $this->list2in($this->settings_base);
-    $result['settings'] = $this->db->query("SELECT id, name, value FROM settings WHERE name IN ($dbqin->marks) ORDER BY name", $dbqin->params);
-    if (!$filter) {
-      $result['navigation'] = $this->db->query("SELECT id, parent, name FROM ntree", []);
-
-      if (!isset($_SESSION['obstack'])) { $_SESSION['obstack'] = []; }
-      if (!isset($_SESSION['obstack']['basebq'])) {
-
-        // -->> Get config from file first !!
-
-        $hky = [ null, null, null ];
-        foreach ($this->db->query('SELECT name, value FROM settings WHERE name LIKE \'hky_ckey%\'', []) as $dbrow) {
-          $hky[intval(substr($dbrow->name,-1))] = $dbrow->value;
-        }
-        if ($hky[1] == null) {
-          $hky[1] = basebq::encode(basebq::rstr(9,14));
-          $this->db->query('INSERT INTO settings (name, value) values (\'hky_ckey1\', :key)', [ ':key'=>$hky[1] ]);
-        }
-        if ($hky[2] == null) {
-          $hky[2] = hash('sha384', $hky[1]);
-          $this->db->query('INSERT INTO settings (name, value) values (\'hky_ckey2\', :key)', [ ':key'=>$hky[2] ]);
-        }
-
-        $dkey = basebq::pstr(basebq::decode($hky[1])).basebq::pstr(basebq::decode($hky[1]));
-        $_SESSION['obstack']['basebq'] = $dkey;
+  public function verify() {
+    if ($this->options == null || $this->options['sc_encryptionkey'] == null) {
+      return true;
+    }
+    else {
+      if (strlen($this->options['sc_encryptionkey']) < 12) {
+        return false;
       }
-      setcookie('obstack_basebq',basebq::encode($_SESSION['obstack']['basebq']), [ 'expires'=>time()+10, 'samesite'=>'strict', 'path'=>'/' ]);
+      $hky = [ null, null, null ];
+      $sky = $this->options['sc_encryptionkey'];
+      foreach ($this->db->query('SELECT name, value FROM settings WHERE name LIKE \'hky_ckey%\' ORDER BY name', []) as $dbrow) {
+        $hky[intval(substr($dbrow->name,-1))] = $dbrow->value;
+      }
+      if ($hky[1] == null) {
+        $hky[1] = basebq::encode(basebq::rstr(9,14));
+        $this->db->query('INSERT INTO settings (name, value) values (\'hky_ckey1\', :key)', [ ':key'=>$hky[1] ]);
+      }
+      if ($hky[2] == null) {
+        $hky[2] = hash('sha384', $sky.$hky[1]);
+        $this->db->query('INSERT INTO settings (name, value) values (\'hky_ckey2\', :key)', [ ':key'=>$hky[2] ]);
+      }
+      $this->basepass = basebq::pstr(basebq::decode($hky[1])).basebq::pstr($sky);
+      return ($hky[2] == hash('sha384', $sky.$hky[1]));
+    }
+  }
 
+  /******************************************************************
+   * List Configuration
+   * ==================
+   *  $public     Public only (eg for non authorized users)
+   *  $sa         SuperAdmin
+   ******************************************************************/
 
+  public function list($public=true, $sa=false) {
+    $result = [];
+    $dbqin = $this->list2in($this->settings_public);
+    $result['settings'] = $this->db->query("SELECT id, name, value FROM settings WHERE name IN ($dbqin->marks) ORDER BY name", $dbqin->params);
+    if (!$public) {
+      $dbqin = $this->list2in($this->settings_private);
+      $result['settings'] = array_merge($result['settings'], $this->db->query("SELECT id, name, value FROM settings WHERE name IN ($dbqin->marks) ORDER BY name", $dbqin->params));
+      $result['navigation'] = $this->db->query("SELECT id, parent, name FROM ntree", []);
+      if ($this->options != null && $this->options['sc_encryptionkey'] != null) {
+        if (!isset($_SESSION['obstack'])) { $_SESSION['obstack'] = []; }
+        if (!isset($_SESSION['obstack']['basebq'])) {
+          $_SESSION['obstack']['basebq'] = $this->basepass;
+        }
+        setcookie('obstack_basebq',basebq::encode($_SESSION['obstack']['basebq']), [ 'expires'=>time()+10, 'samesite'=>'strict', 'path'=>'/' ]);
+      }
+    }
+    if ($sa && $this->display == 'edit') {
+      $dbqin = $this->list2in($this->settings_admin);
+      $result['settings'] = array_merge($result['settings'], $this->db->query("SELECT id, name, value FROM settings WHERE name IN ($dbqin->marks) ORDER BY name", $dbqin->params));
     }
     return $result;
   }
@@ -152,7 +183,7 @@ class mod_conf {
     // Settings
     if (isset($data['settings'])) {
       foreach ($data['settings'] as $rec) {
-        if (in_array($rec['name'], $this->settings_base)) {
+        if (in_array($rec['name'], array_merge($this->settings_public, $this->settings_private, $this->settings_admin))) {
           $allow = false;
           if ($rec['name'] == 'title') {
             $allow = true;

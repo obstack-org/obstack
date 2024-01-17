@@ -88,18 +88,22 @@ class sAPI {
   /******************************************************************
    * HTTP error code
    ******************************************************************/
-  public function http_error($error) {
+  public function http_error($error, $msg=null) {
     $errorstring = [
       400=>'Bad request',
       401=>'Unauthorized',
       403=>'Forbidden',
       404=>'Not Found',
+      428=>'Precondition Required',
       500=>'Internal server error',
       502=>'Bad Gateway',
       503=>'Service Unavailable'
     ];
     http_response_code($error);
     header($_SERVER['SERVER_PROTOCOL']." $error ".$errorstring[$error]);
+    if ($msg != null) {
+      print json_encode([ 'error'=>$msg ]);
+    }
     die();
   }
 
