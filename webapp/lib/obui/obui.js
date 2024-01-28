@@ -640,7 +640,7 @@ var obTable = function(coptions) {
 
   // Update row
   this.updaterow = function(row, data) {
-    let rrow = chrow($(row), null, data);
+    let rrow = chrow($(row), data);
     $.each(options.element.find('.obTable-tb'), function() { $(this).obTableRedraw(); });
     return rrow;
   }
@@ -698,9 +698,9 @@ var obTable = function(coptions) {
   }
 
   // Table change row
-  function chrow(row, rowkey, rowdata) {
+  function chrow(row, rowdata) {
     row.empty();
-    let hdt = {};
+    let hdt = JSON.parse(row.attr('hdt'));
     if (options.sortable) {
       row.append($('<td/>', { class: 'obTable-drag' }).append('⇅'));
     }
@@ -712,7 +712,7 @@ var obTable = function(coptions) {
         row.append($('<td/>').append(value));
       }
     });
-    row.attr('id', rowkey).attr('hdt', JSON.stringify(hdt));
+    row.attr('hdt', JSON.stringify(hdt));
     return row;
   }
 
