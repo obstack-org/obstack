@@ -2,7 +2,10 @@
  CHANGES
 *********
 
-v1.1.5 (xx-xx-2023):
+v1.1.6 (28-01-2024):
+- Fix property visibility (frontend)
+
+v1.1.5 (25-11-2023):
 - Manage users in groups screen
 - Add GUI hints
 - Add unsaved changes notifications
