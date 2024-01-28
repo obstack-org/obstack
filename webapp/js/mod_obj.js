@@ -47,16 +47,16 @@ mod['obj'] = {
       $.each(apidata_type.property, function(id, column) {
         if (column.tbl_visible) {
           columns = [...columns, { id:column.id, name:column.name, orderable:column.tbl_orderable}];
+          if (column.type == 5) {
+            columns_allowhtml = [...columns_allowhtml, column.id];
+            $.each(apidata_objects, function(idx, rec) {
+              apidata_objects[idx][column.id] = htbool(apidata_objects[idx][column.id]);
+            });
+          }
         }
         else {
           columns_remove = [...columns_remove, column.name];
-        }
-        if (column.type == 5) {
-          columns_allowhtml = [...columns_allowhtml, column.id];
-          $.each(apidata_objects, function(idx, rec) {
-            apidata_objects[idx][column.id] = htbool(apidata_objects[idx][column.id]);
-          });
-        }
+        }        
       });
       for (let i=0; i<apidata_objects.length; i++) {
         $.each(columns_remove, function(idx, name) {
