@@ -42,7 +42,6 @@ $acnf = new mod_conf($db, $bcnf->get());
 if (
   $db_connectionstring != null
   || $sessman_config != null
-  || $debug == null
 ) {
   $api->http_error(428, 'Error in configuration<br><br>Please check:<br><a href="https://www.obstack.org/docs/?doc=general-configuration#upgrade-nodes" target=_blank>https://www.obstack.org/docs/?doc=general-configuration#upgrade-nodes</a>');
 }

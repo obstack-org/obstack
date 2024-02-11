@@ -21,10 +21,12 @@ class mod_conf {
     'css_content-color', 'css_content-background'
   ];
   private $settings_private = [
-    'title','session_timeout'
+    'title', 'session_timeout'
   ];
   private $settings_admin = [
-    'user_totp-default',
+    'totp_default_enabled'
+  ];
+  private $settings_admin_edit = [
     'ldap_enabled', 'ldap_host', 'ldap_port', 'ldap_userdn', 'ldap_group-auth', 'ldap_group-sa',
     'radius_enabled', 'radius_host', 'radius_port', 'radius_secret', 'radius_attr', 'radius_group-auth', 'radius_group-sa'
   ];
@@ -81,16 +83,16 @@ class mod_conf {
       }
       $hky = [ null, null, null ];
       $sky = $this->options['sc_encryptionkey'];
-      foreach ($this->db->query('SELECT name, value FROM settings WHERE name LIKE \'hky_ckey%\' ORDER BY name', []) as $dbrow) {
+      foreach ($this->db->query('SELECT name, value FROM setting_varchar WHERE name LIKE \'hky_ckey%\' ORDER BY name', []) as $dbrow) {
         $hky[intval(substr($dbrow->name,-1))] = $dbrow->value;
       }
       if ($hky[1] == null) {
         $hky[1] = basebq::encode(basebq::rstr(9,14));
-        $this->db->query('INSERT INTO settings (name, value) values (\'hky_ckey1\', :key)', [ ':key'=>$hky[1] ]);
+        $this->db->query('INSERT INTO setting_varchar (name, value) values (\'hky_ckey1\', :key)', [ ':key'=>$hky[1] ]);
       }
       if ($hky[2] == null) {
         $hky[2] = hash('sha384', $sky.$hky[1]);
-        $this->db->query('INSERT INTO settings (name, value) values (\'hky_ckey2\', :key)', [ ':key'=>$hky[2] ]);
+        $this->db->query('INSERT INTO setting_varchar (name, value) values (\'hky_ckey2\', :key)', [ ':key'=>$hky[2] ]);
       }
       $this->basepass = basebq::pstr(basebq::decode($hky[1])).basebq::pstr($sky);
       return ($hky[2] == hash('sha384', $sky.$hky[1]));
@@ -106,11 +108,9 @@ class mod_conf {
 
   public function list($public=true, $sa=false) {
     $result = [];
-    $dbqin = $this->list2in($this->settings_public);
-    $result['settings'] = $this->db->query("SELECT id, name, value FROM settings WHERE name IN ($dbqin->marks) ORDER BY name", $dbqin->params);
+    $dbqset = $this->settings_public;
     if (!$public) {
-      $dbqin = $this->list2in($this->settings_private);
-      $result['settings'] = array_merge($result['settings'], $this->db->query("SELECT id, name, value FROM settings WHERE name IN ($dbqin->marks) ORDER BY name", $dbqin->params));
+      $dbqset = array_merge($dbqset, $this->settings_private);
       $result['navigation'] = $this->db->query("SELECT id, parent, name FROM ntree", []);
       if ($this->options != null && $this->options['sc_encryptionkey'] != null) {
         if (!isset($_SESSION['obstack'])) { $_SESSION['obstack'] = []; }
@@ -120,10 +120,19 @@ class mod_conf {
         setcookie('obstack_basebq',basebq::encode($_SESSION['obstack']['basebq']), [ 'expires'=>time()+10, 'samesite'=>'strict', 'path'=>'/' ]);
       }
     }
-    if ($sa && $this->display == 'edit') {
-      $dbqin = $this->list2in($this->settings_admin);
-      $result['settings'] = array_merge($result['settings'], $this->db->query("SELECT id, name, value FROM settings WHERE name IN ($dbqin->marks) ORDER BY name", $dbqin->params));
+    if ($sa) {
+      $dbqset = array_merge($dbqset, $this->settings_admin);
     }
+    if ($sa && $this->display == 'edit') {
+      $dbqset = array_merge($dbqset, $this->settings_admin_edit);
+    }
+    $dbqin = $this->list2in($dbqset);
+    $dbquery = "
+      SELECT id, name, value FROM setting_varchar WHERE name IN ($dbqin->marks)
+      UNION
+      SELECT id, name, round(value)::text AS value FROM setting_decimal WHERE name IN ($dbqin->marks) ORDER BY name
+    ";
+    $result['settings'] = $this->db->query($dbquery, $dbqin->params);
     return $result;
   }
 
@@ -168,7 +177,7 @@ class mod_conf {
       // Inventory, update parents
       foreach ($data['navigation'] as $rec) {
         $mlist[] = $rec['id'];
-        $this->db->query('UPDATE ntree SET parent = :parent WHERE id = :id', [ ':parent'=>$rec['parent'], ':id'=>$rec['id'] ]);
+        $this->db->query('UPDATE ntree SET name=:name, parent=:parent WHERE id=:id', [ ':name'=>$rec['name'], ':parent'=>$rec['parent'], ':id'=>$rec['id'] ]);
       }
       // Determine and remove deleted maps
       $rlist = array_diff($xlist, $mlist);
@@ -182,32 +191,62 @@ class mod_conf {
 
     // Settings
     if (isset($data['settings'])) {
+
+      // Validate allowed setting names and values
+      $mlist = [ 'varchar'=>[], 'decimal'=>[] ];
+      $settings = [];
       foreach ($data['settings'] as $rec) {
-        if (in_array($rec['name'], array_merge($this->settings_public, $this->settings_private, $this->settings_admin))) {
-          $allow = false;
-          if ($rec['name'] == 'title') {
-            $allow = true;
+        $settings[$rec['name']] = $rec['value'];
+        if (in_array($rec['name'], array_merge($this->settings_public, $this->settings_private, $this->settings_admin, $this->settings_admin_edit))) {
+          if (in_array(end(explode('_', $rec['name'])), [ 'enabled', 'timeout', 'port', 'attr', 'sidebar-width' ])) {
+            $mlist['decimal'][] = $rec['name'];
           }
-          if (substr($rec['name'],0,4) == 'css_') {
-            if ((substr($rec['name'],-6) == '-color' || substr($rec['name'],-11) == '-background') && preg_match('/^#[0-9a-f]{6}$/', $rec['value'])) {
-              $allow = true;
+          else {
+            if ((substr($rec['name'],0,4) == 'css_' && (
+              ((substr($rec['name'],-6) == '-color' || substr($rec['name'],-11) == '-background') && preg_match('/^#[0-9a-f]{6}$/', $rec['value'])) ||
+              (substr($rec['name'],-6) == '-width' && preg_match('/^[1-9][0-9]{2}$/', $rec['value']))
+            )) ||
+              substr($rec['name'],0,4) != 'css_'
+            ) {
+              $mlist['varchar'][] = $rec['name'];
             }
-            if (substr($rec['name'],-6) == '-width' && preg_match('/^[1-9][0-9]{2}px$/', $rec['value'])) {
-              $allow = true;
-            }
-          }
-          if (substr($rec['name'],0,5) == 'totp_') {
-            $allow = true;
-            $rec['value'] = ($rec['value']=='1') ? '1' : '0';
-          }
-          if ($allow) {
-            $this->db->query(
-              "INSERT INTO settings (name, value) VALUES (:name, :value) ON CONFLICT (name) DO UPDATE SET value = :value RETURNING id",
-              [ ':name'=>$rec['name'], ':value'=>$rec['value'] ]
-            );
           }
         }
       }
+
+      // Process data
+      foreach(array_keys($mlist) as $table) {
+        if (count($mlist[$table]) > 0) {
+          $xlist = [];
+          $dbqin = $this->list2in($mlist[$table]);
+          $dbqvalue = ($table == 'decimal') ? 'round(value)::text as value' : 'value';
+          foreach($this->db->query("SELECT id, name, $dbqvalue FROM setting_$table WHERE name IN ($dbqin->marks)", $dbqin->params) as $dbrow) {
+            $xlist[$dbrow->name] = $dbrow->value;
+          }
+          // Prepare insert, process update
+          $dbc = 0;
+          $dbq = (object)[ 'insert'=>[], 'params'=>[] ];
+          foreach ($mlist[$table] as $rec) {
+            if (!isset($xlist[$rec])) {
+              $dbq->insert[] = "(:n$dbc, :v$dbc)";
+              $dbq->params[":n$dbc"] = $rec;
+              $dbq->params[":v$dbc"] = $settings[$rec];
+              $dbc++;
+            }
+            elseif ($xlist[$rec] != $settings[$rec]) {
+              $this->db->query("UPDATE setting_$table SET value=:value WHERE name=:name", [ ':name'=>$rec, ':value'=>$settings[$rec] ]);
+            }
+          }
+          // Process insert
+          if (count($dbq->insert) > 0) {
+            $dbq->insert = implode(',', $dbq->insert);
+            $this->db->query("INSERT INTO setting_$table (name, value) VALUES $dbq->insert", $dbq->params);
+          }
+        }
+      }
+
+
+
     }
 
     return [];

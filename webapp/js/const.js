@@ -15,7 +15,6 @@ const def = {
       6:'Textbox',
       8:'Date',
       9:'DateTime',
-      10:'DateTime (now)',
       11:'Password (hash)',
       12:'Password (recoverable)',
     },
@@ -28,7 +27,6 @@ const def = {
       6:'textarea',
       8:'date',
       9:'datetime',
-      10:'datetime',
       11:'password',
       12:'password'
     },

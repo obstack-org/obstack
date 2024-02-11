@@ -13,13 +13,13 @@ mod['config'] = {
     'title':'',
     'css_titlebar-color':'#ddeeee',
     'css_titlebar-background':'#1b5f98',
-    'css_sidebar-width':'180px',
+    'css_sidebar-width':'180',
     'css_sidebar-color':'#bfcad0',
     'css_sidebar-background':'#1c1c1c',
     'css_content-color':'#444444',
     'css_content-background':'#fafafa',
     'session_timeout': '600',
-    'user_totp-default':'0',
+    'totp_default_enabled':'0',
     'ldap_enabled':'0',
     'ldap_host':'',
     'ldap_port':'389',
@@ -108,10 +108,10 @@ mod['config'] = {
           }
           if (name.indexOf('-width') == name.length-6) {
             curval = parseInt(curval);
-            value.prop('type', 'range').prop('min', '80').prop('max', '300').css('width', '300px').prop('value', curval);
+            value.prop('type', 'range').prop('min', '80').prop('max', '300').css('width', '300').prop('value', curval);
           }
         }
-        if (name.indexOf('user_totp-default') == 0 || name.indexOf('ldap_enabled') == 0 || name.indexOf('radius_enabled') == 0) {
+        if (name.indexOf('totp_default_enabled') == 0 || name.indexOf('ldap_enabled') == 0 || name.indexOf('radius_enabled') == 0) {
           value.prop('type', 'checkbox').removeClass('input-conf').addClass('nomrg').prop('checked', curval=='1');
         }
         cfglist.addrow([
@@ -191,10 +191,7 @@ mod['config'] = {
     $.each(cfglist.html().find('tbody').find('input'), function() {
       let name = $(this).attr('hnm');
       let value = this.value;
-      if (name.indexOf('css_') == 0 && name.indexOf('-width') == name.length-6) {
-        value = `${value}px`;
-      }
-      if (name.indexOf('user_totp-default') == 0 || name.indexOf('ldap_enabled') == 0 || name.indexOf('radius_enabled') == 0) {
+      if (name.indexOf('totp_default_enabled') == 0 || name.indexOf('ldap_enabled') == 0 || name.indexOf('radius_enabled') == 0) {
         value = ($(this).prop('checked')) ? '1' : '0';
       }
       cfgsave = [ ...cfgsave, { name:name, value:value} ];

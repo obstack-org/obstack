@@ -67,7 +67,6 @@ class mod_valuemap {
       // New values
       $prio = 1;
       $vlist = [];
-      var_dump($data['value']);
       foreach ($data['value'] as $value) {
         if (!isset($value['id'])) {
           $vlist[] = $this->value_save($id, null, ['name'=>$value['name'], 'prio'=>$prio])[0]->id;

@@ -134,6 +134,7 @@ mod['user'] = {
     let frmpw = '•••••••';
     if (id == null) {
       frmpw = '';
+      api_user.totp = cfg.settings.totp_default_enabled;
     }
     let usrform_config = [
       { id:'username', name:'Username', type:'string', regex_input:/^[a-zA-Z][a-zA-Z0-9-_]{0,12}$/, regex_validate:/^[a-zA-Z][a-zA-Z0-9-_]{1,12}$/, value:api_user.username, readonly:(id!=null) },

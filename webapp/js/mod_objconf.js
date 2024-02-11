@@ -403,7 +403,7 @@ mod['objconf'] = {
             let propform_data = propform.validate();
             if (propform_data != null) {
               propform_data = $.extend(propform_data, {
-                id: null,
+                id: (newrec) ? null : rdata.id,
                 required:(propform_data.type=="1"),
                 type_objtype:(propform_data.type=="3")?propform_data.tsrc:null,
                 type_valuemap:(propform_data.type=="4")?propform_data.tsrc:null,

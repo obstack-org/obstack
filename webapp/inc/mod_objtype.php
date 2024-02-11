@@ -272,7 +272,7 @@ class mod_objtype {
       }
     }
     // Objtype relations
-    if (isset($data['relations']) && count($data['relations']) > 0) {
+    if (isset($data['relations'])) {
       $dbc = 0;
       $dbq = (object)[ 'insert'=>[], 'params'=>[] ];
       foreach ($data['relations'] as $id_ref) {

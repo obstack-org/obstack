@@ -3,6 +3,7 @@
   list-style: none;
   margin-left: 8px;
   padding-left: 0px;
+  overflow: hidden;
 }
 .sidebar-map {
   list-style: none;
@@ -26,6 +27,7 @@
 .sidebar-item {
   list-style: none;
   color: var(--sidebar-color);
+  white-space: nowrap;
   padding: 4px 0px 0px 8px;
   cursor: pointer;
 }

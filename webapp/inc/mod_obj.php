@@ -23,8 +23,8 @@ class mod_obj {
   private $display;
   private $objtype;
   private $cache;
-  private $datatype  = [ 1=>'varchar', 2=>'decimal', 3=>'uuid', 4=>'uuid', 5=>'decimal', 6=>'text', 8=>'timestamp', 9=>'timestamp', 10=>'timestamp', 11=>'varchar', 12=>'varchar' ];
-  private $propertytype = [ 1=>'Text', 2=>'Number', 3=>'Object Type', 4=>'Value Map', 5=>'Checkbox', 6=>'Textbox', 8=>'Date', 9=>'DateTime', 10=>'DateTime (now)', 11=>'Password (hash)', 12=>'Password (encrypt)' ];
+  private $datatype  = [ 1=>'varchar', 2=>'decimal', 3=>'uuid', 4=>'uuid', 5=>'decimal', 6=>'text', 8=>'timestamp', 9=>'timestamp', 11=>'varchar', 12=>'varchar' ];
+  private $propertytype = [ 1=>'Text', 2=>'Number', 3=>'Object Type', 4=>'Value Map', 5=>'Checkbox', 6=>'Textbox', 8=>'Date', 9=>'DateTime', 11=>'Password (hash)', 12=>'Password (encrypt)' ];
 
   /******************************************************************
    * Initialize
@@ -140,7 +140,6 @@ class mod_obj {
             WHEN 6 THEN vx.value
             WHEN 8 THEN TO_CHAR(vt.value,'YYYY-MM-DD')
             WHEN 9 THEN TO_CHAR(vt.value,'YYYY-MM-DD HH24:MI')
-            WHEN 10 THEN TO_CHAR(vt.value,'YYYY-MM-DD HH24:MI')
             WHEN 11 THEN '•••••'
             WHEN 12 THEN '•••••'
           END AS value
@@ -607,7 +606,13 @@ class mod_obj {
       AND o.objtype = :otid
       AND TYPE IN (11,12)
     ';
-    return $this->db->query($dbquery, [':otid'=>$otid, ':id'=>$id, ':propid'=>$propid])[0];
+    $result = $this->db->query($dbquery, [':otid'=>$otid, ':id'=>$id, ':propid'=>$propid]);
+    if (count($result) <= 0) {
+      return [];
+    }
+    else {
+      return $result[0];
+    }
   }
 
   /******************************************************************
