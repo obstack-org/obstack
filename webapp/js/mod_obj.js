@@ -48,38 +48,38 @@ mod['obj'] = {
       $.each(apidata_type.property, function(id, column) {
         if (column.tbl_visible) {
           columns = [...columns, { id:column.id, name:column.name, orderable:column.tbl_orderable}];
+          if (column.type == 1) {
+            $.each(apidata_objects, function(idx, rec) {
+              if (apidata_objects[idx][column.id] != null && apidata_objects[idx][column.id].trim().match(/^http/) && apidata_objects[idx][column.id].trim().match(/http[s]?\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}([a-zA-Z0-9\/?=&#%]*)?$/)) {
+                columns_allowhtml = [...columns_allowhtml, column.id];
+                apidata_objects[idx][column.id] = $('<a/>', { href:apidata_objects[idx][column.id], target:'_blank'}).text(apidata_objects[idx][column.id]).on('click').on('click', function(event) {
+                  event.stopPropagation();
+                });
+              }
+            });
+          }
+          if (column.type == 5) {
+            columns_allowhtml = [...columns_allowhtml, column.id];
+            $.each(apidata_objects, function(idx, rec) {
+              apidata_objects[idx][column.id] = htbool(apidata_objects[idx][column.id]);
+            });
+          }
+          if (column.type == 12) {
+            columns_allowhtml = [...columns_allowhtml, column.id];
+            $.each(apidata_objects, function(idx, rec) {
+              apidata_objects[idx][column.id] = [
+                ...apidata_objects[idx][column.id],
+                '&emsp;', $('<img/>', { class:'pointer', src:'img/iccpy.png', style:'margin-bottom:-3px;', width:14, title:'Copy' }).on('click', function(event) {
+                  event.stopPropagation();
+                  let img = $(this);
+                  mod.obj.properties.open(apidata_type.objecttype.id, JSON.parse(img.parents('tr').attr('hdt')).id, column.id, img);
+                })
+              ];
+            });
+          }
         }
         else {
           columns_remove = [...columns_remove, column.name];
-        }
-        if (column.type == 1) {
-          $.each(apidata_objects, function(idx, rec) {
-            if (apidata_objects[idx][column.id] != null && apidata_objects[idx][column.id].trim().match(/^http/) && apidata_objects[idx][column.id].trim().match(/http[s]?\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}([a-zA-Z0-9\/?=&#%]*)?$/)) {
-              columns_allowhtml = [...columns_allowhtml, column.id];
-              apidata_objects[idx][column.id] = $('<a/>', { href:apidata_objects[idx][column.id], target:'_blank'}).text(apidata_objects[idx][column.id]).on('click').on('click', function(event) {
-                event.stopPropagation();
-              });
-            }
-          });
-        }
-        if (column.type == 5) {
-          columns_allowhtml = [...columns_allowhtml, column.id];
-          $.each(apidata_objects, function(idx, rec) {
-            apidata_objects[idx][column.id] = htbool(apidata_objects[idx][column.id]);
-          });
-        }
-        if (column.type == 12) {
-          columns_allowhtml = [...columns_allowhtml, column.id];
-          $.each(apidata_objects, function(idx, rec) {
-            apidata_objects[idx][column.id] = [
-              ...apidata_objects[idx][column.id],
-              '&emsp;', $('<img/>', { class:'pointer', src:'img/iccpy.png', style:'margin-bottom:-3px;', width:14, title:'Copy' }).on('click', function(event) {
-                event.stopPropagation();
-                let img = $(this);
-                mod.obj.properties.open(apidata_type.objecttype.id, JSON.parse(img.parents('tr').attr('hdt')).id, column.id, img);
-              })
-            ];
-          });
         }
       });
       for (let i=0; i<apidata_objects.length; i++) {
@@ -401,7 +401,10 @@ mod['obj'] = {
       $.when(
         api('get',`objecttype/${type}/object/${id}/property/${property}`)
       ).done(function(apidata) {
-        let value = CryptoJS.AES.decrypt(apidata.value, (new obBase).decode(basebq)).toString(CryptoJS.enc.Utf8);
+        let value = '';
+        if ('value' in apidata) {
+          value = CryptoJS.AES.decrypt(apidata.value, (new obBase).decode(basebq)).toString(CryptoJS.enc.Utf8);
+        }
         if (cpsrc!=null) {
           if (!window.isSecureContext) {
             obAlert('Copy to clipboard is only available on secure pages (https)');

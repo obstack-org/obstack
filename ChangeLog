@@ -6,10 +6,13 @@ v1.2.0 (xx-xx-2024):
 - Manage allowed relations
 - Sidebar treeview
 - Configuration to database
+- Documentation accessibility
 - Add link on web address in text field
-- Add property type DateTime (now)
 - Add property Password (encrypt)
 - Add 2-Factor authentication (db users)
+
+v1.1.6 (xx-xx-2024):
+- Fix property visibility (frontend)
 
 v1.1.5 (25-11-2023):
 - Manage users in groups screen

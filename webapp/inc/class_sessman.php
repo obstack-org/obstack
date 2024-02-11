@@ -231,7 +231,7 @@ class sessman {
       // TOTP
       $user[0]->tfc = false;
       $totp_default = false;
-      foreach ($this->db->query('SELECT value FROM settings WHERE name=\'session_totp-default\'', []) as $dbrow) {
+      foreach ($this->db->query('SELECT value FROM setting_decimal WHERE name=\'session_totp-default\'', []) as $dbrow) {
         if ($dbrow->value == '1') {
           $totp_default = true;
         }

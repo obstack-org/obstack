@@ -1,15 +1,23 @@
 
-CREATE TABLE settings (
+CREATE TABLE setting_varchar (
 	id uuid NOT NULL DEFAULT uuid_generate_v4(),
 	name varchar(64) NOT NULL,
 	value varchar(128) NOT NULL,
-	CONSTRAINT settings_pk PRIMARY KEY (id),
-	CONSTRAINT settings_un UNIQUE (name)
+	CONSTRAINT setting_varchar_pk PRIMARY KEY (id),
+	CONSTRAINT setting_varchar_un UNIQUE (name)
 );
 
-INSERT INTO settings (name, value) VALUES
-('db_version','1.2.0'),
-('user_totp-default','0');
+CREATE TABLE setting_decimal (
+	id uuid NOT NULL DEFAULT uuid_generate_v4(),
+	name varchar(64) NOT NULL,
+	value numeric(16, 8) NOT NULL,
+	CONSTRAINT setting_decimal_pk PRIMARY KEY (id),
+	CONSTRAINT setting_decimal_un UNIQUE (name)
+);
+
+INSERT INTO setting_decimal (name, value) VALUES
+('db_version',120),
+('totp_default_enabled',0);
 
 CREATE TABLE ntree (
 	id uuid NOT NULL DEFAULT uuid_generate_v4(),

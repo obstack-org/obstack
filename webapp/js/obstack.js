@@ -215,10 +215,10 @@ function api(httpmethod, path, data) {
         }
       }
       else if (response.status == 404) {
-        obAlert('No access to object', null);
+        obAlert('No access to object');
       }
       else {
-        obAlert(response.responseJSON.error, null);
+        obAlert(response.responseJSON.error);
       }
       // On debug log responses
       if (debug) {
@@ -227,9 +227,12 @@ function api(httpmethod, path, data) {
       }
     },
     success: function (response) {
-      if ('error' in response) {
-        obAlert(response.error, null);
+      try {
+        if ('error' in response) {
+          obAlert(response.error, null);
+        }
       }
+      catch(err) {}
     }
   });
   return xhr;
@@ -287,12 +290,15 @@ function setConfig(data) {
   $.each(data, function(id, value) {
     settings[value.name] = value.value;
     if (value.name.indexOf('css_') == 0) {
-      $('body').get(0).style.setProperty('--'+value.name.substr(4), value.value);
+      $('body').get(0).style.setProperty('--'+value.name.substr(4), value.value+((value.name.substr(4)=='sidebar-width')?'px':''));
+    }
+    if (value.name == 'title' && $.trim(value.value).length > 0) {
+      title = 'ObStack - ' + value.value;
+    }
+    if (value.name == 'totp_default_enabled') {
+      cfg.settings.totp_default_enabled = (value.value == '1') ? true : false;
     }
   });
-  if (typeof settings.title != 'undefined' && $.trim(settings.title).length > 0) {
-    title = 'ObStack - ' + settings.title;
-  }
 }
 
 // Numeric padding
