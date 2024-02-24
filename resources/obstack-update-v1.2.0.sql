@@ -43,4 +43,12 @@ CREATE TABLE objtype_objtype (
 	CONSTRAINT objtype_objtype_pkey PRIMARY KEY (objtype, objtype_ref),
 	CONSTRAINT objtype_objtype_fk FOREIGN KEY (objtype) REFERENCES objtype(id),
 	CONSTRAINT objtype_objtype_fk_1 FOREIGN KEY (objtype_ref) REFERENCES objtype(id)
-)
+);
+
+CREATE TABLE public.value_blob (
+	obj uuid NOT NULL,
+	objproperty uuid NOT NULL,
+	value varchar NULL,
+	data bytea NULL,
+	CONSTRAINT value_blob_pk PRIMARY KEY (obj, objproperty)
+);

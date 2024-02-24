@@ -41,12 +41,12 @@ $obstack_conf = '/etc/obstack/obstack.conf';
 
 ### Configuring recoverable passwords
 
-Recoverable passwords are stored and retrieved encrypted. To enable this feature enable _sc_encrytionkey_ in the base configuration file.
+Recoverable passwords are stored and retrieved encrypted. To enable this feature set _sc_encrytionkey_:
 
-* Enable _sc_encrytionkey_ in the base configuration file
+* Enable _sc_encrytionkey_ in the base configuration file, or as environment variable when using <a href="https://github.com/obstack-org/obstack-docker" target="_blank">docker</a>
 * Set _sc_encrytionkey_ to a random string of charcters, peferably consisting of upper case and lower case characters, numbers and symbols
 * _sc_encrytionkey_ requires a ***minimal length*** of ***12***
-* Make sure to backup the configured encryption key somewhere safe. When losing this key it is impossible to retrieve any of the encrypted data!
+* Make sure to backup the configured encryption key somewhere safe. When losing this key it is ***impossible to retrieve any of the encrypted data!***
 
 #### obstack.conf
 

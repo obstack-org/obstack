@@ -276,9 +276,7 @@ mod['obj'] = {
       open:     function(td) {
         let tr = $(td).parent();
         if (tr.hasClass('delete')) {
-          if (confirm('Do you want to remove the deletion mark?')) {
-            tr.removeClass('delete');
-          }
+          obAlert('Do you want to remove the deletion mark?', { Ok:function(){ tr.removeClass('delete'); }, Cancel:null });
         }
         else {
           mod.obj.relations.open(type, id, rellist.table(), tr, acl_save);
@@ -316,7 +314,7 @@ mod['obj'] = {
     ]});
 
     let obcontent = {
-      name: [$('<a/>', { class:'link', text:`${api_objtype.name}`, click:function() { if (change.check()) { mod.obj.list(type); } } }), $('<span/>', { text:` / ${(id==null)?'[new]':api_obj_short[0].name}`})],
+      name: [$('<a/>', { class:'link', text:`${api_objtype.name}`, click:function() { change.check(function() { mod.obj.list(type); }); } }), $('<span/>', { text:` / ${(id==null)?'[new]':api_obj_short[0].name}`})],
       content: obtabs.html(),
       control: [
         // -- Save
@@ -335,16 +333,11 @@ mod['obj'] = {
         }),
         // -- Delete
         (id == null || !api_objtype.acl.delete)?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
-          if (confirm('WARNING!: This action wil permanently delete this object, are you sure you want to continue?')) {
-            $.when( api('delete',`objecttype/${type}/object/${id}`) ).always(function() {
-              change.reset();
-              mod.obj.list(type);
-            });
-          }
+          obAlert('<b>WARNING!:</b><br>This action wil permanently delete this object, are you sure you want to continue?', { Ok:function(){ change.reset(); mod.obj.list(type); }, Cancel:null });
         }),
         // -- Close
         $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() {
-          if (change.check()) { mod.obj.list(type); }
+          change.check(function() { mod.obj.list(type); });
         })
       ]
     };

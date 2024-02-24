@@ -175,7 +175,7 @@ mod['group'] = {
     content.empty().append(new obContent({
       name: [
         $('<img/>', { src: 'img/iccgs.png', class:'content-header-icon' }),
-        $('<a/>', { class:'link', html:'Groups', click:function() { if (change.check()) { mod.group.list(); } } }), ` / ${(id==null)?'[new]':api_group.groupname}`
+        $('<a/>', { class:'link', html:'Groups', click:function() { change.check(function() { mod.group.close(); }); } }), ` / ${(id==null)?'[new]':api_group.groupname}`
       ],
       content: obtabs.html(),
       control: [
@@ -189,7 +189,7 @@ mod['group'] = {
         }),
         // -- Delete
         (id==null)?null:$('<input/>', { class: 'btn', type: 'submit', value: 'Delete' }).on('click', function() {
-          if (confirm('Are you sure you want to delete this group?')) {
+          obAlert('Are you sure you want to delete this group?', { Ok:function(){
             $.when(
               api('delete',`auth/group/${id}/acl`)
             ).always(function() {
@@ -200,11 +200,11 @@ mod['group'] = {
                 mod.group.close();
               });
             });
-          }
+          }, Cancel:null });
         }),
         // -- Close
         $('<input/>', { class: 'btn', type: 'submit', value: 'Close' }).on('click', function() {
-          if (change.check()) { mod.group.close(); }
+          change.check(function() { mod.group.close(); });
         }),
       ]
     }).html());

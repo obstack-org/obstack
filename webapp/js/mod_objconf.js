@@ -186,9 +186,7 @@ mod['objconf'] = {
         if (!$(td).hasClass('obTable-drag')) {
           let tr = $(td).parent();
           if (tr.hasClass('delete')) {
-            if (confirm('Do you want to remove the deletion mark?')) {
-              tr.removeClass('delete');
-            }
+            obAlert('Do you want to remove the deletion mark?', { Ok:function(){ tr.removeClass('delete'); }, Cancel:null });
           }
           else {
             mod.objconf.properties.open(proplist, tr);
@@ -256,7 +254,7 @@ mod['objconf'] = {
     content.append(new obContent({
       name: [
         $('<img/>', { src: 'img/iccgs.png', class:'content-header-icon' }),
-        $('<a/>', { class:'link', html:'Object types', click:function() { if (change.check()) { mod.objconf.list(); } } }),
+        $('<a/>', { class:'link', html:'Object types', click:function() { change.check(function() { mod.objconf.list(); }); } }),
         $('<span/>', { text:` / ${(id==null)?'[new]':api_conf.name}` })
       ],
       content: obtabs.html(),
@@ -274,18 +272,18 @@ mod['objconf'] = {
         }),
         // -- Delete
         (id == null)?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
-          if (confirm('WARNING!: This action wil permanently delete this object type, all related objects and all related values. Are you sure you want to continue?')) {
-            if (confirm('WARNING!: Deleting object type. This can NOT be undone, are you really really sure?')) {
+          obAlert('<b>WARNING!:</b><br>This action wil permanently delete this object type, all related objects and all related values. Are you sure you want to continue?', { Ok:function(){
+            obAlert('<b>WARNING!:</b><br>Deleting object type. This can NOT be undone, are you really really sure?', { Ok:function(){
               $.when( api('delete',`objecttype/${id}`) ).always(function() {
                 change.reset();
                 mod.objconf.list();
               });
-            }
-          }
+            }, Cancel:null });
+          }, Cancel:null });
         }),
         // -- Close
         $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() {
-          if (change.check()) { mod.objconf.list(); }
+          change.check(function() { mod.objconf.list(); });
         })
       ]
     }).html());
@@ -422,10 +420,7 @@ mod['objconf'] = {
           }),
           // -- Delete
           (newrec)?null:$('<input/>', { class: 'btn', type: 'submit', value: 'Delete' }).on('click', function() {
-            if (confirm('Are you sure you want to mark this item for deletion?')) {
-              row.addClass('delete');
-              popup.remove();
-            }
+            obAlert('Are you sure you want to mark this item for deletion?', { Ok:function(){ row.addClass('delete'); popup.remove(); }, Cancel:null });
           }),
           // -- Close
           $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() { popup.remove(); })
