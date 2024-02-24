@@ -229,7 +229,7 @@ mod['user'] = {
       ] : [
         $('<img/>', { src: 'img/iccgs.png', class:'content-header-icon' }),
         $('<a/>', { class:'link', html:'Users', click: function() {
-          if (change.check()) { mod.user.list(); };
+          change.check(function() { mod.user.close(id); });
         } }), ` / ${(id==null)?'[new]':api_user.username}`
       ],
       content: obtabs.html(),
@@ -257,16 +257,16 @@ mod['user'] = {
         }),
         // -- Delete
         ((id==null)||(id=='self'))?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
-          if (confirm('Are you sure you want to delete this user?')) {
+          obAlert('Are you sure you want to delete this user?', { Ok:function(){
             $.when( api('delete',`auth/user/${id}`) ).always(function() {
               change.reset();
               mod.user.close();
             });
-          }
+          }, Cancel:null });
         }),
         // -- Close
         $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() {
-          if (change.check()) { mod.user.close(id); }
+          change.check(function() { mod.user.close(id); });
         })
       ]
     }).html());
@@ -508,14 +508,14 @@ mod['user'] = {
           }),
           // -- Delete
           $('<input/>', { class:'btn', type:'submit', value:'Delete' }).on('click', function() {
-            if (confirm('WARNING!: Token will be deleted instantly. Are you sure you want to continue?')) {
+            obAlert('<b>WARNING!:</b><br>Token will be deleted instantly. Are you sure you want to continue?', { Ok:function(){
               $.when(
                 api('delete',`auth/user/${id}/token/${rowid}`)
               ).done(function() {
                 row.remove();
                 popup.remove();
               });
-            }
+            }, Cancel:null });
           })
         ];
       }

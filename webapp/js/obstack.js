@@ -46,12 +46,13 @@ const loader =
 // Change observer
 let change = {
   state: false,
-  check: function(){
-    let result = false;
-    if (change.state) { result = confirm('You have unsaved changes, do you want to continue?'); }
-    else { result = true; }
-    if (result) { change.reset(); }
-    return result;
+  check: function(okfnc){
+    if (change.state) {
+      obAlert('You have unsaved changes, do you want to continue?', { Ok:function(){ change.reset(); okfnc(); }, Cancel:null });
+    }
+    else {
+      okfnc();
+    }
   },
   change: function(){
     change.state = true;

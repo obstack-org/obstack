@@ -141,7 +141,7 @@ mod['config'] = {
                 }
               });
               if (depth >= 4) {
-                alert('Unable to save, maximum depth exceeded');
+                obAlert('Unable to save, maximum depth exceeded');
               }
               else {
                 change.reset();
@@ -339,7 +339,7 @@ mod['config'] = {
               }
             });
             if (isparent) {
-              alert('Cannot delete map while having submaps');
+              obAlert('Cannot delete map while having submaps');
             }
             else {
               $.each(mod.config.navigation.maps, function(idx) {

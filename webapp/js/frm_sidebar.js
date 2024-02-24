@@ -53,7 +53,7 @@ frm['sidebar'] = {
       // Items
       $.each(otlist[map.id], function(idy, objtype) {
         ul.append(
-          $('<li/>', { class:'sidebar-item', text:objtype.name, click: function(event) { event.stopPropagation(); if (change.check()) { mod.obj.list(objtype.id); } } })
+          $('<li/>', { class:'sidebar-item', text:objtype.name, click: function(event) { event.stopPropagation(); change.check(function() { mod.obj.list(objtype.id); }); } })
         );
       });
       // Open
@@ -96,7 +96,7 @@ frm['sidebar'] = {
     sidebar.empty().append(frm.sidebar.tree(new obTree(navigation).data(), otlist));
     $.each(otlist['null'], function(idx, objtype) {
       sidebar.append(
-        $('<li/>', { class:'sidebar-item', text:objtype.name, click: function() { if (change.check()) { mod.obj.list(objtype.id); } } })
+        $('<li/>', { class:'sidebar-item', text:objtype.name, click: function() { change.check(function() { mod.obj.list(objtype.id); }); } })
       );
     });
   }

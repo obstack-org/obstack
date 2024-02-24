@@ -146,6 +146,14 @@ CREATE TABLE value_varchar (
 	CONSTRAINT value_varchar_pk PRIMARY KEY (obj, objproperty)
 );
 
+CREATE TABLE public.value_blob (
+	obj uuid NOT NULL,
+	objproperty uuid NOT NULL,
+	value varchar NULL,
+	data bytea NULL,
+	CONSTRAINT value_blob_pk PRIMARY KEY (obj, objproperty)
+);
+
 CREATE TABLE valuemap (
 	id uuid NOT NULL DEFAULT uuid_generate_v4(),
 	"name" varchar NOT NULL,

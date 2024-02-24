@@ -16,7 +16,7 @@ $bcnf = new conf($obstack_conf);
 
 // Verify base configuration
 if ( count($bcnf->get()) == 0 || $bcnf->get('db_connectionstring') == null ) {
-  $api->http_error(428, 'Error in configuration<br><br>Please check:<br><a href="https://www.obstack.org/docs/?doc=general-configuration" target=_blank>https://www.obstack.org/docs/?doc=general-configuration</a>');
+  $api->http_error(428, 'Error in configuration<br><br>Please check:<br><a href="https://www.obstack.org/docs/?doc=general-configuration" target=_blank>https://www.obstack.org/docs/?doc=general-configuration</a><br>For upgrading please check:<br><a href="https://www.obstack.org/docs/?doc=general-configuration#upgrade-nodes" target=_blank>https://www.obstack.org/docs/?doc=general-configuration#upgrade-nodes</a>');
 }
 
 // Ensure $debug state

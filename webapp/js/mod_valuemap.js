@@ -106,9 +106,9 @@
       open:     function(td) {
         let tr = $(td).parent();
         if (tr.hasClass('delete')) {
-          if (confirm('Do you want to remove the deletion mark?')) {
+          obAlert('Do you want to remove the deletion mark?', { Ok:function(){
             tr.removeClass('delete');
-          }
+          }, Cancel:null });
         }
         else {
           mod.valuemap.value.open(vallist.table().html(), tr, api_conf.prio);
@@ -130,7 +130,7 @@
     content.empty().append(new obContent({
       name: [
         $('<img/>', { src: 'img/iccgs.png', class:'content-header-icon' }),
-        $('<a/>', { class:'link', html:'Value maps', click:function() { if (change.check()) { mod.valuemap.list(); } } }), ` / ${(id==null)?'[new]':api_conf.name}`
+        $('<a/>', { class:'link', html:'Value maps', click:function() { change.check(function() { mod.valuemap.list(); }); } }), ` / ${(id==null)?'[new]':api_conf.name}`
       ],
       content: obtabs.html(),
       control: [
@@ -144,18 +144,16 @@
         }),
         // -- Delete
         (id==null)?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
-          if (confirm('WARNING!: This action wil permanently delete this valuemap, affecting all concerning objects. Are you sure you want to continue?')) {
-            if (confirm('WARNING!: Deleting valuemap. This can NOT be undone, are you really really sure?')) {
-              $.when( api('delete',`valuemap/${id}`) ).always(function() {
-                change.reset();
-                mod.valuemap.list();
-              });
-            }
-          }
+          obAlert('<b>WARNING!:</b><br>This action wil permanently delete this valuemap, affecting all concerning objects. Are you sure you want to continue?', { Ok:function(){
+            obAlert('<b>WARNING!:</b><br>Deleting valuemap. This can NOT be undone, are you really really sure?', { Ok:function(){
+              change.reset();
+              mod.valuemap.list();
+            }, Cancel:null });
+          }, Cancel:null });
         }),
         // -- Close
         $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() {
-          if (change.check()) { mod.valuemap.list(); }
+          change.check(function() { mod.valuemap.list(); });
         })
       ]
     }).html());
@@ -190,14 +188,19 @@
         value = [...value, { id:JSON.parse(tr.attr('hdt')).id, name:tr.find('td:not(.obTable-drag)').text() } ];
       }
     });
-    if (!save) {
-      if (confirm('WARNING!: This action wil permanently delete one or more values, affecting all concerning objects. Are you sure you want to continue?')) {
-        save = true;
-      }
-    }
 
     // Save
-    if (save) {
+    if (!save) {
+      obAlert('<b>WARNING!:</b><br>This action wil permanently delete one or more values, affecting all concerning objects. Are you sure you want to continue?', { Ok:function(){
+        if (id == null) {
+          $.when( api('post','valuemap', { name:vmform.name, prio:(vmform.prio==1), value:value } ) ).always(function() { mod.valuemap.list(); });
+        }
+        else {
+          $.when( api('put',`valuemap/${id}`, { name:vmform.name, prio:(vmform.prio==1), value:value } ) ).always(function() { mod.valuemap.list(); });
+        }
+      }, Cancel:null });
+    }
+    else {
       if (id == null) {
         $.when( api('post','valuemap', { name:vmform.name, prio:(vmform.prio==1), value:value } ) ).always(function() { mod.valuemap.list(); });
       }
@@ -264,9 +267,11 @@
               row.remove();
               popup.remove();
             }
-            else if (confirm('Are you sure you want to mark this item for deletion?')) {
-              row.addClass('delete');
-              popup.remove();
+            else {
+              obAlert('Are you sure you want to mark this item for deletion?', { Ok:function(){
+                row.addClass('delete');
+                popup.remove();
+              }, Cancel:null });
             }
           }),
           // -- Close
