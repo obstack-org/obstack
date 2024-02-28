@@ -159,8 +159,28 @@ var obForm = function(fields) {
       });
     }
     if (field.type == 'textarea') {
-      fieldelem = $('<textarea/>', fieldattr);
+      try {
+        storage = JSON.parse(localStorage.getItem(`obForm:${field.id}`));
+        fieldattr.width = storage.width;
+        fieldattr.height = storage.height;
+      } catch (e) {}
+      fieldelem = $('<textarea/>', fieldattr).on('mouseup', function(e) {
+        localStorage.setItem(`obForm:${field.id}`, JSON.stringify({ width:$(e.currentTarget).width(), height:$(e.currentTarget).height() }));
+      });
+      if (field.readonly) {
+        field.readonly = false;
+        fieldelem.on('keydown', function(event) {
+          if (event.ctrlKey == true && event.which == '67') {
+            return true;
+          }
+          else {
+            event.preventDefault();
+            return false;
+          }
+        });
+      }
     }
+
     if (field.type == 'checkbox') {
       if (field.value == 1) {
         fieldelem.prop('checked', true);

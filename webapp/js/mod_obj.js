@@ -177,16 +177,18 @@ mod['obj'] = {
     let propform_data = [];
     let pwrecv = [];
     $.each(apidata.property, function(key, property) {
-      propform_data = [
-        ...propform_data, {
-          id:property.id,
-          name:property.name,
-          type:def.property_type[property.type],
-          value:(property.id in api_obj)?api_obj[property.id]:null,
-          readonly:!acl_save
-        }];
-      if (property.type == 12) {
-        pwrecv = [...pwrecv, property.id];
+      if (property.frm_visible) {
+        propform_data = [
+          ...propform_data, {
+            id:property.id,
+            name:property.name,
+            type:def.property_type[property.type],
+            value:(property.id in api_obj)?api_obj[property.id]:null,
+            readonly:(!acl_save || property.frm_readonly)
+          }];
+        if (property.type == 12) {
+          pwrecv = [...pwrecv, property.id];
+        }
       }
      });
      let propform = new obForm(propform_data);
@@ -333,7 +335,11 @@ mod['obj'] = {
         }),
         // -- Delete
         (id == null || !api_objtype.acl.delete)?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
-          obAlert('<b>WARNING!:</b><br>This action wil permanently delete this object, are you sure you want to continue?', { Ok:function(){ change.reset(); mod.obj.list(type); }, Cancel:null });
+          obAlert('<b>WARNING!:</b><br>This action wil permanently delete this object, are you sure you want to continue?',
+          {
+            Ok:function(){ $.when( api('delete',`objecttype/${type}/object/${id}`) ).always(function() { mod.obj.list(type); }); },
+            Cancel:null
+          });
         }),
         // -- Close
         $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() {
