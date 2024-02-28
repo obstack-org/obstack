@@ -67,8 +67,7 @@ let change = {
     $.each(content.find('.obTable-tb'), function() {
       change.observer.observe(this, { subtree:true, childList:true, characterData:true, attributes:true, attributeFilter:['class'] });
     });
-    $('.obTabs-tab-content').find('form').on('change', function(){ change.state = true; });
-    $('.obTabs-tab-content').find('form').on('keydown', function(){ change.state = true; });
+    $('.obTabs-tab-content').find('form').find('input, select, textarea').on('change', function(){ change.state = true; });
     $('.obTabs-tab-content').find('table').find('input').on('change', function(){ change.state = true; });
   }
 }

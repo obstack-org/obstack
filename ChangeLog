@@ -7,11 +7,12 @@ v1.2.0 (xx-xx-2024):
 - Sidebar treeview
 - Configuration to database
 - Documentation accessibility
+- Usability optimalization
 - Add link on web address in text field
 - Add property Password (encrypt)
 - Add 2-Factor authentication (db users)
 
-v1.1.6 (xx-xx-2024):
+v1.1.6 (28-01-2024):
 - Fix property visibility (frontend)
 
 v1.1.5 (25-11-2023):
