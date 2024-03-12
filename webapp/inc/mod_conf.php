@@ -95,7 +95,7 @@ class mod_conf {
         $this->db->query('INSERT INTO setting_varchar (name, value) values (\'hky_ckey2\', :key)', [ ':key'=>$hky[2] ]);
       }
       $this->basepass = basebq::pstr(basebq::decode($hky[1])).basebq::pstr($sky);
-      return ($hky[2] == hash('sha384', $sky.$hky[1]));
+      return $hky[2] == hash('sha384', $sky.$hky[1]);
     }
   }
 

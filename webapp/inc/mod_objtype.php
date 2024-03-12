@@ -117,11 +117,12 @@ class mod_objtype {
     $dbq->select[] = 'DISTINCT ot.id AS id, ot.name AS name';
     if (!$_SESSION['sessman']['sa']) {
       $dbqin = $this->list2in($_SESSION['sessman']['groups'], 'smg');
-      if (count($dbqin->params) > 0) {
-        $dbq->join[] = 'LEFT JOIN objtype_acl oa ON oa.objtype = ot.id';
-        $dbq->filter[] = "oa.smgroup IN ($dbqin->marks) AND oa.read";
-        $dbq->params = array_merge($dbq->params, $dbqin->params);
+      if (count($dbqin->params) <= 0) {
+        $dbqin->marks = '';
       }
+      $dbq->join[] = 'LEFT JOIN objtype_acl oa ON oa.objtype = ot.id';
+      $dbq->filter[] = "oa.smgroup IN ($dbqin->marks) AND oa.read";
+      $dbq->params = array_merge($dbq->params, $dbqin->params);
     }
     if (in_array($this->display, [ 'map' ]) || in_array($this->format, [ 'aggr' ])) {
       $dbq->select[] = 'ot.map AS map';

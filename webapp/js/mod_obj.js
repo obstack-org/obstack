@@ -426,7 +426,7 @@ mod['obj'] = {
           pwfield
             .on('focus', function() { pwfield.select(); })
             .on('keydown', function(event) {
-              if (event.ctrlKey == true && event.which == '67') {
+              if (event.ctrlKey && event.which == '67') {
                 return true;
               }
               else if (event.which == '27') {

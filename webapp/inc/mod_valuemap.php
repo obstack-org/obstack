@@ -31,8 +31,7 @@ class mod_valuemap {
       return $this->db->query('SELECT id, name FROM valuemap ORDER BY name', []);
     }
     else {
-      $result = $this->db->query('SELECT name, prio FROM valuemap WHERE id=:id', [':id'=>$id])[0];
-      return $result;
+      return $this->db->query('SELECT name, prio FROM valuemap WHERE id=:id', [':id'=>$id])[0];
     }
   }
 
