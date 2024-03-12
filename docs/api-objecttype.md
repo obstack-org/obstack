@@ -117,9 +117,10 @@ Each object property has a type, that determines both the internal data type and
 | 4 | Value Map - Select / Dropdown |
 | 5 | Checkbox |
 | 6 | Textbox - Multi line input field |
-| 7 | Password |
 | 8 | Date |
 | 9 | Date and time |
+| 11 | Password (hash) |
+| 12 | Password (recoverable) |
 
 GET:
 ```javascript

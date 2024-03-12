@@ -241,7 +241,7 @@ mod['config'] = {
         if (map.depth >= 4) {
           error = 'Exceeds maximum depth (4)';
         }
-        row = navlist.addrow({
+        let row = navlist.addrow({
           id:map.id,
           parent:map.parent,
           name:map.name,

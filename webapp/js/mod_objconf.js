@@ -276,7 +276,7 @@ mod['objconf'] = {
             obAlert('<b>WARNING!:</b><br>Deleting object type. This can NOT be undone, are you really really sure?', { Ok:function(){
               $.when( api('delete',`objecttype/${id}`) ).always(function() {
                 change.reset();
-                mod.objconf.list();
+                location.reload(true);
               });
             }, Cancel:null });
           }, Cancel:null });
@@ -347,7 +347,7 @@ mod['objconf'] = {
         $.when(
           api('post',`objecttype/${api_objecttype.id}/acl`, aclsave)
         ).always(function() {
-          mod.objconf.list();
+          location.reload(true);
         });
       });
     }
@@ -355,7 +355,9 @@ mod['objconf'] = {
       $.when(
         api('put',`objecttype/${id}`, dtsave),
         api('put',`objecttype/${id}/acl`, aclsave)
-      ).always(function() { location.reload(true); });
+      ).always(function() {
+        location.reload(true);
+      });
     }
 
   },

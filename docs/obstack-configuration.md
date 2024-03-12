@@ -1,8 +1,11 @@
 # Configuration
 
 * [Base configuration](#base-configuration)
+* [Additional configuration](#additional-configuration)
 * [Configuring recoverable passwords](#configuring-recoverable-passwords)
 * [Configuring external authentication](#configuring-external-authentication)
+  * [Group matching (for LDAP/Radius)](#group-matching-for-ldapradius)
+  * [Radius attribute configuration](#radius-attribute-configuration)
 * [Upgrade notes](#upgrade-notes)
 
 ### Base configuration
@@ -15,14 +18,6 @@ Requirements:
   * Make sure the web server has read only access to this file
   * Default path: _/etc/obstack/obstack.conf_
 * Path to the configuration file is configured in _config.php_.
-
-Additional configurations can be managed under _Configuration_ > _Settings_. This includes:
-* The application display name
-* The CSS color scheme
-* Session timeout
-* Default OTP settings for new users
-* LDAP server configuration
-* Radius server configuration
 
 #### obstack.conf
 
@@ -38,6 +33,19 @@ db_connectionstring = pgsql:host=127.0.0.1;dbname=obstack;user=obstack;password=
 <?php
 $obstack_conf = '/etc/obstack/obstack.conf';
 ```
+
+### Additional configuration
+
+Additional configurations can be managed under _Configuration_:
+* Navigation
+  * Configure the sidebar navigation tree
+* Settings
+  * The application display name
+  * The CSS color scheme
+  * Session timeout
+  * Default OTP settings for new users
+  * LDAP server configuration
+  * Radius server configuration
 
 ### Configuring recoverable passwords
 
@@ -69,7 +77,7 @@ LDAP and/or Radius can be configured under _Configuration_ > _Settings_
 
 ![Global configuration](../img/os-cf2.png)
 
-#### Group matching
+#### Group matching (for LDAP/Radius)
 
 Groups can have an _ldapcn_ or _radiusattr_ value configured. Users authenticated by LDAP or Radius will automatically inherit a group's permissions when exactly matching these configurations.
 * LDAP: Matching the full DN, e.g.: _cn=mygroup-auth,cn=groups,cn=accounts,dc=example,dc=local_
@@ -107,7 +115,7 @@ update reply {
 
 The upgrade to _1.2.0_ from a lower version implements a significate change in the way ObStack handles configuration ([Base configuration](#base-configuration)). These changes can be easily handled following these steps:
 
-* Copy the config file to a location outside _public_html_, e.g. to (default) _/etc/obstack/obstack.conf_. Ensure the web server has read only access to this file.
+* Copy the new <a href="https://github.com/obstack-org/obstack/blob/main/webapp/obstack.conf" target="_blank">config file</a> to a location outside _public_html_, e.g. to (default) _/etc/obstack/obstack.conf_. Ensure the web server has read only access to this file.
 * Copy the content of db_connectionstring from _config.php_ to the new config file (see [obstack.conf](#obstackconf))
 * Configure _sc_encryptionkey_ as stated at [Configuring recoverable password](#configuring-recoverable-passwords)
 * Browse to your ObStack instance. Your current configuration will be copied to the database autmatically, and show a configuration error message

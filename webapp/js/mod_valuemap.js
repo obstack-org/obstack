@@ -141,6 +141,9 @@
             change.reset();
             mod.valuemap.save(id, vmform_data, vallist.table());
           }
+          else {
+            obtabs.showtab('_obTab0');
+          }
         }),
         // -- Delete
         (id==null)?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {

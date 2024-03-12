@@ -177,7 +177,7 @@ $(document).ready( function () {
     basebq = getCookie('obstack_basebq');
   })
   .fail(function() {
-    // obAlert('Error in config file', null);
+    obAlert('Error in config file', null);
   });
 });
 
@@ -264,8 +264,8 @@ function getObject(list, key, value) {
 
 // Get cookie
 function getCookie(name) {
-  var re = new RegExp(name + "=([^;]+)");
-  var value = re.exec(document.cookie);
+  let re = new RegExp(name + "=([^;]+)");
+  let value = re.exec(document.cookie);
   return (value != null) ? decodeURIComponent(value[1]) : null;
 }
 
@@ -296,7 +296,7 @@ function setConfig(data) {
       title = 'ObStack - ' + value.value;
     }
     if (value.name == 'totp_default_enabled') {
-      cfg.settings.totp_default_enabled = (value.value == '1') ? true : false;
+      cfg.settings.totp_default_enabled = (value.value == '1');
     }
   });
 }
