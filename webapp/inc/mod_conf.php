@@ -74,7 +74,7 @@ class mod_conf {
    ******************************************************************/
 
   public function verify() {
-    if ($this->options == null || $this->options['sc_encryptionkey'] == null) {
+    if ($this->options == null || !isset($this->options['sc_encryptionkey'])) {
       return true;
     }
     else {
@@ -112,7 +112,7 @@ class mod_conf {
     if (!$public) {
       $dbqset = array_merge($dbqset, $this->settings_private);
       $result['navigation'] = $this->db->query("SELECT id, parent, name FROM ntree", []);
-      if ($this->options != null && $this->options['sc_encryptionkey'] != null) {
+      if ($this->options != null && isset($this->options['sc_encryptionkey'])) {
         if (!isset($_SESSION['obstack'])) { $_SESSION['obstack'] = []; }
         if (!isset($_SESSION['obstack']['basebq'])) {
           $_SESSION['obstack']['basebq'] = $this->basepass;

@@ -16,8 +16,8 @@ if (!$sessman->authorized()) {
     else { $sessman_config[$cname[0]][$cname[1]]  = $dbrow->value; }
   }
   $sessman->settimeout($sessman_config['session']['timeout']);
-  $sessman->config_ldap = $sessman_config['ldap'];
-  $sessman->config_radius = $sessman_config['radius'];
+  $sessman->config_ldap = (array_key_exists('ldap', $sessman_config)) ? $sessman_config['ldap'] : null ;
+  $sessman->config_radius = (array_key_exists('radius', $sessman_config)) ? $sessman_config['radius'] : null ;
 }
 
 // Use token (Header: "X-API-Key":"[token]")
@@ -32,7 +32,7 @@ if (isset($_SERVER['HTTP_X_API_KEY'])) {
 // --> /auth
 if ($api->route('/auth')) {
   if ($api->method("GET"))      { $result = ['active'=>$sessman->authorized()]; }
-  if ($api->method("POST"))     { $result = ['active'=>$sessman->login($payload['username'], $payload['password'], $payload['otp'])]; }
+  if ($api->method("POST"))     { $result = ['active'=>$sessman->login($payload['username'], $payload['password'], (isset($payload['otp']) ? $payload['otp'] : null))]; }
   if ($api->method("PUT"))      { $result = ['active'=>$sessman->authorized()]; }
   if ($api->method("DELETE"))   { $sessman->logout(); $result = ['active'=>false]; }
 }

@@ -1,6 +1,7 @@
 # Configuration
 
 * [Base configuration](#base-configuration)
+* [Database schema](#database-schema)
 * [Additional configuration](#additional-configuration)
 * [Configuring recoverable passwords](#configuring-recoverable-passwords)
 * [Configuring external authentication](#configuring-external-authentication)
@@ -34,9 +35,33 @@ db_connectionstring = pgsql:host=127.0.0.1;dbname=obstack;user=obstack;password=
 $obstack_conf = '/etc/obstack/obstack.conf';
 ```
 
+# Database schema
+
+As described in the installation instruction, the database schema needs to be imported manually.
+
+Local installation:
+
+```bash
+# New setup
+cat /var/lib/obstack/resources/obstack-schema-v1.sql | sudo -u postgres psql obstack
+# Upgrade from v1.1.x
+cat /var/lib/obstack/resources/obstack-update-v1.2.0.sql | sudo -u postgres psql obstack
+```
+
+Or when using the <a href="https://github.com/obstack-org/obstack-docker" target="_blank">docker</a> image:
+
+```bash
+# New setup
+curl -s https://raw.githubusercontent.com/obstack-org/obstack/main/resources/obstack-schema-v1.sql \
+  | docker exec -i obstack-db psql -U obstack obstack
+# Upgrade from v1.1.x
+curl -s https://raw.githubusercontent.com/obstack-org/obstack/main/resources/obstack-update-v1.2.0.sql \
+  | docker exec -i obstack-db psql -U obstack obstack
+```
+
 ### Additional configuration
 
-Additional configurations can be managed under _Configuration_:
+Additional configurations can be managed in the WebUI under _Configuration_:
 * Navigation
   * Configure the sidebar navigation tree
 * Settings
@@ -115,7 +140,7 @@ update reply {
 
 The upgrade to _1.2.0_ from a lower version implements a significate change in the way ObStack handles configuration ([Base configuration](#base-configuration)). These changes can be easily handled following these steps:
 
-* Copy the new <a href="https://github.com/obstack-org/obstack/blob/main/webapp/obstack.conf" target="_blank">config file</a> to a location outside _public_html_, e.g. to (default) _/etc/obstack/obstack.conf_. Ensure the web server has read only access to this file.
+* Copy the new <a href="https://github.com/obstack-org/obstack/blob/main/resources/obstack.conf" target="_blank">config file</a> to a location outside _public_html_, e.g. to (default) _/etc/obstack/obstack.conf_. Ensure the web server has read only access to this file.
 * Copy the content of db_connectionstring from _config.php_ to the new config file (see [obstack.conf](#obstackconf))
 * Configure _sc_encryptionkey_ as stated at [Configuring recoverable password](#configuring-recoverable-passwords)
 * Browse to your ObStack instance. Your current configuration will be copied to the database autmatically, and show a configuration error message

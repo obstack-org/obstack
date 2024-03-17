@@ -177,7 +177,7 @@ $(document).ready( function () {
     basebq = getCookie('obstack_basebq');
   })
   .fail(function() {
-    obAlert('Error in config file', null);
+    obAlert(response.error, null);
   });
 });
 

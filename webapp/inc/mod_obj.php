@@ -638,11 +638,12 @@ class mod_obj {
       ];
       if (!$_SESSION['sessman']['sa']) {
         $dbqin = $this->list2in($_SESSION['sessman']['groups'], 'smg');
-        if (count($dbqin->params) > 0) {
-          $dbq->join[] = 'LEFT JOIN objtype_acl oa ON oa.objtype = ot.id';
-          $dbq->filter[] = "oa.smgroup IN ($dbqin->marks) AND oa.read";
-          $dbq->params = array_merge($dbq->params, $dbqin->params);
+        if (count($dbqin->params) <= 0) {
+          $dbqin->marks = 'NULL';
         }
+        $dbq->join[] = 'LEFT JOIN objtype_acl oa ON oa.objtype = ot.id';
+        $dbq->filter[] = "oa.smgroup IN ($dbqin->marks) AND oa.read";
+        $dbq->params = array_merge($dbq->params, $dbqin->params);
       }
       $dbq->join = implode(' ', $dbq->join);
       $dbq->filter = (count($dbq->filter) > 0) ? $dbq->filter = 'WHERE '.implode(' AND ', $dbq->filter) : '';
