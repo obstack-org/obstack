@@ -1,9 +1,24 @@
 <?php
 
-$sessman = new sessman($db, "obstack-app_session");
-$sessman->settimeout($sessman_config['timeout']);
-$sessman->config_ldap = $sessman_config['ldap'];
-$sessman->config_radius = $sessman_config['radius'];
+// Sessman config
+if (!$sessman->authorized()) {
+  $sessman_config = [];
+  $dbquery = "
+    SELECT name, value FROM setting_varchar WHERE name LIKE 'session_%' OR name LIKE 'ldap_%' OR name LIKE 'radius_%'
+    UNION
+    SELECT name, round(value)::text AS value FROM setting_decimal WHERE name LIKE 'session_%' OR name LIKE 'ldap_%' OR name LIKE 'radius_%'
+  ";
+  foreach($db->query($dbquery, []) as $dbrow) {
+    $cname = explode('_', $dbrow->name, 2);
+    if (!isset($sessman_config[$cname[0]])) { $sessman_config[$cname[0]] = []; }
+    if ($cname[1] == 'enabled') { $sessman_config[$cname[0]][$cname[1]] = ($dbrow->value == '1') ? true : false; }
+    elseif (in_array($cname[1], ['port','attr','timeout'])) { $sessman_config[$cname[0]][$cname[1]] = intval($dbrow->value); }
+    else { $sessman_config[$cname[0]][$cname[1]]  = $dbrow->value; }
+  }
+  $sessman->settimeout($sessman_config['session']['timeout']);
+  $sessman->config_ldap = (array_key_exists('ldap', $sessman_config)) ? $sessman_config['ldap'] : null ;
+  $sessman->config_radius = (array_key_exists('radius', $sessman_config)) ? $sessman_config['radius'] : null ;
+}
 
 // Use token (Header: "X-API-Key":"[token]")
 if (isset($_SERVER['HTTP_X_API_KEY'])) {
@@ -17,7 +32,7 @@ if (isset($_SERVER['HTTP_X_API_KEY'])) {
 // --> /auth
 if ($api->route('/auth')) {
   if ($api->method("GET"))      { $result = ['active'=>$sessman->authorized()]; }
-  if ($api->method("POST"))     { $result = ['active'=>$sessman->login($payload['username'], $payload['password'])]; }
+  if ($api->method("POST"))     { $result = ['active'=>$sessman->login($payload['username'], $payload['password'], (isset($payload['otp']) ? $payload['otp'] : null))]; }
   if ($api->method("PUT"))      { $result = ['active'=>$sessman->authorized()]; }
   if ($api->method("DELETE"))   { $sessman->logout(); $result = ['active'=>false]; }
 }

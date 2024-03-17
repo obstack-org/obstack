@@ -5,15 +5,18 @@
   --sidebar-width: 180px;
   --sidebar-color: #bfcad0;
   --sidebar-background: #1c1c1c;
-  --content-color: #111111;
-  --content-background: #ffffee;
+  --content-color: #444444;
+  --content-background: #fafafa;
 }
 * {
   margin: 0px;
   padding: 0px;
-  color: #444;
+  color: var(--content-color);
   font-size: 16px;
   font-family: 'Trebuchet MS', 'Segoe UI Symbol', 'Dejavu Sans', sans-serif;
+}
+body {
+  background-color: var(--content-color);
 }
 input, select, textarea {
   display: inline-block;
@@ -27,6 +30,16 @@ input, select, textarea {
 input[type='checkbox'] {
   width: 30px;
   cursor: pointer;
+}
+input[type='color'] {
+  padding: 1px;
+  cursor: pointer;
+}
+.input-conf {
+  width: 180px;
+  height: 26px;
+  margin: 0px;
+  padding: 1px 8px 1px 8px;
 }
 .titlebar, .sidebar, .content {
   position: absolute;
@@ -46,7 +59,8 @@ input[type='checkbox'] {
   color: var(--sidebar-color);
   background: var(--sidebar-background);
   bottom: 0px;
-  z-index: 40;
+  padding: 4px 0px 0px 2px;
+  z-index: 190;
 }
 .content {
   top: var(--titlebar-height);
@@ -99,11 +113,23 @@ input[type='checkbox'] {
   50% { opacity: 0; }
   100% { opacity: 1; }
 }
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  50% { opacity: 0; }
+  100% { opacity: 0; }
+}
 .fadein {
   animation: fadeIn 0.5s;
 }
+.fadeout {
+  animation: fadeOut 0.5s;
+}
 .hidden {
   display: none;
+}
+.error {
+  color: rgb(140, 0, 0);
+  font-style: italic;
 }
 .delete {
   color: rgb(140, 0, 0);
@@ -118,6 +144,9 @@ input[type='checkbox'] {
   font-size: 12px;
   padding-left: 30px;
   padding-bottom: 10px;
+}
+.icack {
+  content: url("../img/icack.png");
 }
 .float-left {
   float: left !important;

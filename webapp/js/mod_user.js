@@ -32,6 +32,7 @@ mod['user'] = {
   list: function() {
 
     // Loader
+    state.set('user');
     content.append(loader.removeClass('fadein').addClass('fadein'));
 
     // Load and display data
@@ -46,7 +47,7 @@ mod['user'] = {
       });
 
       content.empty().append(new obContent({
-        name:     'Users',
+        name:     [ $('<img/>', { src: 'img/iccgs.png', class:'content-header-icon' }), 'Users' ],
         content:  new obFTable({
           table: {
             id: 'e1d79a905880b70f7cb789a9060cda9c23d7f87e',
@@ -133,6 +134,7 @@ mod['user'] = {
     let frmpw = '•••••••';
     if (id == null) {
       frmpw = '';
+      api_user.totp = cfg.settings.totp_default_enabled;
     }
     let usrform_config = [
       { id:'username', name:'Username', type:'string', regex_input:/^[a-zA-Z][a-zA-Z0-9-_]{0,12}$/, regex_validate:/^[a-zA-Z][a-zA-Z0-9-_]{1,12}$/, value:api_user.username, readonly:(id!=null) },
@@ -141,8 +143,14 @@ mod['user'] = {
     ];
 
     // Form (extend)
+    if (self && api_user.totp) {
+      usrform_config = [...usrform_config,
+        { id:'totp_reset',      name:'2FA Reset',  type:'select',  options:{0:'No', 1:'Yes'}, value:0, info:'Reset your 2FA token on save' }
+      ];
+    }
     if (!self) {
       usrform_config = [...usrform_config,
+        { id:'totp',      name:'2-Factor authentication', type:'select',  options:{0:'Disabled', 1:'Enabled', 2:'Reset token'}, value:(api_user.totp)?1:0, info:'2FA TOTP using FreeOTP. Ignored on token login.' },
         { id:'firstname', name:'First name',  type:'string', regex_validate:/^.{2,}$/, info:'Minimum length: 2', value:api_user.firstname },
         { id:'lastname',  name:'Last name',   type:'string', regex_validate:/^.{2,}$/, info:'Minimum length: 2', value:api_user.lastname },
         { id:'active',    name:'Active',      type:'checkbox', value:api_user.active },
@@ -215,9 +223,15 @@ mod['user'] = {
 
     // Draw
     content.append(new obContent({
-      name: (self)?'Profile':[$('<a/>', { class:'link', html:'Users', click: function() {
-        if (change.check()) { mod.user.list(); };
-      } }), ` / ${(id==null)?'[new]':api_user.username}`],
+      name: (self)?[
+        $('<img/>', { src: 'img/icuss.png', class:'content-header-icon' }),
+        'Profile'
+      ] : [
+        $('<img/>', { src: 'img/iccgs.png', class:'content-header-icon' }),
+        $('<a/>', { class:'link', html:'Users', click: function() {
+          change.check(function() { mod.user.close(id); });
+        } }), ` / ${(id==null)?'[new]':api_user.username}`
+      ],
       content: obtabs.html(),
       control: [
         // -- Save
@@ -243,16 +257,16 @@ mod['user'] = {
         }),
         // -- Delete
         ((id==null)||(id=='self'))?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
-          if (confirm('Are you sure you want to delete this user?')) {
+          obAlert('Are you sure you want to delete this user?', { Ok:function(){
             $.when( api('delete',`auth/user/${id}`) ).always(function() {
               change.reset();
               mod.user.close();
             });
-          }
+          }, Cancel:null });
         }),
         // -- Close
         $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() {
-          if (change.check()) { mod.user.close(id); }
+          change.check(function() { mod.user.close(id); });
         })
       ]
     }).html());
@@ -282,6 +296,18 @@ mod['user'] = {
           dtsave.groups = [...dtsave.groups, JSON.parse(tr.attr('hdt')).id];
         }
       });
+    }
+
+    // TOTP
+    if (id=='self') {
+      usrform.totp_reset = parseInt(usrform.totp_reset);
+    }
+    else {
+      usrform.totp = parseInt(usrform.totp);
+      if (usrform.totp == 2) {
+        delete usrform.totp;
+        usrform.totp_reset = 1;
+      }
     }
 
     // Save
@@ -371,7 +397,7 @@ mod['user'] = {
             let tr = td.parent('tr');
             let newrow = table.addrow({
               name: td.text(),
-              delete: $('<img/>', { class:'pointer', src:'img/icbin.png', width:14 })
+              delete: $('<img/>', { class:'tblc-icon', src:'img/icbin.png' })
                 .on('click', function() {
                   tr = $(this).parents('tr');
                   if (tr.hasClass('delete')) {
@@ -482,14 +508,14 @@ mod['user'] = {
           }),
           // -- Delete
           $('<input/>', { class:'btn', type:'submit', value:'Delete' }).on('click', function() {
-            if (confirm('WARNING!: Token will be deleted instantly. Are you sure you want to continue?')) {
+            obAlert('<b>WARNING!:</b><br>Token will be deleted instantly. Are you sure you want to continue?', { Ok:function(){
               $.when(
                 api('delete',`auth/user/${id}/token/${rowid}`)
               ).done(function() {
                 row.remove();
                 popup.remove();
               });
-            }
+            }, Cancel:null });
           })
         ];
       }

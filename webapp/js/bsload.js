@@ -8,7 +8,7 @@
 
 // Development options
 const debug = false;
-const build = '231125'
+const build = '240317'
 
 // Loading options
 const hthead = $('head');
@@ -20,7 +20,6 @@ const htinit = [
   "css/content.css",
   "lib/obui/obui.js",
   "lib/obui/obui.css",
-  "lib/crypto-js/crypto-js.js",
   "js/obstack.js",
 ];
 

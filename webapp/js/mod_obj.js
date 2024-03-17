@@ -31,6 +31,7 @@ mod['obj'] = {
   list: function(type) {
 
     // Loader
+    state.set('obj', [type]);
     content.append(loader.removeClass('fadein').addClass('fadein'));
 
     // Load and display data
@@ -47,16 +48,39 @@ mod['obj'] = {
       $.each(apidata_type.property, function(id, column) {
         if (column.tbl_visible) {
           columns = [...columns, { id:column.id, name:column.name, orderable:column.tbl_orderable}];
+          if (column.type == 1) {
+            $.each(apidata_objects, function(idx, rec) {
+              if (apidata_objects[idx][column.id] != null && apidata_objects[idx][column.id].trim().match(/^http/) && apidata_objects[idx][column.id].trim().match(/http[s]?\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}([a-zA-Z0-9\/?=&#%]*)?$/)) {
+                columns_allowhtml = [...columns_allowhtml, column.id];
+                apidata_objects[idx][column.id] = $('<a/>', { href:apidata_objects[idx][column.id], target:'_blank'}).text(apidata_objects[idx][column.id]).on('click').on('click', function(event) {
+                  event.stopPropagation();
+                });
+              }
+            });
+          }
           if (column.type == 5) {
             columns_allowhtml = [...columns_allowhtml, column.id];
             $.each(apidata_objects, function(idx, rec) {
               apidata_objects[idx][column.id] = htbool(apidata_objects[idx][column.id]);
             });
           }
+          if (column.type == 12) {
+            columns_allowhtml = [...columns_allowhtml, column.id];
+            $.each(apidata_objects, function(idx, rec) {
+              apidata_objects[idx][column.id] = [
+                ...apidata_objects[idx][column.id],
+                '&emsp;', $('<img/>', { class:'pointer', src:'img/iccpy.png', style:'margin-bottom:-3px;', width:14, title:'Copy' }).on('click', function(event) {
+                  event.stopPropagation();
+                  let img = $(this);
+                  mod.obj.properties.open(apidata_type.objecttype.id, JSON.parse(img.parents('tr').attr('hdt')).id, column.id, img);
+                })
+              ];
+            });
+          }
         }
         else {
           columns_remove = [...columns_remove, column.name];
-        }        
+        }
       });
       for (let i=0; i<apidata_objects.length; i++) {
         $.each(columns_remove, function(idx, name) {
@@ -80,14 +104,14 @@ mod['obj'] = {
         },
         footer:   'Objects'
       });
+      let objlist_html = objlist.html();
 
       content.empty().append(new obContent({
         name: $('<span/>', { text:apidata_type.objecttype.name }),
-        content: objlist.html()
+        content: objlist_html
       }).html());
 
       $.each(content.find('.obTable-tb'), function() { $(this).obTableRedraw(); });
-
       loader.remove();
     });
 
@@ -151,15 +175,21 @@ mod['obj'] = {
     // Load
     let acl_save = (mod.user.self.sa)?true:(id==null)?api_objtype.acl.create:api_objtype.acl.update;
     let propform_data = [];
+    let pwrecv = [];
     $.each(apidata.property, function(key, property) {
-      propform_data = [
-        ...propform_data, {
-          id:property.id,
-          name:property.name,
-          type:def.property_type[property.type],
-          value:(property.id in api_obj)?api_obj[property.id]:null,
-          readonly:!acl_save
-        }]
+      if (property.frm_visible) {
+        propform_data = [
+          ...propform_data, {
+            id:property.id,
+            name:property.name,
+            type:def.property_type[property.type],
+            value:(property.id in api_obj)?api_obj[property.id]:null,
+            readonly:(!acl_save || property.frm_readonly)
+          }];
+        if (property.type == 12) {
+          pwrecv = [...pwrecv, property.id];
+        }
+      }
      });
      let propform = new obForm(propform_data);
      let propform_html = propform.html();
@@ -192,6 +222,26 @@ mod['obj'] = {
             select.append(htopt);
           });
         }
+      }
+    });
+
+    // Options for Password field
+    $.each(apidata.property, function(key, property) {
+      if ([12].includes(property.type)) {
+        propform_html.find(`#${property.id}`)
+          .css('display','inline-block')
+          .before('<br>')
+          .after(
+            '&emsp;', $('<img/>', { class:'pointer', src:'img/icpsg.png', style:'margin-bottom:-3px;', width:16, title:'Generate' }).on('click', function(event) {
+              obPwgen($('#_obTab0-content'), $(this).siblings(':input'));
+            }),
+            '&emsp;', $('<img/>', { class:'pointer', src:'img/icmgn.png', style:'margin-bottom:-3px;', width:16, title:'Open' }).on('click', function(event) {
+              mod.obj.properties.open(type, id, property.id);
+            }),
+            '&ensp;', $('<img/>', { class:'pointer', src:'img/iccpy.png', style:'margin-bottom:-3px;', width:16, title:'Copy' }).on('click', function(event) {
+              mod.obj.properties.open(type, id, property.id, $(this));
+            })
+          );
       }
     });
 
@@ -228,9 +278,7 @@ mod['obj'] = {
       open:     function(td) {
         let tr = $(td).parent();
         if (tr.hasClass('delete')) {
-          if (confirm('Do you want to remove the deletion mark?')) {
-            tr.removeClass('delete');
-          }
+          obAlert('Do you want to remove the deletion mark?', { Ok:function(){ tr.removeClass('delete'); }, Cancel:null });
         }
         else {
           mod.obj.relations.open(type, id, rellist.table(), tr, acl_save);
@@ -268,12 +316,15 @@ mod['obj'] = {
     ]});
 
     let obcontent = {
-      name: [$('<a/>', { class:'link', text:`${api_objtype.name}`, click:function() { if (change.check()) { mod.obj.list(type); } } }), $('<span/>', { text:` / ${(id==null)?'[new]':api_obj_short[0].name}`})],
+      name: [$('<a/>', { class:'link', text:`${api_objtype.name}`, click:function() { change.check(function() { mod.obj.list(type); }); } }), $('<span/>', { text:` / ${(id==null)?'[new]':api_obj_short[0].name}`})],
       content: obtabs.html(),
       control: [
         // -- Save
         (!acl_save)?null:$('<input/>', { class:'btn', type:'submit', value:'Save'  }).on('click', function() {
           let propform_data = propform.validate();
+          $.each(apidata.property, function(key, property) {
+            if ([12].includes(property.type)) { propform_html.find(`#${property.id}`) .css('display','inline-block'); }
+          });
           if (propform_data != null) {
             change.reset();
             mod.obj.save(type, id, propform_data, rellist.table());
@@ -284,16 +335,15 @@ mod['obj'] = {
         }),
         // -- Delete
         (id == null || !api_objtype.acl.delete)?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
-          if (confirm('WARNING!: This action wil permanently delete this object, are you sure you want to continue?')) {
-            $.when( api('delete',`objecttype/${type}/object/${id}`) ).always(function() {
-              change.reset();
-              mod.obj.list(type);
-            });
-          }
+          obAlert('<b>WARNING!:</b><br>This action wil permanently delete this object, are you sure you want to continue?',
+          {
+            Ok:function(){ $.when( api('delete',`objecttype/${type}/object/${id}`) ).always(function() { mod.obj.list(type); }); },
+            Cancel:null
+          });
         }),
         // -- Close
         $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() {
-          if (change.check()) { mod.obj.list(type); }
+          change.check(function() { mod.obj.list(type); });
         })
       ]
     };
@@ -335,6 +385,75 @@ mod['obj'] = {
     }
 
   },
+
+
+  /******************************************************************
+   * mod.obj.properties
+   * ==================
+   * Array of properties and subarrays for gathering individual
+   * property data
+   ******************************************************************/
+  properties: {
+
+    open: function(type, id, property, cpsrc=null) {
+
+      $.when(
+        api('get',`objecttype/${type}/object/${id}/property/${property}`)
+      ).done(function(apidata) {
+        let value = '';
+        if ('value' in apidata) {
+          value = CryptoJS.AES.decrypt(apidata.value, (new obBase).decode(basebq)).toString(CryptoJS.enc.Utf8);
+        }
+        if (cpsrc!=null) {
+          if (!window.isSecureContext) {
+            obAlert('Copy to clipboard is only available on secure pages (https)');
+          }
+          else {
+            navigator.clipboard.writeText(value);
+            cpsrc.addClass('icack');
+            setTimeout(function() { cpsrc.removeClass('icack'); }, 500);
+          }
+        }
+        else {
+          const fieldid = '757c8b7445742f39d04749bd3bdaa66d';
+          let popup = new obPopup2({
+            content: new obForm([{ id:fieldid, name:'Password', type:'string', value:value }]).html(),
+            control: { 'Close (5)':null },
+            size: { width:400, height:120 }
+          });
+          $('#_obTab0-content').append(popup.html());
+          let pwfield = popup.html().find(`#${fieldid}`);
+          pwfield
+            .on('focus', function() { pwfield.select(); })
+            .on('keydown', function(event) {
+              if (event.ctrlKey && event.which == '67') {
+                return true;
+              }
+              else if (event.which == '27') {
+                popup.remove();
+              }
+              else {
+                event.preventDefault();
+                return false;
+              }
+            });
+          pwfield.focus();
+          let cntdown = 5;
+          let btnClose = popup.html().find('input.btn');
+          let autoclose = setInterval(function() {
+            cntdown--;
+            btnClose.val(`Close (${cntdown})`);
+            if (cntdown === 0) {
+              clearInterval(autoclose);
+              popup.remove();
+            }
+          }, 1000);
+        }
+      });
+    }
+
+  },
+
 
   /******************************************************************
    * mod.obj.relations

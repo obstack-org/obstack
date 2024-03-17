@@ -2,6 +2,16 @@
  CHANGES
 *********
 
+v1.2.0 (17-03-2024):
+- Manage allowed relations
+- Sidebar treeview
+- Configuration to database
+- Documentation accessibility
+- Usability optimalization
+- Add link on web address in text field
+- Add property Password (encrypt)
+- Add 2-Factor authentication (db users)
+
 v1.1.6 (28-01-2024):
 - Fix property visibility (frontend)
 

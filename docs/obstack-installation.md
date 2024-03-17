@@ -8,18 +8,19 @@ Obstack also supplies a <a href="https://github.com/obstack-org/obstack-docker" 
 
 * Linux server
 * Web server (Apache2, NGINX)
-* PHP >= v7.4 _**with** pdo package_
-* PostgreSQL >= v11 _**with** contrib package_
+* PHP >= v7.4 _**with packages:**_ pdo pdo_pgsql session mbstring json ldap
+* PostgreSQL >= v11 _**with packages:**_ contrib
 
 ## Basic example (AlmaLinux8/Rocky8)
 
-_(The database security used in this example is for demo purposes only)_
+**_Note:_** \
+_The security and credentials used in this example is for test and/or demo purposes only. For other usage configure your security accordingly._
 
 ```bash
 # Install packages
 sudo dnf -y module disable php postgresql
 sudo dnf -y module enable php:7.4 postgresql:12
-sudo dnf -y install httpd php php-pdo php-pgsql postgresql-server postgresql-contrib sudo git
+sudo dnf -y install httpd php php-pdo php-pgsql postgresql-server postgresql-contrib git
 
 # Setup Apache2
 sudo setsebool -P httpd_can_network_connect_db on
@@ -40,6 +41,9 @@ sudo git clone "https://github.com/obstack-org/obstack.git"
 sudo -u postgres psql obstack </var/lib/obstack/resources/obstack-schema-v1.sql
 sudo -u postgres bash -c "cd; psql obstack -c \"GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO obstack; GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO obstack;\""
 sudo ln -s /var/lib/obstack/webapp /var/www/html/obstack
+sudo mkdir -pm 750 /etc/obstack
+cp /var/lib/obstack/resources/obstack.conf /etc/obstack/
+chown -R root:apache /etc/obstack
 ```
 
 Now login to your new installation on [http://yourserver/obstack](http://yourserver/obstack) with default authentication: _admin_/_admin_.

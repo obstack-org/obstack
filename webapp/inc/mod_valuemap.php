@@ -60,7 +60,6 @@ class mod_valuemap {
     if (isset($data['value'])) {
       // Current values
       $xlist = [];
-      $vlist = [];
       foreach ($this->db->query('SELECT id FROM valuemap_value WHERE valuemap=:id', [':id'=>$id]) as $dbrow) {
         $xlist[] = $dbrow->id;
       }

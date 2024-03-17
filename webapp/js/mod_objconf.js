@@ -56,6 +56,7 @@ mod['objconf'] = {
   list: function() {
 
     // Loader
+    state.set('objconf');
     content.append(loader.removeClass('fadein').addClass('fadein'));
 
     // Load and display data
@@ -65,7 +66,6 @@ mod['objconf'] = {
     ).done(function(api_objtype, api_valuemap) {
       mod.objconf.objtypes = api_objtype[0];
       mod.objconf.valuemap = api_valuemap[0];
-      frm.sidebar.show(mod.objconf.objtypes);
 
       let obtlist = new obFTable({
         table: {
@@ -85,7 +85,7 @@ mod['objconf'] = {
       });
 
       content.empty().append(new obContent({
-        name: 'Object Types',
+        name: [ $('<img/>', { src: 'img/iccgs.png', class:'content-header-icon' }), 'Object Types' ],
         content: obtlist.html()
       }).html());
 
@@ -138,10 +138,16 @@ mod['objconf'] = {
 
     content.empty().append(loader.removeClass('fadein').addClass('fadein'));
 
+    let maps = { 'null':'[top]' };
+    $.each(new obTree(mod.config.navigation.maps).data(true), function(idx, map) {
+      maps[map.id] = '\xA0\xA0\xA0\xA0'.repeat(map.depth) + '\xA0↳ ' + map.name;
+    });
+
     // Form
     let obtform = new obForm([
       { id:'name',  name:'Name', type:'string', regex_validate:/^.+/, value:api_conf.name },
       { id:'short', name:'Shortname length', regex_validate:/^.+/, type:'select', options:{1:1, 2:2, 3:3, 4:4}, value:api_conf.short, info:'Number of fields used in shortname, used in e.g. dropdown selects'},
+      { id:'map', name:'Map', type:'select', options:maps, value:(api_conf.map==null)?'null':api_conf.map },
       { id:'log',   name:'Log', type:'select',  options:{0:'Disabled', 1:'Enabled'}, value:(api_conf.log)?1:0 },
     ]);
 
@@ -154,7 +160,7 @@ mod['objconf'] = {
     }
     $.each(api_property, function(idx, rec) {
       api_property[idx].htname  = api_property[idx].name;
-      api_property[idx].httype  = mod.objconf.options.type[api_property[idx].type];
+      api_property[idx].httype  = def.property[api_property[idx].type];
       api_property[idx].httable = htbool(api_property[idx].tbl_visible);
       api_property[idx].htform  = htbool(api_property[idx].frm_visible);
     });
@@ -180,15 +186,35 @@ mod['objconf'] = {
         if (!$(td).hasClass('obTable-drag')) {
           let tr = $(td).parent();
           if (tr.hasClass('delete')) {
-            if (confirm('Do you want to remove the deletion mark?')) {
-              tr.removeClass('delete');
-            }
+            obAlert('Do you want to remove the deletion mark?', { Ok:function(){ tr.removeClass('delete'); }, Cancel:null });
           }
           else {
             mod.objconf.properties.open(proplist, tr);
           }
         }
       }
+    });
+
+    // Relations
+    let relations = [];
+    $.each(mod.objconf.objtypes, function(idx, rel) {
+      rel['allow'] = $('<input/>', { type:'checkbox', class:'nomrg', checked:($.inArray(rel.id, apidata.relations) != -1) });
+      relations[idx] = rel;
+    });
+
+    let rellist = new obFTable({
+      table: {
+        id: 'f99e38e642bf80c28f53e6358615669a',
+        data: relations,
+        columns: [
+          { id:'name', name:'Name' },
+          { id:'allow', name:'Allow' }
+        ],
+        columns_resizable: true,
+        columns_hidden: ['id'],
+        columns_allowhtml: ['allow' ]
+      },
+      search: true
     });
 
     // Access
@@ -221,11 +247,16 @@ mod['objconf'] = {
     let obtabs = new obTabs({ tabs:[
       { title:'Object Type', html:obtform.html() },
       { title:'Properties',  html:$('<div/>', { class:'content-tab-wrapper' }).append(proplist.html()) },
+      { title:'Relations',   html:$('<div/>', { class:'content-tab-wrapper' }).append(rellist.html()) },
       { title:'Access',      html:$('<div/>', { class:'content-tab-wrapper' }).append(acclist.html()) },
     ] });
 
     content.append(new obContent({
-      name: [ $('<a/>', { class:'link', html:'Object types', click:function() { if (change.check()) { mod.objconf.list(); } } }), $('<span/>', { text:` / ${(id==null)?'[new]':api_conf.name}` })],
+      name: [
+        $('<img/>', { src: 'img/iccgs.png', class:'content-header-icon' }),
+        $('<a/>', { class:'link', html:'Object types', click:function() { change.check(function() { mod.objconf.list(); }); } }),
+        $('<span/>', { text:` / ${(id==null)?'[new]':api_conf.name}` })
+      ],
       content: obtabs.html(),
       control: [
         // -- Save
@@ -233,7 +264,7 @@ mod['objconf'] = {
           let obtform_data = obtform.validate();
           if (obtform_data != null) {
             change.reset();
-            mod.objconf.save(id, obtform_data, proplist.table(), acclist.table());
+            mod.objconf.save(id, obtform_data, proplist.table(), rellist.table(), acclist.table());
           }
           else {
             obtabs.showtab('_obTab0');
@@ -241,18 +272,18 @@ mod['objconf'] = {
         }),
         // -- Delete
         (id == null)?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
-          if (confirm('WARNING!: This action wil permanently delete this object type, all related objects and all related values. Are you sure you want to continue?')) {
-            if (confirm('WARNING!: Deleting object type. This can NOT be undone, are you really really sure?')) {
+          obAlert('<b>WARNING!:</b><br>This action wil permanently delete this object type, all related objects and all related values. Are you sure you want to continue?', { Ok:function(){
+            obAlert('<b>WARNING!:</b><br>Deleting object type. This can NOT be undone, are you really really sure?', { Ok:function(){
               $.when( api('delete',`objecttype/${id}`) ).always(function() {
                 change.reset();
-                mod.objconf.list();
+                location.reload(true);
               });
-            }
-          }
+            }, Cancel:null });
+          }, Cancel:null });
         }),
         // -- Close
         $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() {
-          if (change.check()) { mod.objconf.list(); }
+          change.check(function() { mod.objconf.list(); });
         })
       ]
     }).html());
@@ -270,13 +301,16 @@ mod['objconf'] = {
    *   config   : Config fields (first tab)
    *   ptable   : Properties table (second tab)
    ******************************************************************/
-  save: function(id, objtype_config, proplist, acclist) {
+  save: function(id, objtype_config, proplist, rellist, acclist) {
 
     // Loader
     content.append(loader.removeClass('fadein').addClass('fadein'));
 
     // Prepare data formats
     let dtsave = objtype_config;
+    if (objtype_config.map == 'null') {
+      objtype_config.map = null;
+    }
     if (proplist != null) {
       dtsave['property'] = [];
       $.each(proplist.html().find('tbody').children('tr'), function() {
@@ -286,6 +320,13 @@ mod['objconf'] = {
         }
       });
     }
+
+    dtsave['relations'] = [];
+    $.each(rellist.html().find('tbody').children('tr'), function(idx, tr) {
+      if ($(tr.cells[1]).find('input').prop('checked')) {
+        dtsave.relations = [...dtsave.relations, JSON.parse($(tr).attr('hdt')).id ];
+      }
+    });
 
     let aclsave = [];
     $.each(acclist.html().find('tbody').children('tr'), function(idx, tr) {
@@ -306,7 +347,7 @@ mod['objconf'] = {
         $.when(
           api('post',`objecttype/${api_objecttype.id}/acl`, aclsave)
         ).always(function() {
-          mod.objconf.list();
+          location.reload(true);
         });
       });
     }
@@ -314,7 +355,9 @@ mod['objconf'] = {
       $.when(
         api('put',`objecttype/${id}`, dtsave),
         api('put',`objecttype/${id}/acl`, aclsave)
-      ).always(function() { mod.objconf.list(); });
+      ).always(function() {
+        location.reload(true);
+      });
     }
 
   },
@@ -325,23 +368,6 @@ mod['objconf'] = {
    * Array of functions and subarrays for editing object properties
    ******************************************************************/
   properties: {
-
-    /******************************************************************
-     * mod.objconf.properties.form
-     * ==================
-     * Array for generating the properties form
-     ******************************************************************/
-    // form: {
-    //   schema: {
-    //     name:   {title:'Name', type:'string' },
-    //     type:   {title:'Type', type:'string', enum:[], info:'Cannot be changed after save' },
-    //     tsrc:   {title:'Source', type:'select', enum:[], info:'Cannot be changed after save' },
-    //     reqr:   {title:'Required', type:'select', enum:[], info:'Enable when field cannot be empty' },
-    //     table:  {title:'Display in Table', type:'string', enum:[] },
-    //     form:   {title:'Display on Form', type:'string', enum:[] }
-    //   },
-    //   form: ['*']
-    // },
 
     /******************************************************************
      * mod.objconf.properties.open(ptable)
@@ -361,7 +387,7 @@ mod['objconf'] = {
       }
       let propform = new obForm([
         {id:'name', name:'Name', type: 'string', regex_validate:/^.+/, value:rdata.name },
-        {id:'type', name:'Type', type: 'select', regex_validate:/^.+/, options: def.property, value:rdata.type, readonly:(!newrec&&rdata.id!=null), info:'Cannot be changed after save' },
+        {id:'type', name:'Type', type: 'select', regex_validate:/^.+/, options: def.property, value:rdata.type, readonly:(!newrec&&rdata.id!=null), info:'Cannot be changed after save. For more info on types see documentation' },
         {id:'tsrc', name:'Source', type: 'select', readonly:(!newrec&&rdata.id!=null), info:'Cannot be changed after save' },
         {id:'reqr', name:'Required', type: 'select', options: { 0:'No', 1:'Yes' }, value:(rdata.required)?1:0, info:'Enable when field cannot be empty' },
         {id:'table', name:'Display in Table', type: 'select', options: { 1:'Show', 2:'Show - Sortable', 9:'Hide' }, value:(rdata.tbl_visible)?((rdata.tbl_orderable)?2:1):9 },
@@ -396,10 +422,7 @@ mod['objconf'] = {
           }),
           // -- Delete
           (newrec)?null:$('<input/>', { class: 'btn', type: 'submit', value: 'Delete' }).on('click', function() {
-            if (confirm('Are you sure you want to mark this item for deletion?')) {
-              row.addClass('delete');
-              popup.remove();
-            }
+            obAlert('Are you sure you want to mark this item for deletion?', { Ok:function(){ row.addClass('delete'); popup.remove(); }, Cancel:null });
           }),
           // -- Close
           $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() { popup.remove(); })
@@ -407,6 +430,10 @@ mod['objconf'] = {
       });
 
       let popup_html = popup.html();
+      console.log(basebq);
+      if (basebq == null) {
+        popup_html.find('select[name=type]').find('option[value=12]').attr('disabled','disabled').append(' - [UNAVAILABLE]');
+      }
       popup_html.find('select[name=tsrc]').parent().hide();
       popup_html.find('select[name=reqr]').parent().hide();
       popup_html.find('select[name=type]').change(function() {

@@ -117,11 +117,15 @@ class mod_objtype {
     $dbq->select[] = 'DISTINCT ot.id AS id, ot.name AS name';
     if (!$_SESSION['sessman']['sa']) {
       $dbqin = $this->list2in($_SESSION['sessman']['groups'], 'smg');
-      if (count($dbqin->params) > 0) {
-        $dbq->join[] = 'LEFT JOIN objtype_acl oa ON oa.objtype = ot.id';
-        $dbq->filter[] = "oa.smgroup IN ($dbqin->marks) AND oa.read";
-        $dbq->params = array_merge($dbq->params, $dbqin->params);
+      if (count($dbqin->params) <= 0) {
+        $dbqin->marks = 'NULL';
       }
+      $dbq->join[] = 'LEFT JOIN objtype_acl oa ON oa.objtype = ot.id';
+      $dbq->filter[] = "oa.smgroup IN ($dbqin->marks) AND oa.read";
+      $dbq->params = array_merge($dbq->params, $dbqin->params);
+    }
+    if (in_array($this->display, [ 'map' ]) || in_array($this->format, [ 'aggr' ])) {
+      $dbq->select[] = 'ot.map AS map';
     }
     if (in_array($this->format, [ 'expand', 'full', 'aggr' ])) {
       $dbq->select[] = 'ot.short AS short, ot.log AS log';
@@ -165,10 +169,24 @@ class mod_objtype {
             }
           }
         }
+        // Relations
+        $relation_list = [];
+        $dbrquery = '
+          SELECT id FROM objtype o
+          LEFT JOIN objtype_objtype oo ON oo.objtype = o.id OR oo.objtype_ref = o.id
+          WHERE o.id != :otid
+          AND (oo.objtype = :otid OR oo.objtype_ref = :otid)
+          OR (oo.objtype = :otid AND oo.objtype_ref = :otid)
+        ';
+        foreach ($this->db->query($dbrquery, [ ':otid'=>$ot->id ]) as $rel) {
+          $relation_list[] = $rel->id;
+        }
+        // Format result
         $result = (object)[
           'objecttype'=> $ot,
           'property'=>$property_list,
           'meta'=>$meta,
+          'relations'=>$relation_list,
           'acl'=> $this->acl($ot->id)
         ];
         if ($result->meta == null) {
@@ -190,7 +208,7 @@ class mod_objtype {
     // Prepare
     $log = null;
     $dbq = (object)[ 'fields'=>[], 'update'=>[], 'params'=>[] ];
-    foreach ([ 'name', 'log', 'short' ] as $field) {
+    foreach ([ 'name', 'log', 'short', 'map' ] as $field) {
       if (isset($data[$field])) {
         $dbq->fields[] = $field;
         $dbq->update[] = "$field=:$field";
@@ -200,6 +218,9 @@ class mod_objtype {
     if (isset($data['log'])) {
       $log = ($data['log'] || $data['log'] == 'true' || $data['log'] == '1') ? true : false;
       $dbq->params[':log'] = ($log) ? 'true' : 'false';
+    }
+    if (!isset($data['map']) && array_key_exists('map', $data)) {
+      $dbq->update[] = "$field=NULL";
     }
     $dbq->fields = implode(', ', $dbq->fields);
     $dbq->update = implode(', ', $dbq->update);
@@ -251,6 +272,23 @@ class mod_objtype {
         $this->property_delete($id, $prop);
       }
     }
+    // Objtype relations
+    if (isset($data['relations'])) {
+      $dbc = 0;
+      $dbq = (object)[ 'insert'=>[], 'params'=>[] ];
+      foreach ($data['relations'] as $id_ref) {
+        $dbq->insert[] = ($id >= $id_ref) ? "(:otx$dbc,:oty$dbc)" : "(:oty$dbc,:otx$dbc)";
+        $dbq->params[":otx$dbc"] = $id;
+        $dbq->params[":oty$dbc"] = $id_ref;
+        $dbc++;
+      }
+
+      $this->db->query("DELETE FROM objtype_objtype WHERE objtype=:otid OR objtype_ref=:otid", [ ':otid'=>$id ]);
+      if (count($dbq->insert) > 0) {
+        $dbq->insert = implode(',', $dbq->insert);
+        $this->db->query("INSERT INTO objtype_objtype VALUES $dbq->insert", $dbq->params);
+      }
+    }
     return $result;
   }
 
@@ -265,6 +303,7 @@ class mod_objtype {
     $this->db->query('DELETE FROM obj WHERE objtype=:otid', $dbq->params);
     $this->db->query('DELETE FROM objproperty WHERE objtype=:otid', $dbq->params);
     $this->db->query('DELETE FROM objtype_acl WHERE objtype=:otid', $dbq->params);
+    $this->db->query('DELETE FROM objtype_objtype WHERE objtype=:otid or objtype_ref=:otid', $dbq->params);
     $count = count($this->db->query('DELETE FROM objtype WHERE id=:otid RETURNING id', $dbq->params));
     return $count > 0;
   }

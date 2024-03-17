@@ -12,10 +12,14 @@
   background: #dadada;
   padding: 10px;
 }
+.content-header-icon {
+  margin-bottom: -4px;
+  padding: 0px 6px 0px 0px;
+}
 .content-wrapper {
   top: var(--content-header-height);
   bottom: 0px;
-  background: #fafafa;
+  background: var(--content-background);
   padding: 10px 10px;
 }
 .content-popup-wrapper {
@@ -150,6 +154,12 @@
 .tblc-false {
   margin-left: 14px;
   color: #c8c8c8;
+}
+.tblc-icon {
+  width: 14px;
+  margin-top: 10px;
+  margin-right: 12px;
+  cursor: pointer;
 }
 .log-table {
   border-collapse: collapse;

@@ -25,13 +25,14 @@ frm['titlebar'] = {
    ******************************************************************/
   items: {
     'icusr': [15, {
-      "Logout"      : function() { $.when(api('delete', 'auth')).always(function() { if (change.check()) { location.reload(true); } }); }
+      "Logout"      : function() { $.when(api('delete', 'auth')).always(function() { change.check(function() { state.forget(); location.reload(true); }); }); }
     }],
     'iccnf': [45, {
       "Users"       : function() { mod.user.list(); },
       "Groups"      : function() { mod.group.list(); },
+      "Configuration" : function() { mod.config.list(); },
       "Value maps"  : function() { mod.valuemap.list(); },
-      "Object types": function() { mod.objconf.list(); }
+      "Object types": function() { mod.objconf.list(); },
     }],
   },
 
@@ -42,10 +43,10 @@ frm['titlebar'] = {
    ******************************************************************/
   show: function() {
     // Load and display titlebar
-    let controlbar = $('<div/>', { class: 'titlebar-control' });
-    let titlebar_name = $('<div/>', { class: 'titlebar-title' }).append(
-      $('<img/>', { src: 'img/obstack.png' }),
-      `&nbsp;${title}`
+    let controlbar = $('<div/>', { class:'titlebar-control' });
+    let titlebar_name = $('<div/>', { class:'titlebar-title' }).append(
+      $('<img/>', { src:'img/obstack.png' }),
+      $('<span/>', { class:'titlebar-name', text:title })
     );
     titlebar.append(
       titlebar_name,
@@ -83,7 +84,7 @@ frm['titlebar'] = {
       frm.titlebar.dropdown.append(
         $('<div/>', { class: 'titlebar-dropdown-item' })
           .html(key)
-          .on('click', function() { if (change.check()) { frm.titlebar.items[select][1][key](); } }),
+          .on('click', function() { change.check(function() { frm.titlebar.items[select][1][key](); }); }),
       )
     });
     frm.titlebar.dropdown.slideDown('fast');
