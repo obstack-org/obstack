@@ -1037,7 +1037,7 @@ function obAlert(msg, control={ Ok:null }) {
     new obPopup2({
       content: msg,
       control: control,
-      size: { width:500, height:100 },
+      size: { width:500, height:110 },
       ontop: true
     }).html()
   );

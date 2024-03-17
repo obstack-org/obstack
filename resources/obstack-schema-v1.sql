@@ -7,6 +7,8 @@ CREATE TABLE sessman_user (
 	id uuid NOT NULL DEFAULT uuid_generate_v4(),
 	username varchar NOT NULL,
 	secret varchar NOT NULL,
+	totp bool NOT NULL DEFAULT false,
+	totp_secret varchar,
 	firstname varchar NULL,
 	lastname varchar NULL,
 	active bool NULL DEFAULT true,
@@ -15,8 +17,6 @@ CREATE TABLE sessman_user (
 	CONSTRAINT sessman_user_pk PRIMARY KEY (id),
 	CONSTRAINT sessman_user_un UNIQUE (username)
 );
-
-INSERT INTO sessman_user (username,secret,active,sa) VALUES ('admin', crypt('admin', gen_salt('bf')), true, true);
 
 CREATE TABLE sessman_group (
 	id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -44,6 +44,31 @@ CREATE TABLE sessman_usertokens (
 	CONSTRAINT sessman_usertokens_fk FOREIGN KEY (smuser) REFERENCES sessman_user(id)
 );
 
+CREATE TABLE setting_varchar (
+	id uuid NOT NULL DEFAULT uuid_generate_v4(),
+	name varchar(64) NOT NULL,
+	value varchar(128) NOT NULL,
+	CONSTRAINT setting_varchar_pk PRIMARY KEY (id),
+	CONSTRAINT setting_varchar_un UNIQUE (name)
+);
+
+CREATE TABLE setting_decimal (
+	id uuid NOT NULL DEFAULT uuid_generate_v4(),
+	name varchar(64) NOT NULL,
+	value numeric(16, 8) NOT NULL,
+	CONSTRAINT setting_decimal_pk PRIMARY KEY (id),
+	CONSTRAINT setting_decimal_un UNIQUE (name)
+);
+
+CREATE TABLE ntree (
+	id uuid NOT NULL DEFAULT uuid_generate_v4(),
+	parent uuid,
+	prio int4 NULL,
+	name varchar(64) NOT NULL,
+	CONSTRAINT ntree_pk PRIMARY KEY (id),
+	CONSTRAINT ntree_ntree_fk FOREIGN KEY (parent) REFERENCES ntree(id)
+);
+
 CREATE TABLE obj (
 	id uuid NOT NULL DEFAULT uuid_generate_v4(),
 	objtype uuid NOT NULL,
@@ -68,12 +93,23 @@ CREATE TABLE obj_log (
 CREATE TABLE objtype (
 	id uuid NOT NULL DEFAULT uuid_generate_v4(),
 	"name" varchar NOT NULL,
+	map uuid,
 	log bool NULL DEFAULT false,
 	short int2 NOT NULL DEFAULT 4,
-	CONSTRAINT obj_type_pkey PRIMARY KEY (id)
+	CONSTRAINT obj_type_pkey PRIMARY KEY (id),
+	CONSTRAINT objtype_ntree_fk FOREIGN KEY (map) REFERENCES ntree(id)
 );
 
-CREATE TABLE public.objtype_acl (
+CREATE TABLE objtype_objtype (
+	objtype uuid NOT NULL,
+	objtype_ref uuid NOT NULL,
+	CONSTRAINT objtype_objtype_check CHECK ((objtype >= objtype_ref)),
+	CONSTRAINT objtype_objtype_pkey PRIMARY KEY (objtype, objtype_ref),
+	CONSTRAINT objtype_objtype_fk FOREIGN KEY (objtype) REFERENCES objtype(id),
+	CONSTRAINT objtype_objtype_fk_1 FOREIGN KEY (objtype_ref) REFERENCES objtype(id)
+);
+
+CREATE TABLE objtype_acl (
 	objtype uuid NOT NULL,
 	smgroup uuid NOT NULL,
 	"read" bool NULL,
@@ -81,8 +117,8 @@ CREATE TABLE public.objtype_acl (
 	"update" bool NULL,
 	"delete" bool NULL,
 	CONSTRAINT objtype_acl_pk PRIMARY KEY (objtype, smgroup),
-	CONSTRAINT objtype_acl_fk_group FOREIGN KEY (smgroup) REFERENCES public.sessman_group(id),
-	CONSTRAINT objtype_acl_fk_objtype FOREIGN KEY (objtype) REFERENCES public.objtype(id)
+	CONSTRAINT objtype_acl_fk_group FOREIGN KEY (smgroup) REFERENCES sessman_group(id),
+	CONSTRAINT objtype_acl_fk_objtype FOREIGN KEY (objtype) REFERENCES objtype(id)
 );
 
 CREATE TABLE objtype_log (
@@ -146,7 +182,7 @@ CREATE TABLE value_varchar (
 	CONSTRAINT value_varchar_pk PRIMARY KEY (obj, objproperty)
 );
 
-CREATE TABLE public.value_blob (
+CREATE TABLE value_blob (
 	obj uuid NOT NULL,
 	objproperty uuid NOT NULL,
 	value varchar NULL,
@@ -167,3 +203,6 @@ CREATE TABLE valuemap_value (
 	"name" varchar NOT NULL,
 	CONSTRAINT valuemap_option_pkey PRIMARY KEY (id, valuemap)
 );
+
+INSERT INTO sessman_user (username,secret,active,sa) VALUES ('admin', crypt('admin', gen_salt('bf')), true, true);
+INSERT INTO setting_decimal (name, value) VALUES ('db_version',120), ('totp_default_enabled',0), ('session_timeout',600);

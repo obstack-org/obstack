@@ -118,7 +118,7 @@ class mod_objtype {
     if (!$_SESSION['sessman']['sa']) {
       $dbqin = $this->list2in($_SESSION['sessman']['groups'], 'smg');
       if (count($dbqin->params) <= 0) {
-        $dbqin->marks = '';
+        $dbqin->marks = 'NULL';
       }
       $dbq->join[] = 'LEFT JOIN objtype_acl oa ON oa.objtype = ot.id';
       $dbq->filter[] = "oa.smgroup IN ($dbqin->marks) AND oa.read";
@@ -282,9 +282,12 @@ class mod_objtype {
         $dbq->params[":oty$dbc"] = $id_ref;
         $dbc++;
       }
-      $dbq->insert = implode(',', $dbq->insert);
+
       $this->db->query("DELETE FROM objtype_objtype WHERE objtype=:otid OR objtype_ref=:otid", [ ':otid'=>$id ]);
-      $this->db->query("INSERT INTO objtype_objtype VALUES $dbq->insert", $dbq->params);
+      if (count($dbq->insert) > 0) {
+        $dbq->insert = implode(',', $dbq->insert);
+        $this->db->query("INSERT INTO objtype_objtype VALUES $dbq->insert", $dbq->params);
+      }
     }
     return $result;
   }

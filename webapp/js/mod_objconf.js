@@ -430,6 +430,7 @@ mod['objconf'] = {
       });
 
       let popup_html = popup.html();
+      console.log(basebq);
       if (basebq == null) {
         popup_html.find('select[name=type]').find('option[value=12]').attr('disabled','disabled').append(' - [UNAVAILABLE]');
       }
