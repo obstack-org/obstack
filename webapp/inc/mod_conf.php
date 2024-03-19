@@ -84,7 +84,7 @@ class mod_conf {
       $hky = [ null, null, null ];
       $sky = $this->options['sc_encryptionkey'];
       foreach ($this->db->query('SELECT name, value FROM setting_varchar WHERE name LIKE \'hky_ckey%\' ORDER BY name', []) as $dbrow) {
-        $hky[intval(substr($dbrow->name,-1))] = $dbrow->value;
+        $hky[intval(mb_substr($dbrow->name,-1))] = $dbrow->value;
       }
       if ($hky[1] == null) {
         $hky[1] = basebq::encode(basebq::rstr(9,14));
@@ -202,11 +202,11 @@ class mod_conf {
             $mlist['decimal'][] = $rec['name'];
           }
           else {
-            if ((substr($rec['name'],0,4) == 'css_' && (
-              ((substr($rec['name'],-6) == '-color' || substr($rec['name'],-11) == '-background') && preg_match('/^#[0-9a-f]{6}$/', $rec['value'])) ||
-              (substr($rec['name'],-6) == '-width' && preg_match('/^[1-9][0-9]{2}$/', $rec['value']))
+            if ((mb_substr($rec['name'],0,4) == 'css_' && (
+              ((mb_substr($rec['name'],-6) == '-color' || mb_substr($rec['name'],-11) == '-background') && preg_match('/^#[0-9a-f]{6}$/', $rec['value'])) ||
+              (mbsubstr($rec['name'],-6) == '-width' && preg_match('/^[1-9][0-9]{2}$/', $rec['value']))
             )) ||
-              substr($rec['name'],0,4) != 'css_'
+              mb_substr($rec['name'],0,4) != 'css_'
             ) {
               $mlist['varchar'][] = $rec['name'];
             }

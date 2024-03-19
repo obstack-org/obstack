@@ -304,7 +304,7 @@ class mod_obj {
           }
         }
         $short = implode(', ', $short);
-        $result[$obj->id] = (strlen($short) > 48) ? substr($short,0,46).'...' : $short;
+        $result[$obj->id] = (strlen($short) > 48) ? mb_substr($short,0,46).'...' : $short;
       }
 
     }
@@ -442,7 +442,7 @@ class mod_obj {
           unset($vlist[8][$i]);
         }
         else {
-          $data[$vlist[8][$i]->property] = substr($data[$vlist[8][$i]->property],0,10);
+          $data[$vlist[8][$i]->property] = mb_substr($data[$vlist[8][$i]->property],0,10);
         }
       }
     }
@@ -452,7 +452,7 @@ class mod_obj {
           unset($vlist[9][$i]);
         }
         else {
-          $data[$vlist[9][$i]->property] = substr_replace(substr($data[$vlist[9][$i]->property],0,16),'T',10,1);
+          $data[$vlist[9][$i]->property] = substr_replace(mb_substr($data[$vlist[9][$i]->property],0,16),'T',10,1);
         }
       }
     }
@@ -775,7 +775,7 @@ class mod_obj {
   private function log_list_full($id) {
     $log = $this->db->query('SELECT timestamp, username, action, details FROM obj_log WHERE obj=:id ORDER BY timestamp DESC', [':id'=>$id]);
     for ($i=0; $i < count($log); $i++) {
-      $log[$i]->timestamp = substr($log[$i]->timestamp, 0, strrpos($log[$i]->timestamp, ':'));
+      $log[$i]->timestamp = mb_substr($log[$i]->timestamp, 0, strrpos($log[$i]->timestamp, ':'));
     }
     return $log;
   }

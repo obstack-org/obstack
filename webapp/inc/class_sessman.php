@@ -479,8 +479,8 @@ class sessman {
     }
     // Create new user
     if ($id == null) {
-      $dbqcol = substr($dbqcol,2);
-      $dbqval = substr($dbqval,2);
+      $dbqcol = mb_substr($dbqcol,2);
+      $dbqval = mb_substr($dbqval,2);
       $id = $this->db->query("INSERT INTO sessman_user ($dbqcol) VALUES ($dbqval) RETURNING id", $dbparams)[0]->id;
       if (isset($data['groups'])) {
         foreach($data['groups'] as $groupid) { $this->usergroup_save($id, ['id'=>$groupid]); }
@@ -489,7 +489,7 @@ class sessman {
     }
     // Update user
     else {
-      $dbqupd = substr($dbqupd,2);
+      $dbqupd = mb_substr($dbqupd,2);
       $dbparams['id'] = $id;
       $result = [[]];
       if (strlen($dbqupd)>0) {
@@ -712,8 +712,8 @@ class sessman {
     }
     // Create new group
     if ($id == null) {
-      $dbqcol = substr($dbqcol,2);
-      $dbqval = substr($dbqval,2);
+      $dbqcol = mb_substr($dbqcol,2);
+      $dbqval = mb_substr($dbqval,2);
       $id = $this->db->query("INSERT INTO sessman_group ($dbqcol) VALUES ($dbqval) RETURNING id", $dbparams)[0]->id;
       if (isset($data['users'])) {
         foreach($data['users'] as $userid) { $this->groupmember_save($id, ['id'=>$userid]); }
@@ -722,7 +722,7 @@ class sessman {
     }
     // Update group
     else {
-      $dbqupd = substr($dbqupd,2);
+      $dbqupd = mb_substr($dbqupd,2);
       $dbparams['id'] = $id;
       if (isset($data['users'])) {
         $this->db->query('DELETE FROM sessman_usergroups WHERE smgroup=:smgroup', [':smgroup'=>$id]);
