@@ -124,7 +124,7 @@ class basebq {
   public static function decrypt($data, $password) {
     $saltCiphertext = base64_decode($data);
     $salt = mb_substr($saltCiphertext, 8, 8);
-    $ciphertext = mb_substr($saltCiphertext, 16, null,);
+    $ciphertext = mb_substr($saltCiphertext, 16);
     $keyIv = basebq::EVP_BytesToKey($salt, $password);
     $key = mb_substr($keyIv, 0, 32);
     $iv = mb_substr($keyIv, 32);
