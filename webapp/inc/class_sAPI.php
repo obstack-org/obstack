@@ -25,7 +25,7 @@ class sAPI {
     $this->version = $version;
 
     // Syntax check
-    $uri = substr(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), strpos($_SERVER['REQUEST_URI'],"/v$this->version"));
+    $uri = mb_substr(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), strpos($_SERVER['REQUEST_URI'],"/v$this->version"));
     if (preg_match('/^\/[0-9a-z_\-\/]*[0-9a-z_\-]$/i', $uri) != 1) {
       $this->http_error(400);
     }
@@ -47,7 +47,7 @@ class sAPI {
     foreach ($steps as $index => $step) {
       // Parameter
       if (preg_match('/^{.[0-9a-z]*}$/i', $step) > 0) {
-        $this->params[substr($step, 1, -1)] = $this->uri[$index];
+        $this->params[mb_substr($step, 1, -1)] = $this->uri[$index];
       }
       // Static
       elseif ($step != $this->uri[$index]) {
