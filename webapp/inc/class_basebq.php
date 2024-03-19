@@ -31,11 +31,11 @@ class basebq {
 
   public static function rstr($min, $max) {
     $str = implode("", array_merge(range(0,9), range('a','z'), range('A', 'Z')));
-    return mb_substr(str_shuffle($str), 0, random_int($min, $max));
+    return substr(str_shuffle($str), 0, random_int($min, $max));
   }
 
   public static function pstr($str) {
-    return mb_substr($str, strlen($str)/6, -(strlen($str)/8));
+    return substr($str, strlen($str)/6, -(strlen($str)/8));
   }
 
   public static function encode($data) {
@@ -60,7 +60,7 @@ class basebq {
         $result .= chr($int+29);
       }
       else {
-        $result .= str_split(basebq::hextags())[random_int(0,2)].mb_substr('0'.dechex($int),-2);
+        $result .= str_split(basebq::hextags())[random_int(0,2)].substr('0'.dechex($int),-2);
       }
     }
     return $result;
@@ -115,19 +115,19 @@ class basebq {
   public static function encrypt($value, $password){
     $salt = openssl_random_pseudo_bytes(8);
     $keyIv = basebq::EVP_BytesToKey($salt, $password);
-    $key = mb_substr($keyIv, 0, 32);
-    $iv = mb_substr($keyIv, 32);
+    $key = substr($keyIv, 0, 32);
+    $iv = substr($keyIv, 32);
     $encrypted_data = openssl_encrypt($value, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
     return base64_encode('Salted__'.$salt.$encrypted_data);
   }
 
   public static function decrypt($data, $password) {
     $saltCiphertext = base64_decode($data);
-    $salt = mb_substr($saltCiphertext, 8, 8);
-    $ciphertext = mb_substr($saltCiphertext, 16);
+    $salt = substr($saltCiphertext, 8, 8);
+    $ciphertext = substr($saltCiphertext, 16);
     $keyIv = basebq::EVP_BytesToKey($salt, $password);
-    $key = mb_substr($keyIv, 0, 32);
-    $iv = mb_substr($keyIv, 32);
+    $key = substr($keyIv, 0, 32);
+    $iv = substr($keyIv, 32);
     return openssl_decrypt($ciphertext, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
   }
 
