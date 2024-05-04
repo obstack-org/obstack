@@ -23,6 +23,7 @@ class mod_obj {
   private $display;
   private $objtype;
   private $cache;
+  private $plugins;
   private $datatype  = [ 1=>'varchar', 2=>'decimal', 3=>'uuid', 4=>'uuid', 5=>'decimal', 6=>'text', 8=>'timestamp', 9=>'timestamp', 11=>'varchar', 12=>'varchar' ];
   private $propertytype = [ 1=>'Text', 2=>'Number', 3=>'Object Type', 4=>'Value Map', 5=>'Checkbox', 6=>'Textbox', 8=>'Date', 9=>'DateTime', 11=>'Password (hash)', 12=>'Password (encrypt)' ];
 
@@ -30,9 +31,11 @@ class mod_obj {
    * Initialize
    ******************************************************************/
   public function __construct($db, $objtype) {
+    global $plugins;
     $this->db = $db;
     $this->objtype = $objtype;
     $this->cache = (object)[ 'valuemap'=>[], 'object'=>[] ];
+    $this->plugins = $plugins;
     if (isset($_GET['format'])) { $this->format = $_GET['format']; }
     if (isset($_GET['display'])) { $this->display = $_GET['display']; }
   }
@@ -284,7 +287,7 @@ class mod_obj {
 
       // Generate shortname(s)
       foreach ($objlist as $obj) {
-        $max = 4;
+        $max = $this->cache->object[$obj->id]->short + 1;
         $short = [];
         if ($obj->id != null) {
           foreach ($this->cache->object[$obj->id]->meta as $value) {
@@ -319,7 +322,7 @@ class mod_obj {
    ******************************************************************/
   public function list($otid) {
     if (!$this->objtype->acl($otid)->read) { return null; }
-    return $this->list_full($otid, null);
+    return $this->plugins->apply($otid, 'list', $this->list_full($otid, null));
   }
 
   /******************************************************************
