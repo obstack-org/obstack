@@ -9,6 +9,13 @@ $api = new sAPI(2);
 $payload = $api->payload();
 $result = null;
 
+// Prepare Plugins
+require_once 'inc/class_plugins.php';
+foreach (glob("plugins/*.php") as $plgfile) {
+  include_once $plgfile;
+}
+$plugins = new plugins();
+
 // Base configuration
 require_once 'config.php';
 require_once 'inc/class_conf.php';
