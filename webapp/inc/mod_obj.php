@@ -89,7 +89,7 @@ class mod_obj {
     // Filter
     $dbq = (object)[ 'filter'=>[], 'params'=>[] ];
     $dbqlabel = ($format->expand || $format->full) ? 'op.name as label,' : '';
-    $xlist = (object)[ 'valuemap'=>[], 'object'=>[] ];
+    $xlist = (object)[ 'object'=>[], 'valuemap'=>[] ];
     if ($otid != null) {
       if (!is_array($otid)) {
         $otid = [ $otid ];
@@ -130,6 +130,7 @@ class mod_obj {
       $dbquery = "
         SELECT
           o.id AS id,
+          ot.id AS otid,
           ot.short AS short,
           op.id AS property,
           $dbqlabel
@@ -164,7 +165,7 @@ class mod_obj {
         foreach ($dbresult as $dbrow) {
           if ($dbrow->id != $id) {
             if ($id != null) {
-              $this->cache->object[$id] = (object)[ 'short'=>$dbrow->short, 'meta'=>$meta ];
+              $this->cache->object[$id] = (object)[ 'objecttype'=>$dbrow->otid, 'short'=>$dbrow->short, 'meta'=>$meta ];
               if (!in_array($id, $idlist)) {
                 $idlist[] = $id;
               }
@@ -192,9 +193,43 @@ class mod_obj {
           }
           $meta[$dbrow->property]->value_text = $meta[$dbrow->property]->value;
         }
-        $this->cache->object[$id] = (object)[ 'short'=>$dbrow->short, 'meta'=>$meta ];
+        $this->cache->object[$id] = (object)[ 'objecttype'=>$dbrow->otid, 'short'=>$dbrow->short, 'meta'=>$meta ];
         if (!in_array($id, $idlist)) {
           $idlist[] = $id;
+        }
+      }
+    }
+
+    // Apply plugin(s)
+    foreach ($idlist as $id) {
+      if ($id != null) {
+        if (isset($this->cache->object[$id]->meta) && array_key_exists($this->cache->object[$id]->objecttype, $this->plugins->plugins)) {
+          $object = (object)[ 'id'=>$id ];
+          foreach ($this->cache->object[$id]->meta as $property=>$value) {
+            $object->$property = $value->value;
+          }
+          foreach ($this->plugins->apply('read', $this->cache->object[$id]->objecttype, $object) as $property=>$value) {
+            if ($property != 'id') {
+              $this->cache->object[$id]->meta[$property]->value = $value;
+              $this->cache->object[$id]->meta[$property]->value_text = $value;
+              if ($this->cache->object[$id]->meta[$property]->type == 3) {
+                foreach($xlist->object as $xval=>$xrec) {
+                  if (isset($xrec[$id]) && $xrec[$id] == $property) {
+                    unset($xlist->object[$xval][$id]);
+                  }
+                }
+                $xlist->object[$value][$id] = $property;
+              }
+              if ($this->cache->object[$id]->meta[$property]->type == 4) {
+                foreach($xlist->valuemap as $xval=>$xrec) {
+                  if (isset($xrec[$id]) && $xrec[$id] == $property) {
+                    unset($xlist->valuemap[$xval][$id]);
+                  }
+                }
+                $xlist->valuemap[$value][$id] = $property;
+              }
+            }
+          }
         }
       }
     }
@@ -287,7 +322,7 @@ class mod_obj {
 
       // Generate shortname(s)
       foreach ($objlist as $obj) {
-        $max = $this->cache->object[$obj->id]->short + 1;
+        $max = $this->cache->object[$obj->id]->short;
         $short = [];
         if ($obj->id != null) {
           foreach ($this->cache->object[$obj->id]->meta as $value) {
@@ -298,7 +333,7 @@ class mod_obj {
                 }
               }
               else {
-                if ($value->type != 11 && $value->value_text != null) {
+                if ($value->type != 11) {
                   $short[] = $value->value_text;
                 }
               }
@@ -322,7 +357,7 @@ class mod_obj {
    ******************************************************************/
   public function list($otid) {
     if (!$this->objtype->acl($otid)->read) { return null; }
-    return $this->plugins->apply($otid, 'list', $this->list_full($otid, null));
+    return $this->list_full($otid, null);
   }
 
   /******************************************************************
@@ -379,6 +414,16 @@ class mod_obj {
     else {
       if (!$acl->update) { return null; }
       $cobj = $this->list_full($otid, $id, 'none')[0];
+    }
+
+    // Apply plugin(s)
+    if ($this->plugins->hasPlugin($otid, 'save')) {
+      $tmpobj = (object)[ 'id'=>$id ];
+      foreach($data as $key=>$value) {
+        $tmpobj->$key = $value;
+      }
+      $data = (array) $this->plugins->apply('save', $otid, $tmpobj);
+      $data['id'] = $id;
     }
 
     // Generate
@@ -551,6 +596,15 @@ class mod_obj {
     $acl = $this->objtype->acl($otid);
     if (!$acl->delete) { return null; }
 
+    // Apply plugin(s)
+    if ($this->plugins->hasPlugin($otid, 'delete')) {
+      $tmpobj = (object)[ 'id'=>$id ];
+      foreach($this->open($otid, $id) as $key=>$value) {
+        $tmpobj->$key = $value;
+      }
+      $this->plugins->apply('delete', $otid, $tmpobj);
+    }
+
     // Delete values
     $tlist = [];
     foreach ($this->db->query('SELECT * FROM objproperty WHERE objtype=:objtype', [':objtype'=>$otid]) as $dbrow) {
@@ -583,6 +637,14 @@ class mod_obj {
     // Delete object
     $this->log_save($otid, $id, 9, 'Object deleted');
     $this->db->query('DELETE FROM obj WHERE id=:id AND objtype=:objtype', [':objtype'=>$otid, ':id'=>$id]);
+
+
+
+    // $tmpobj = (object)[ 'id'=>$id ];
+    // foreach($data as $key=>$value) {
+    //   $tmpobj->$key = $value;
+    // }
+    // $this->plugins->apply('delete', $otid, $tmpobj);
 
     return true;
   }
