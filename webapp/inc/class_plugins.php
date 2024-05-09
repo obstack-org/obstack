@@ -2,18 +2,19 @@
 /******************************************************************
  *
  * plugins()
- *   -> apply($id, $method, $data)
+ *   -> hasPlugin($id, $mehtod)
+ *   -> apply($id, $method, $data, $check=true)
  *
  ******************************************************************/
 
 class plugins {
 
   public $plugins = [];
-  private $methods = [ '__construct', '__ospVldTpy', 'list', 'open', 'save', 'delete' ];
+  private $methods = [ '__construct', '__ospVldTpy', 'read', 'save', 'delete' ];
 
-  /******************************************************************
+  /***********************************************************************
    * Initialize with validating all plugin classes
-   ******************************************************************/
+   ***********************************************************************/
   function __construct() {
     global $api;
     foreach(get_declared_classes() as $class) {
@@ -33,14 +34,33 @@ class plugins {
     }
   }
 
-  /******************************************************************
-   * Apply plugin, return unchanged data when no plugin available
-   ******************************************************************/
-  function apply($otid, $method, $data) {
-    if (array_key_exists($otid, $this->plugins) && method_exists($this->plugins[$otid], $method) ) {
-      return $this->plugins[$otid]->$method($data);
+  /***********************************************************************
+   * Check if objecttype had a plugin configured, optional check method
+   ***********************************************************************/
+  function hasPlugin($otid, $method=null) {
+    if (array_key_exists($otid, $this->plugins)) {
+      if ($method != null) {
+        return method_exists($this->plugins[$otid], $method);
+      }
+      return true;
     }
-    return $data;
+    return false;
+  }
+
+  /***********************************************************************
+   * Apply plugin, return unchanged data when no plugin available
+   ***********************************************************************/
+  function apply($method, $otid, $object) {
+    if ($this->hasPlugin($otid, $method)) {
+      $result = $this->plugins[$otid]->$method(clone $object);
+      foreach($result as $rkey=>$rval) {
+        if (!property_exists($object, $rkey)) {
+          unset($result->$rkey);
+        }
+      }
+      return $result;
+    }
+    return $object;
   }
 
 }
