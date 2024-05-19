@@ -3,14 +3,14 @@
  *
  * plugins()
  *   -> hasPlugin($id, $mehtod)
- *   -> apply($id, $method, $data, $check=true)
+ *   -> apply($id, $method, $data)
  *
  ******************************************************************/
 
 class plugins {
 
   public $plugins = [];
-  private $methods = [ '__construct', '__ospVldTpy', 'read', 'save', 'delete' ];
+  private $methods = [ '__construct', '__ospVldTpy', 'read', 'list', 'open', 'save', 'delete' ];
 
   /***********************************************************************
    * Initialize with validating all plugin classes
@@ -23,8 +23,7 @@ class plugins {
         if ( !isset($tdcl->objecttype)
           || !is_string($tdcl->objecttype)
           || (preg_match('/^[a-f\d]{8}(-[a-f\d]{4}){4}[a-f\d]{8}$/i', $tdcl->objecttype) !== 1)
-          || array_diff($this->methods, get_class_methods($class))
-          || array_diff(get_class_methods($class), $this->methods)
+          || count(array_diff(get_class_methods($class), $this->methods)) != 0
           || (crc32($tdcl->__ospVldTpy()) != 2347662633)
         ) {
           $api->http_error(428, "Error loading Plugin: $class<br><br>Please check the <a href=\"https://www.obstack.org/docs/?doc=manual-plugins\" target=_blank>Plugins documentation</a>");
@@ -50,17 +49,19 @@ class plugins {
   /***********************************************************************
    * Apply plugin, return unchanged data when no plugin available
    ***********************************************************************/
-  function apply($method, $otid, $object) {
+  function apply($method, $otid, $data) {
     if ($this->hasPlugin($otid, $method)) {
-      $result = $this->plugins[$otid]->$method(clone $object);
-      foreach($result as $rkey=>$rval) {
-        if (!property_exists($object, $rkey)) {
-          unset($result->$rkey);
+      $result = is_object($data) ? $this->plugins[$otid]->$method(clone $data) : $this->plugins[$otid]->$method($data);
+      if ($method != 'delete') {
+        foreach($result as $rkey=>$rval) {
+          if (!property_exists($data, $rkey)) {
+            unset($result->$rkey);
+          }
         }
       }
       return $result;
     }
-    return $object;
+    return $data;
   }
 
 }

@@ -225,17 +225,29 @@ function api(httpmethod, path, data) {
         console.log({status:response.status, request:`${httpmethod}: ${path}`, data:data});
         console.log(response.responseText);
       }
+      // Header Logs
+      log(xhr);
     },
-    success: function (response) {
+    success: function (response, status, xhr) {
       try {
         if ('error' in response) {
           obAlert(response.error, null);
         }
       }
       catch(err) {}
+      // Header Logs
+      log(xhr);
     }
   });
   return xhr;
+}
+
+// Log from xhr
+function log(xhr) {
+  let log = xhr.getResponseHeader('obstack-log');
+  if (log != null) {
+    console.log(log);
+  }
 }
 
 // Function for locking all functions in an array
