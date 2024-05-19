@@ -357,7 +357,7 @@ class mod_obj {
    ******************************************************************/
   public function list($otid) {
     if (!$this->objtype->acl($otid)->read) { return null; }
-    return $this->list_full($otid, null);
+    return $this->plugins->apply('list', $otid, $this->list_full($otid, null));
   }
 
   /******************************************************************
@@ -369,7 +369,7 @@ class mod_obj {
   public function open($otid=null, $id=null, $display_overwrite=null) {
     if (!$this->objtype->acl($otid)->read) { return null; }
     if (is_array($otid) || is_array($id)) { return null; }
-    $obj = $this->list_full($otid, $id)[0];
+    $obj = $this->plugins->apply('open', $otid, $this->list_full($otid, $id)[0]);
     $rel = $this->relation_list($otid, $id);
     if ($obj != null) {
       if ($this->format('aggr')) {
@@ -637,14 +637,6 @@ class mod_obj {
     // Delete object
     $this->log_save($otid, $id, 9, 'Object deleted');
     $this->db->query('DELETE FROM obj WHERE id=:id AND objtype=:objtype', [':objtype'=>$otid, ':id'=>$id]);
-
-
-
-    // $tmpobj = (object)[ 'id'=>$id ];
-    // foreach($data as $key=>$value) {
-    //   $tmpobj->$key = $value;
-    // }
-    // $this->plugins->apply('delete', $otid, $tmpobj);
 
     return true;
   }

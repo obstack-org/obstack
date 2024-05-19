@@ -4,6 +4,7 @@
 
 v1.2.1 (xx-xx-2024):
 - Fix shortnames
+- Optimize URL detection
 - Add Plugin support
 
 v1.2.0 (17-03-2024):
