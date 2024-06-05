@@ -50,7 +50,7 @@ mod['obj'] = {
           columns = [...columns, { id:column.id, name:column.name, orderable:column.tbl_orderable}];
           if (column.type == 1) {
             $.each(apidata_objects, function(idx, rec) {
-              if (apidata_objects[idx][column.id] != null && apidata_objects[idx][column.id].trim().match(/^(ht|f)tp/) && apidata_objects[idx][column.id].trim().match(/(ht|f)tp[s]?\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}([a-zA-Z0-9\/?\:\.\-=&#%]*)?$/)) {
+              if (apidata_objects[idx][column.id] != null && apidata_objects[idx][column.id].trim().match(/^(ht|f)tp/) && apidata_objects[idx][column.id].trim().match(/(ht|f)tp[s]?\:\/\/[a-zA-Z0-9\-\.\:@]+([a-zA-Z0-9\/\:\.\-_?=&#%]*)?$/)) {
                 columns_allowhtml = [...columns_allowhtml, column.id];
                 apidata_objects[idx][column.id] = $('<a/>', { href:apidata_objects[idx][column.id], target:'_blank'}).text(apidata_objects[idx][column.id]).on('click').on('click', function(event) {
                   event.stopPropagation();

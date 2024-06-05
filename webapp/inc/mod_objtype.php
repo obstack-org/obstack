@@ -147,8 +147,14 @@ class mod_objtype {
       $dbq->join $dbq->filter
       GROUP BY ot.id
     ";
+    $dbresult = $this->db->query($dbquery, $dbq->params);
+    if ($this->db->driver() == 'mysql') {
+      foreach($dbresult as $idx=>$obj) {
+        $dbresult[$idx]->log = ($dbresult[$idx]->log == 1);
+      }
+    }
     if ($this->format == 'aggr') {
-      foreach ($this->db->query($dbquery, $dbq->params) as $ot) {
+      foreach ($dbresult as $ot) {
         $meta = null;
         $property_list = $this->property_list($ot->id);
         if ($this->display == 'edit') {
@@ -196,7 +202,7 @@ class mod_objtype {
       return $result;
     }
     else {
-      $result = $this->db->query($dbquery, $dbq->params);
+      $result = $dbresult;
       return ($otid == null) ? $result : $result[0];
     }
   }
@@ -217,7 +223,12 @@ class mod_objtype {
     }
     if (isset($data['log'])) {
       $log = ($data['log'] || $data['log'] == 'true' || $data['log'] == '1') ? true : false;
-      $dbq->params[':log'] = ($log) ? 'true' : 'false';
+      if ($this->db->driver() == 'mysql') {
+        $dbq->params[':log'] = ($log) ? 1 : 0;
+      }
+      else {
+        $dbq->params[':log'] = ($log) ? 'true' : 'false';
+      }
     }
     if (!isset($data['map']) && array_key_exists('map', $data)) {
       $dbq->update[] = "$field=NULL";
@@ -343,6 +354,13 @@ class mod_objtype {
       ORDER BY op.prio, op.name
     ";
     $result = $this->db->query($dbquery, $dbq->params);
+    if ($this->db->driver() == 'mysql') {
+      foreach($result as $idx=>$obj) {
+        foreach(['required', 'frm_visible', 'frm_readonly', 'tbl_visible', 'tbl_orderable'] as $property) {
+          $result[$idx]->$property = ($result[$idx]->$property == 1);
+        }
+      }
+    }
     return ($id == null) ? $result : $result[0];
   }
 
@@ -360,7 +378,12 @@ class mod_objtype {
         $dbq->fields[] = $field;
         $dbq->insert[] = ":$field";
         $dbq->update[] = "$field=:$field";
-        $dbq->params[":$field"] = (is_bool($data[$field])) ? (($data[$field] || $data[$field] == '1') ? 'true' : 'false') : $data[$field];
+        if ($this->db->driver() == 'mysql') {
+          $dbq->params[":$field"] = (is_bool($data[$field])) ? (($data[$field] || $data[$field] == '1') ? 1 : 0) : $data[$field];
+        }
+        else {
+          $dbq->params[":$field"] = (is_bool($data[$field])) ? (($data[$field] || $data[$field] == '1') ? 'true' : 'false') : $data[$field];
+        }
       }
     }
     $dbq->fields = implode(',', $dbq->fields);
@@ -368,13 +391,14 @@ class mod_objtype {
     $dbq->update = implode(',', $dbq->update);
 
     if ($id == null) {
-      $dbquery = "INSERT INTO objproperty ($dbq->fields) VALUES ($dbq->insert) RETURNING id";
+      $dbquery = "INSERT INTO objproperty ($dbq->fields) VALUES ($dbq->insert)";
     }
     else {
       $dbq->params['id'] = $id;
-      $dbquery = "UPDATE objproperty SET $dbq->update WHERE id=:id AND objtype=:objtype RETURNING id";
+      $dbquery = "UPDATE objproperty SET $dbq->update WHERE id=:id AND objtype=:objtype";
     }
-    return $this->db->query($dbquery, $dbq->params);
+    $this->db->query($dbquery, $dbq->params);
+    return [ 'id'=>$id ];
   }
 
   /******************************************************************
