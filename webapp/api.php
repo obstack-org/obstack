@@ -32,6 +32,11 @@ if (in_array(strtolower($bcnf->get('debug')), ['yes', 'true'])) {
   $debug = true;
 }
 
+// Session
+$sessionname = "obstack_session";
+session_name($sessionname);
+session_start();
+
 // Database connection
 require_once 'inc/class_db.php';
 $db = new db($bcnf->get('db_connectionstring'), $bcnf->get('db_persistent'));
@@ -50,8 +55,8 @@ if (
 ) {
   $api->http_error(428, 'Error in configuration.<br><br>Please check the <a href="https://www.obstack.org/docs/?doc=general-configuration#upgrade-nodes" target=_blank>Upgrade nodes</a>');
 }
-$dbfunc = ($db->driver() == 'mysql') ? 'database()' : 'CURRENT_SCHEMA()';
-if(count($db->query("SELECT 1 FROM information_schema.tables WHERE table_schema = $dbfunc AND table_name = 'setting_decimal'", [])) == 0){
+$dbfunc = ($db->driver2()->mysql) ? 'database()' : 'CURRENT_SCHEMA()';
+if(count($db->query_buffered('stdec',"SELECT 1 FROM information_schema.tables WHERE table_schema = $dbfunc AND table_name = 'setting_decimal'")) == 0){
   $api->http_error(428, 'Database check failed, contact your system administrator.<br><br>(Reference: <a href="https://www.obstack.org/docs/?doc=general-configuration#database-schema" target=_blank>Database schema</a>)');
 }
 
@@ -62,13 +67,21 @@ if (!$acnf->verify()) {
   $api->http_error(428, 'Encryption check failed, contact your system administrator.<br><br>(Reference: <a href="https://www.obstack.org/docs/?doc=general-configuration" target=_blank>General configuration</a>)');
 }
 
+// Global log function
+$oblog = [];
+function oblog($data) {
+  global $oblog;
+  $oblog[] = $data;
+  header("ObStack-Log: ".json_encode($oblog));
+}
+
 /******************************************************************
  * API Routes
  ******************************************************************/
 
 // Session Manager
 require_once 'inc/class_sessman.php';
-$sessman = new sessman($db, "obstack_session");
+$sessman = new sessman($db, $sessionname);
 
 // SA shorthand
 function checkSA() {

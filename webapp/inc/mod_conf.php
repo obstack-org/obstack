@@ -83,7 +83,7 @@ class mod_conf {
       }
       $hky = [ null, null, null ];
       $sky = $this->options['sc_encryptionkey'];
-      foreach ($this->db->query('SELECT name, value FROM setting_varchar WHERE name LIKE \'hky_ckey%\' ORDER BY name', []) as $dbrow) {
+      foreach ($this->db->query_buffered('sthky', 'SELECT name, value FROM setting_varchar WHERE name LIKE \'hky_ckey%\' ORDER BY name', []) as $dbrow) {
         $hky[intval(mb_substr($dbrow->name,-1))] = $dbrow->value;
       }
       if ($hky[1] == null) {
@@ -220,6 +220,9 @@ class mod_conf {
           $xlist = [];
           $dbqin = $this->list2in($mlist[$table]);
           $dbqvalue = ($table == 'decimal') ? 'round(value)::text as value' : 'value';
+          if ($this->db->driver() == 'mysql') {
+            $dbqvalue = str_replace('::text', '', $dbquery);
+          }
           foreach($this->db->query("SELECT id, name, $dbqvalue FROM setting_$table WHERE name IN ($dbqin->marks)", $dbqin->params) as $dbrow) {
             $xlist[$dbrow->name] = $dbrow->value;
           }
