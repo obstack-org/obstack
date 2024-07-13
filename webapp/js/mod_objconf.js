@@ -404,7 +404,7 @@ mod['objconf'] = {
             if (propform_data != null) {
               propform_data = $.extend(propform_data, {
                 id: (newrec) ? null : rdata.id,
-                required:(propform_data.type=="1"),
+                required:(propform_data.reqr=="1"),
                 type_objtype:(propform_data.type=="3")?propform_data.tsrc:null,
                 type_valuemap:(propform_data.type=="4")?propform_data.tsrc:null,
                 tbl_visible:(propform_data.table<9),
@@ -430,7 +430,6 @@ mod['objconf'] = {
       });
 
       let popup_html = popup.html();
-      console.log(basebq);
       if (basebq == null) {
         popup_html.find('select[name=type]').find('option[value=12]').attr('disabled','disabled').append(' - [UNAVAILABLE]');
       }

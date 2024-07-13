@@ -22,14 +22,14 @@ class mod_acl {
    ******************************************************************/
 
   public function group_list($groupid) {
+    $dbqcols = ($this->db->driver2()->mysql)
+      ? "COALESCE(`read`, 0) AS `read`, COALESCE(`create`, 0) AS `create`, COALESCE(`update`, 0) AS `update`, COALESCE(`delete`, 0) AS `delete`"
+      : "CAST(read AS int) AS read, CAST(\"create\" AS int) AS \"create\", CAST(update AS int) AS update, CAST(delete AS int) AS delete";
     $dbquery = "
       SELECT
         ot.id,
         ot.name,
-        CASE ota.read WHEN true THEN true ELSE false END AS read,
-        CASE ota.create WHEN true THEN true ELSE false END AS create,
-        CASE ota.update WHEN true THEN true ELSE false END AS update,
-        CASE ota.delete WHEN true THEN true ELSE false END AS delete
+        $dbqcols
       FROM objtype AS ot
       LEFT JOIN (
         SELECT
@@ -77,29 +77,22 @@ class mod_acl {
    ******************************************************************/
 
   public function objtype_list($otid) {
+    $dbquery = null;
     if (strlen($otid) < 36) {
-      $dbquery = "
-        SELECT
-          g.id,
-          g.groupname,
-          false AS read,
-          false AS create,
-          false AS update,
-          false AS delete
-        FROM sessman_group AS g
-        ORDER BY groupname
-      ";
-      return $this->db->query($dbquery, []);
+      $dbqcols = ($this->db->driver2()->mysql)
+        ? "'0' AS `read`, '0' AS `create`, '0' as `update`, '0' as `delete`"
+        : "'0' AS read, '0' AS \"create\", '0' as update, '0' as delete";
+      $dbquery = "SELECT id, groupname $dbqcols FROM sessman_group ORDER BY groupname";
     }
     else {
+      $dbqcols = ($this->db->driver2()->mysql)
+        ? "COALESCE(`read`, 0) AS `read`, COALESCE(`create`, 0) AS `create`, COALESCE(`update`, 0) AS `update`, COALESCE(`delete`, 0) AS `delete`"
+        : "CAST(read AS int) AS read, CAST(\"create\" AS int) AS \"create\", CAST(update AS int) AS update, CAST(delete AS int) AS delete";
       $dbquery = "
         SELECT
           g.id,
           g.groupname,
-          CASE ota.read WHEN true THEN true ELSE false END AS read,
-          CASE ota.create WHEN true THEN true ELSE false END AS create,
-          CASE ota.update WHEN true THEN true ELSE false END AS update,
-          CASE ota.delete WHEN true THEN true ELSE false END AS delete
+          $dbqcols
         FROM sessman_group AS g
         LEFT JOIN (
           SELECT
@@ -109,8 +102,19 @@ class mod_acl {
         ) AS ota ON ota.smgroup = g.id
         ORDER BY g.groupname
       ";
-      return $this->db->query($dbquery, ['otid'=>$otid]);
     }
+    $result = [];
+    foreach($this->db->query($dbquery, ['otid'=>$otid]) as $dbrow) {
+      $result[] = [
+        'id'=>$dbrow->id,
+        'groupname'=>$dbrow->groupname,
+        'read'=>($dbrow->read == 1),
+        'create'=>($dbrow->create == 1),
+        'update'=>($dbrow->update == 1),
+        'delete'=>($dbrow->delete == 1)
+      ];
+    }
+    return $result;
   }
 
   /******************************************************************

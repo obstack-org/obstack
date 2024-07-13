@@ -64,24 +64,31 @@ class mod_objtype {
   public function acl($otid) {
     if (!in_array($otid, $this->acl)) {
       if ($_SESSION['sessman']['sa']) {
-        if (count($this->db->query('SELECT id FROM objtype o WHERE id = :otid', [ 'otid'=>$otid ]))>0) {
+        if (count($this->db->select('id', 'objtype',  [ 'id'=>$otid ]))>0) {
           $this->acl[$otid] = (object)[ 'read'=>true, 'create'=>true, 'update'=>true, 'delete'=>true ];
         }
       }
       else {
         $groups = str_replace('"','\'',substr(json_encode($_SESSION['sessman']['groups']),1,-1));
         if (strlen($groups) > 0) {
+          $dbqcols = "CAST(read AS int) AS read, CAST(\"create\" AS int) AS \"create\", CAST(update AS int) AS update, CAST(delete AS int) AS delete";
+          if ($this->db->driver2()->mysql) {
+            $dbqcols = "COALESCE(`read`, 0) AS `read`, COALESCE(`create`, 0) AS `create`, COALESCE(`update`, 0) AS `update`, COALESCE(`delete`, 0) AS `delete`";
+          }
           $dbquery = "
             SELECT
-              CAST(MAX(CAST(read AS int)) AS bool) AS read,
-              CAST(MAX(CAST(\"create\" AS int)) AS bool) AS \"create\",
-              CAST(MAX(CAST(update AS int)) AS bool) AS update,
-              CAST(MAX(CAST(delete AS int)) AS bool) AS delete
+              $dbqcols
             FROM objtype_acl AS ota
             WHERE ota.smgroup IN ($groups)
             AND ota.objtype = :otid
           ";
-          $this->acl[$otid] = $this->db->query($dbquery, [':otid'=>$otid])[0];
+          $result = $this->db->query($dbquery, [':otid'=>$otid])[0];
+          $this->acl[$otid] = (object)[
+            'read'=>($result->read == 1),
+            'create'=>($result->create == 1),
+            'update'=>($result->update == 1),
+            'delete'=>($result->delete == 1)
+          ];
         }
       }
     }
@@ -93,7 +100,7 @@ class mod_objtype {
    ******************************************************************/
   public function log($otid) {
     if (!in_array($otid, $this->log)) {
-      $this->log[$otid] = $this->db->query('SELECT log FROM objtype WHERE id=:otid', [':otid'=>$otid])[0]->log;
+      $this->log[$otid] = $this->db->select('log', 'objtype', [':id'=>$otid]);
     }
     return $this->log[$otid];
   }
@@ -148,7 +155,7 @@ class mod_objtype {
       GROUP BY ot.id
     ";
     $dbresult = $this->db->query($dbquery, $dbq->params);
-    if ($this->db->driver() == 'mysql') {
+    if ($this->db->driver() == 'mysql' && in_array($this->format, [ 'expand', 'full', 'aggr' ])) {
       foreach($dbresult as $idx=>$obj) {
         $dbresult[$idx]->log = ($dbresult[$idx]->log == 1);
       }
@@ -213,44 +220,37 @@ class mod_objtype {
   public function save($id, $data) {
     // Prepare
     $log = null;
-    $dbq = (object)[ 'fields'=>[], 'update'=>[], 'params'=>[] ];
+    $dbq = (object)[ 'params'=>[] ];
     foreach ([ 'name', 'log', 'short', 'map' ] as $field) {
       if (isset($data[$field])) {
-        $dbq->fields[] = $field;
-        $dbq->update[] = "$field=:$field";
         $dbq->params[":$field"] = $data[$field];
       }
     }
     if (isset($data['log'])) {
       $log = ($data['log'] || $data['log'] == 'true' || $data['log'] == '1') ? true : false;
-      if ($this->db->driver() == 'mysql') {
+      if ($this->db->driver2()->mysql) {
         $dbq->params[':log'] = ($log) ? 1 : 0;
       }
       else {
         $dbq->params[':log'] = ($log) ? 'true' : 'false';
       }
     }
-    if (!isset($data['map']) && array_key_exists('map', $data)) {
-      $dbq->update[] = "$field=NULL";
-    }
-    $dbq->fields = implode(', ', $dbq->fields);
-    $dbq->update = implode(', ', $dbq->update);
 
     // ObjType
     if ($id == null) {
-      $id = $this->db->query("INSERT INTO objtype ($dbq->fields) VALUES (".implode(', ', array_keys($dbq->params)).") RETURNING id", $dbq->params)[0]->id;
+      $id = $this->db->insert('objtype', $dbq->params);
       $result = [ 'id'=>$id ];
     }
     else {
-      $dbq->params[':id'] = $id;
       $chlog = ($log !== null && $log != $this->log($id));
-      $result = $this->db->query("UPDATE objtype SET $dbq->update WHERE id=:id", $dbq->params);
+      $this->db->update('objtype', $dbq->params, [':id'=>$id]);
+      $result = [];
       // Object logs
       if ($chlog) {
         $logmsg = ($log) ? 'enabled' : 'disabled';
         $dbc = 0;
         $dbq = (object)[ 'values'=>[], 'params'=>[ ':username'=>$_SESSION['sessman']['username'], ':detail'=>"Logging $logmsg" ] ];
-        foreach ($this->db->query('SELECT id FROM obj WHERE objtype=:id', [':id'=>$id]) as $dbrow) {
+        foreach ($this->db->select('id','obj', [':id'=>$id]) as $dbrow) {
           $dbq->values[] = "(:obj$dbc, now(), :username, 10, :detail)";
           $dbq->params[":obj$dbc"] = $dbrow->id;
           $dbc++;
@@ -264,7 +264,7 @@ class mod_objtype {
       // Current properties
       $xlist = [];
       $proplist = [];
-      foreach ($this->db->query('SELECT id FROM objproperty WHERE objtype=:id ORDER BY prio', [':id'=>$id]) as $dbrec) {
+      foreach ($this->db->select('id','objproperty', [':objtype'=>$id], 'prio') as $dbrec) {
         $xlist[] = $dbrec->id;
       }
       // New properties
@@ -307,16 +307,16 @@ class mod_objtype {
    * Delete object type
    ******************************************************************/
   public function delete($otid) {
-    $dbq = (object)[ 'params'=>[':otid'=>$otid] ];
+    $dbq = (object)[ 'params'=>[':objtype'=>$otid] ];
     foreach ($this->valuetype as $type) {
-      $this->db->query("DELETE FROM value_$type WHERE objproperty IN (SELECT id FROM objproperty WHERE objtype=:otid)", $dbq->params);
+      $this->db->query("DELETE FROM value_$type WHERE objproperty IN (SELECT id FROM objproperty WHERE objtype=:objtype)", $dbq->params);
     }
-    $this->db->query('DELETE FROM obj WHERE objtype=:otid', $dbq->params);
-    $this->db->query('DELETE FROM objproperty WHERE objtype=:otid', $dbq->params);
-    $this->db->query('DELETE FROM objtype_acl WHERE objtype=:otid', $dbq->params);
+    $this->db->delete('obj', $dbq->params);
+    $this->db->delete('objproperty', $dbq->params);
+    $this->db->delete('objtype_acl', $dbq->params);
     $this->db->query('DELETE FROM objtype_objtype WHERE objtype=:otid or objtype_ref=:otid', $dbq->params);
-    $count = count($this->db->query('DELETE FROM objtype WHERE id=:otid RETURNING id', $dbq->params));
-    return $count > 0;
+    $this->db->delete('objtype', [':id'=>$otid]);
+    return true;
   }
 
   /******************************************************************
@@ -371,42 +371,32 @@ class mod_objtype {
     if ($id == null && $data['id'] != null) {
       $id = $data['id'];
     }
-    $dbq = (object)[ 'fields'=>[ 'objtype' ], 'insert'=>[ ':objtype' ], 'update'=>[], 'params'=>[ ':objtype'=>$otid ] ];
     $fields = [ 'name', 'type', 'prio', 'type_objtype', 'type_valuemap', 'required', 'frm_readonly', 'frm_visible', 'tbl_visible', 'tbl_orderable' ];
+    $dbqparams = [ ':objtype'=>$otid ];
     foreach ($fields as $field) {
       if (isset($data[$field])) {
-        $dbq->fields[] = $field;
-        $dbq->insert[] = ":$field";
-        $dbq->update[] = "$field=:$field";
-        if ($this->db->driver() == 'mysql') {
-          $dbq->params[":$field"] = (is_bool($data[$field])) ? (($data[$field] || $data[$field] == '1') ? 1 : 0) : $data[$field];
+        if ($this->db->driver2()->mysql) {
+          $dbqparams[":$field"] = (is_bool($data[$field])) ? (($data[$field] || $data[$field] == '1') ? 1 : 0) : $data[$field];
         }
         else {
-          $dbq->params[":$field"] = (is_bool($data[$field])) ? (($data[$field] || $data[$field] == '1') ? 'true' : 'false') : $data[$field];
+          $dbqparams[":$field"] = (is_bool($data[$field])) ? (($data[$field] || $data[$field] == '1') ? 'true' : 'false') : $data[$field];
         }
       }
     }
-    $dbq->fields = implode(',', $dbq->fields);
-    $dbq->insert = implode(',', $dbq->insert);
-    $dbq->update = implode(',', $dbq->update);
-
     if ($id == null) {
-      $dbquery = "INSERT INTO objproperty ($dbq->fields) VALUES ($dbq->insert)";
+      return $this->db->insert('objproperty', $dbqparams);
     }
     else {
-      $dbq->params['id'] = $id;
-      $dbquery = "UPDATE objproperty SET $dbq->update WHERE id=:id AND objtype=:objtype";
+      return $this->db->update('objproperty', $dbqparams, [ ':id'=>$id ]);
     }
-    $this->db->query($dbquery, $dbq->params);
-    return [ 'id'=>$id ];
   }
 
   /******************************************************************
    * Delete object type property
    ******************************************************************/
   public function property_delete($otid, $id) {
-    $count = count($this->db->query('DELETE FROM objproperty WHERE objtype=:otid AND id=:id', [':otid'=>$otid, ':id'=>$id]));
-    return $count > 0;
+    $this->db->delete('objproperty', [':objtype'=>$otid, ':id'=>$id]);
+    return true;
   }
 
 }
