@@ -302,6 +302,7 @@ mod['objconf'] = {
    *   ptable   : Properties table (second tab)
    ******************************************************************/
   save: function(id, objtype_config, proplist, rellist, acclist) {
+    content.append(loader.removeClass('fadein').addClass('fadein'));
 
     // Loader
     content.append(loader.removeClass('fadein').addClass('fadein'));

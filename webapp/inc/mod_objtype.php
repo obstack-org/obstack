@@ -64,17 +64,16 @@ class mod_objtype {
   public function acl($otid) {
     if (!in_array($otid, $this->acl)) {
       if ($_SESSION['sessman']['sa']) {
-        if (count($this->db->select('id', 'objtype',  [ 'id'=>$otid ]))>0) {
+        if (count($this->db->select('id', 'objtype',  [ ':id'=>$otid ]))>0) {
           $this->acl[$otid] = (object)[ 'read'=>true, 'create'=>true, 'update'=>true, 'delete'=>true ];
         }
       }
       else {
         $groups = str_replace('"','\'',substr(json_encode($_SESSION['sessman']['groups']),1,-1));
         if (strlen($groups) > 0) {
-          $dbqcols = "CAST(read AS int) AS read, CAST(\"create\" AS int) AS \"create\", CAST(update AS int) AS update, CAST(delete AS int) AS delete";
-          if ($this->db->driver2()->mysql) {
-            $dbqcols = "COALESCE(`read`, 0) AS `read`, COALESCE(`create`, 0) AS `create`, COALESCE(`update`, 0) AS `update`, COALESCE(`delete`, 0) AS `delete`";
-          }
+          $dbqcols = ($this->db->driver2()->mysql)
+            ? 'COALESCE(`read`, 0) AS `read`, COALESCE(`create`, 0) AS `create`, COALESCE(`update`, 0) AS `update`, COALESCE(`delete`, 0) AS `delete`'
+            : 'CAST(read AS int) AS read, CAST(\"create\" AS int) AS \"create\", CAST(update AS int) AS update, CAST(delete AS int) AS delete';
           $dbquery = "
             SELECT
               $dbqcols
@@ -187,11 +186,12 @@ class mod_objtype {
         $dbrquery = '
           SELECT id FROM objtype o
           LEFT JOIN objtype_objtype oo ON oo.objtype = o.id OR oo.objtype_ref = o.id
-          WHERE o.id != :otid
-          AND (oo.objtype = :otid OR oo.objtype_ref = :otid)
-          OR (oo.objtype = :otid AND oo.objtype_ref = :otid)
+          WHERE o.id != :otid0
+          AND (oo.objtype = :otid1 OR oo.objtype_ref = :otid2)
+          OR (oo.objtype = :otid3 AND oo.objtype_ref = :otid4)
         ';
-        foreach ($this->db->query($dbrquery, [ ':otid'=>$ot->id ]) as $rel) {
+        $dbrparams = [ ':otid0'=>$ot->id, ':otid1'=>$ot->id, ':otid2'=>$ot->id, ':otid3'=>$ot->id, ':otid4'=>$ot->id ];
+        foreach ($this->db->query($dbrquery, $dbrparams) as $rel) {
           $relation_list[] = $rel->id;
         }
         // Format result
@@ -228,12 +228,9 @@ class mod_objtype {
     }
     if (isset($data['log'])) {
       $log = ($data['log'] || $data['log'] == 'true' || $data['log'] == '1') ? true : false;
-      if ($this->db->driver2()->mysql) {
-        $dbq->params[':log'] = ($log) ? 1 : 0;
-      }
-      else {
-        $dbq->params[':log'] = ($log) ? 'true' : 'false';
-      }
+      $dbq->params[':log'] = ($this->db->driver2()->mysql)
+        ? (($log) ? 1 : 0)
+        : (($log) ? 'true' : 'false');
     }
 
     // ObjType
@@ -250,7 +247,7 @@ class mod_objtype {
         $logmsg = ($log) ? 'enabled' : 'disabled';
         $dbc = 0;
         $dbq = (object)[ 'values'=>[], 'params'=>[ ':username'=>$_SESSION['sessman']['username'], ':detail'=>"Logging $logmsg" ] ];
-        foreach ($this->db->select('id','obj', [':id'=>$id]) as $dbrow) {
+        foreach ($this->db->select('id','objtype', [':id'=>$id]) as $dbrow) {
           $dbq->values[] = "(:obj$dbc, now(), :username, 10, :detail)";
           $dbq->params[":obj$dbc"] = $dbrow->id;
           $dbc++;
@@ -271,7 +268,7 @@ class mod_objtype {
       $prio = 1;
       foreach ($data['property'] as $prop) {
         $prop['prio'] = $prio;
-        $tmpid = $this->property_save($id, $prop['id'], $prop)[0]->id;
+        $tmpid = $this->property_save($id, $prop['id'], $prop);
         if ($prop['id'] == null) {
           $prop['id'] = $tmpid;
         }
@@ -294,7 +291,7 @@ class mod_objtype {
         $dbc++;
       }
 
-      $this->db->query("DELETE FROM objtype_objtype WHERE objtype=:otid OR objtype_ref=:otid", [ ':otid'=>$id ]);
+      $this->db->query("DELETE FROM objtype_objtype WHERE objtype=:otid0 OR objtype_ref=:otid1", [ ':otid0'=>$id, ':otid1'=>$id ]);
       if (count($dbq->insert) > 0) {
         $dbq->insert = implode(',', $dbq->insert);
         $this->db->query("INSERT INTO objtype_objtype VALUES $dbq->insert", $dbq->params);
@@ -375,12 +372,9 @@ class mod_objtype {
     $dbqparams = [ ':objtype'=>$otid ];
     foreach ($fields as $field) {
       if (isset($data[$field])) {
-        if ($this->db->driver2()->mysql) {
-          $dbqparams[":$field"] = (is_bool($data[$field])) ? (($data[$field] || $data[$field] == '1') ? 1 : 0) : $data[$field];
-        }
-        else {
-          $dbqparams[":$field"] = (is_bool($data[$field])) ? (($data[$field] || $data[$field] == '1') ? 'true' : 'false') : $data[$field];
-        }
+        $dbqparams[":$field"] = ($this->db->driver2()->mysql)
+          ? ((is_bool($data[$field])) ? (($data[$field] || $data[$field] == '1') ? 1 : 0) : $data[$field])
+          : ((is_bool($data[$field])) ? (($data[$field] || $data[$field] == '1') ? 'true' : 'false') : $data[$field]);
       }
     }
     if ($id == null) {

@@ -126,13 +126,15 @@ class mod_conf {
     if ($sa && $this->display == 'edit') {
       $dbqset = array_merge($dbqset, $this->settings_admin_edit);
     }
-    $dbqin = $this->list2in($dbqset);
+    $dbqinv = $this->list2in($dbqset, 'v');
+    $dbqind = $this->list2in($dbqset, 'd');
+    $dbqround = ($this->db->driver2()->mysql) ? 'round(value)' : 'round(value)::text';
     $dbquery = "
-      SELECT id, name, value FROM setting_varchar WHERE name IN ($dbqin->marks)
+      SELECT id, name, value FROM setting_varchar WHERE name IN ($dbqinv->marks)
       UNION
-      SELECT id, name, round(value)::text AS value FROM setting_decimal WHERE name IN ($dbqin->marks) ORDER BY name
+      SELECT id, name, $dbqround AS value FROM setting_decimal WHERE name IN ($dbqind->marks) ORDER BY name
     ";
-    $result['settings'] = $this->db->query($dbquery, $dbqin->params);
+    $result['settings'] = $this->db->query($dbquery, array_merge($dbqinv->params,$dbqind->params));
     return $result;
   }
 

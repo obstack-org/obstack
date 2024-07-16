@@ -126,24 +126,33 @@ class mod_obj {
 
     // Retrieve objects
     if (!($otid == null && $id == null) && strlen($dbq->filter) > 0) {
-      // Retrieve data
-      $dbquery = "
-        SELECT
-          o.id AS id,
-          ot.id AS otid,
-          ot.short AS short,
-          op.id AS property,
-          $dbqlabel
-          op.type AS type,
-          CASE op.type
-            WHEN 1 THEN vv.value
+      // Format per type
+      $type_case = ($this->db->driver2()->mysql)
+        ? " WHEN 1 THEN vv.value
+            WHEN 2 THEN rtrim(CAST(vd.value AS char))
+            WHEN 3 THEN vu.value
+            WHEN 4 THEN vu.value
+            WHEN 5 THEN CAST(vd.value AS char)
+            WHEN 6 THEN vx.value
+            WHEN 8 THEN DATE_FORMAT(vt.value,'%Y-%m-%d')
+            WHEN 9 THEN DATE_FORMAT(vt.value,'%Y-%m-%d %H:%i')"
+        : " WHEN 1 THEN vv.value
             WHEN 2 THEN rtrim(TO_CHAR(vd.value, 'FM99999999.99999999'),'.')
             WHEN 3 THEN vu.value::varchar
             WHEN 4 THEN vu.value::varchar
             WHEN 5 THEN TO_CHAR(vd.value,'FM9')
             WHEN 6 THEN vx.value
             WHEN 8 THEN TO_CHAR(vt.value,'YYYY-MM-DD')
-            WHEN 9 THEN TO_CHAR(vt.value,'YYYY-MM-DD HH24:MI')
+            WHEN 9 THEN TO_CHAR(vt.value,'YYYY-MM-DD HH24:MI')";
+      // Retrieve data
+      $dbquery = "
+        SELECT
+          o.id AS id,
+          ot.id AS otid,
+          ot.short AS short,
+          op.id AS property, $dbqlabel
+          op.type AS type,
+          CASE op.type $type_case
             WHEN 11 THEN '•••••'
             WHEN 12 THEN '•••••'
           END AS value
@@ -500,6 +509,7 @@ class mod_obj {
           unset($vlist[9][$i]);
         }
         else {
+          $vlist[9][$i]->value = substr_replace(mb_substr($vlist[9][$i]->value,0,16),'T',10,1);
           $data[$vlist[9][$i]->property] = substr_replace(mb_substr($data[$vlist[9][$i]->property],0,16),'T',10,1);
         }
       }
@@ -508,7 +518,7 @@ class mod_obj {
     // Save Object
     $chlog = true;
     if ($id == null) {
-      $id = $this->db->query('INSERT INTO obj (objtype) VALUES (:otid) RETURNING id', [':otid'=>$otid])[0]->id;
+      $id = $this->db->insert('obj', [ ':objtype'=>$otid]);
       $this->log_save($otid, $id, 1, 'Object created');
       $chlog = false;
     }
@@ -520,7 +530,7 @@ class mod_obj {
       $dbq->params[":obj"] = $id;
       // Prepare
       foreach ($property as $value) {
-        if ($data[$value->property] != null && in_array($value->property, array_keys($data)) && $value->value != $data[$value->property]) {
+        if ($data[$value->property] !== null && in_array($value->property, array_keys($data)) && $value->value != $data[$value->property]) {
           $dbq->filter[] = "(:obj,:objproperty$dbc,:value$dbc)";
           $dbq->params[":objproperty$dbc"] = $value->property;
           $dbq->params[":value$dbc"] = $data[$value->property];
@@ -532,11 +542,13 @@ class mod_obj {
       if ($dbc > 0) {
         $datatype = $this->datatype[$type];
         $dbq->filter = implode(',', $dbq->filter);
+        $dbqconflict = ($this->db->driver2()->mysql)
+          ? "ON DUPLICATE KEY UPDATE value = VALUES(value)"
+          : "ON CONFLICT (obj, objproperty) DO UPDATE SET value = excluded.value";
         $dbquery = "
           INSERT INTO value_$datatype (obj, objproperty, value)
           VALUES $dbq->filter
-          ON CONFLICT (obj, objproperty) DO UPDATE SET
-            value = excluded.value
+          $dbqconflict
         ";
         $this->db->query($dbquery, $dbq->params);
       }
@@ -552,7 +564,7 @@ class mod_obj {
       $xlist = [];
       $otlist = [];
       // Current relations with log state
-      foreach ($this->db->query('SELECT obj, obj_ref as ref FROM obj_obj WHERE obj=:obj OR obj_ref=:obj', [':obj'=>$id]) as $rec) {
+      foreach ($this->db->query('SELECT obj, obj_ref as ref FROM obj_obj WHERE obj=:obj OR obj_ref=:objr', [':obj'=>$id, ':objr'=>$id]) as $rec) {
         if (!isset($xlist[$rec->obj]) && $rec->obj != $id) { $xlist[] = $rec->obj; }
         elseif (!isset($xlist[$rec->ref]) && $rec->ref != $id) { $xlist[] = $rec->ref; }
       }
@@ -688,10 +700,10 @@ class mod_obj {
           'LEFT JOIN objtype_objtype oo ON oo.objtype = ot.id OR oo.objtype_ref = ot.id'
         ],
         'filter'=>[
-          'ot.id != :otid',
-          '((oo.objtype = :otid OR oo.objtype_ref = :otid) OR (oo.objtype = :otid AND oo.objtype_ref = :otid))'
+          'ot.id != :otid0',
+          '((oo.objtype = :otid1 OR oo.objtype_ref = :otid2) OR (oo.objtype = :otid3 AND oo.objtype_ref = :otid4))'
         ],
-        'params'=>[ ':otid'=>$otid ]
+        'params'=>[ ':otid0'=>$otid, ':otid1'=>$otid, ':otid2'=>$otid, ':otid3'=>$otid, ':otid4'=>$otid ]
       ];
       if (!$_SESSION['sessman']['sa']) {
         $dbqin = $this->list2in($_SESSION['sessman']['groups'], 'smg');
@@ -734,10 +746,10 @@ class mod_obj {
         LEFT JOIN obj r ON r.id = oo.obj_ref
         LEFT JOIN objtype oot ON oot.id = o.objtype
         LEFT JOIN objtype rot ON rot.id = r.objtype
-        WHERE (o.objtype = :otid AND o.id = :id)
-        OR (r.objtype = :otid AND r.id = :id)
+        WHERE (o.objtype = :ootid AND o.id = :oid)
+        OR (r.objtype = :rotid AND r.id = :rid)
       ";
-      foreach ($this->db->query($dbquery, [ 'otid'=>$otid, 'id'=>$id ]) as $rel) {
+      foreach ($this->db->query($dbquery, [ ':ootid'=>$otid, ':rotid'=>$otid, ':oid'=>$id, ':rid'=>$id ]) as $rel) {
         if ($rel->obj == $id) {
           $xlist[$rel->obj_ref] = (object)[
             'id'=>$rel->obj_ref,
@@ -799,9 +811,8 @@ class mod_obj {
       $dbc++;
     }
     $dbq->filter = implode(',', $dbq->filter);
-    $count = count($this->db->query("INSERT INTO obj_obj VALUES $dbq->filter RETURNING *", $dbq->params));
-
-    return $count > 0;
+    $this->db->query("INSERT INTO obj_obj VALUES $dbq->filter", $dbq->params);
+    return [];
   }
 
   /******************************************************************

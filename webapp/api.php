@@ -1,7 +1,7 @@
 <?php
 // PHP configuration
 date_default_timezone_set('UTC');
-error_reporting(E_ALL ^ E_NOTICE);
+error_reporting(E_ALL);
 
 // Prepare API response
 require_once 'inc/class_sAPI.php';

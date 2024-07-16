@@ -507,7 +507,7 @@ class sessman {
         $id = $this->db->query("INSERT INTO sessman_user ($dbq->columns) VALUES ($dbq->values) RETURNING id", $dbq->params)[0]->id;
       }
       if (isset($data['groups'])) {
-        foreach($data['groups'] as $groupid) { $this->usergroup_save($id, [':id'=>$groupid]); }
+        foreach($data['groups'] as $groupid) { $this->usergroup_save($id, ['id'=>$groupid]); }
       }
       return [ ['id'=>$id] ];
     }
@@ -520,7 +520,7 @@ class sessman {
       }
       if (isset($data['groups'])) {
         $this->db->delete('sessman_usergroups', [':smuser'=>$id]);
-        foreach($data['groups'] as $groupid) { $this->usergroup_save($id, [':id'=>$groupid]); }
+        foreach($data['groups'] as $groupid) { $this->usergroup_save($id, ['id'=>$groupid]); }
       }
       return [[]];
     }
@@ -742,6 +742,7 @@ class sessman {
         $this->db->delete('sessman_usergroups', [':smgroup'=>$id]);
         foreach($data['users'] as $userid) { $this->groupmember_save($id, ['id'=>$userid]); }
       }
+      return [[]];
     }
   }
 
@@ -773,7 +774,17 @@ class sessman {
       LEFT JOIN sessman_user su ON su.id = sg.smuser
       WHERE sg.smgroup = :id
     ';
-    return $this->db->query($dbquery, [':id'=>$id]);
+    $result = [];
+    foreach ($this->db->query($dbquery, [':id'=>$id]) as $dbrow) {
+      $result[] = [
+        'id'=>$dbrow->id,
+        'username'=>$dbrow->username,
+        'firstname'=>$dbrow->firstname,
+        'lastname'=>$dbrow->lastname,
+        'active'=>($dbrow->active || $dbrow->active == '1') ? true : false
+      ];
+    }
+    return $result;
   }
 
   /******************************************************************
@@ -781,7 +792,7 @@ class sessman {
    ******************************************************************/
   public function groupmember_save($groupid, $data) {
     if (!$this->SA())  { return false; }
-    return $this->db->insert('sessman_usergroups', [':smuser'=>$data['id'], ':smgroup'=>$groupid]);
+    return $this->db->query('INSERT INTO sessman_usergroups VALUES (:smuser, :smgroup)', [':smuser'=>$data['id'], ':smgroup'=>$groupid]);
   }
 
 }

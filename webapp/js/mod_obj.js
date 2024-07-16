@@ -364,6 +364,7 @@ mod['obj'] = {
    *    relations   : Relations list
    ******************************************************************/
    save: function(type, id, obj_config, rellist) {
+    content.append(loader.removeClass('fadein').addClass('fadein'));
 
     // Prepare data formats
     let dtsave = obj_config;
