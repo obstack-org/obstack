@@ -126,24 +126,33 @@ class mod_obj {
 
     // Retrieve objects
     if (!($otid == null && $id == null) && strlen($dbq->filter) > 0) {
-      // Retrieve data
-      $dbquery = "
-        SELECT
-          o.id AS id,
-          ot.id AS otid,
-          ot.short AS short,
-          op.id AS property,
-          $dbqlabel
-          op.type AS type,
-          CASE op.type
-            WHEN 1 THEN vv.value
+      // Format per type
+      $type_case = ($this->db->driver2()->mysql)
+        ? " WHEN 1 THEN vv.value
+            WHEN 2 THEN rtrim(CAST(vd.value AS char))
+            WHEN 3 THEN vu.value
+            WHEN 4 THEN vu.value
+            WHEN 5 THEN CAST(vd.value AS char)
+            WHEN 6 THEN vx.value
+            WHEN 8 THEN DATE_FORMAT(vt.value,'%Y-%m-%d')
+            WHEN 9 THEN DATE_FORMAT(vt.value,'%Y-%m-%d %H:%i')"
+        : " WHEN 1 THEN vv.value
             WHEN 2 THEN rtrim(TO_CHAR(vd.value, 'FM99999999.99999999'),'.')
             WHEN 3 THEN vu.value::varchar
             WHEN 4 THEN vu.value::varchar
             WHEN 5 THEN TO_CHAR(vd.value,'FM9')
             WHEN 6 THEN vx.value
             WHEN 8 THEN TO_CHAR(vt.value,'YYYY-MM-DD')
-            WHEN 9 THEN TO_CHAR(vt.value,'YYYY-MM-DD HH24:MI')
+            WHEN 9 THEN TO_CHAR(vt.value,'YYYY-MM-DD HH24:MI')";
+      // Retrieve data
+      $dbquery = "
+        SELECT
+          o.id AS id,
+          ot.id AS otid,
+          ot.short AS short,
+          op.id AS property, $dbqlabel
+          op.type AS type,
+          CASE op.type $type_case
             WHEN 11 THEN '•••••'
             WHEN 12 THEN '•••••'
           END AS value
@@ -428,7 +437,7 @@ class mod_obj {
 
     // Generate
     $vlist = [];
-    foreach ($this->db->query('SELECT * FROM objproperty WHERE objtype=:objtype', [':objtype'=>$otid]) as $dbrow) {
+    foreach ($this->db->select('*', 'objproperty', [':objtype'=>$otid]) as $dbrow) {
       $propid = $dbrow->id;
       $tlist = (object)[ 'property'=>$propid, 'name'=>$dbrow->name, 'type_uuid'=>null, 'value'=>null ];
       if ($dbrow->type == 3) {
@@ -500,6 +509,7 @@ class mod_obj {
           unset($vlist[9][$i]);
         }
         else {
+          $vlist[9][$i]->value = substr_replace(mb_substr($vlist[9][$i]->value,0,16),'T',10,1);
           $data[$vlist[9][$i]->property] = substr_replace(mb_substr($data[$vlist[9][$i]->property],0,16),'T',10,1);
         }
       }
@@ -508,7 +518,7 @@ class mod_obj {
     // Save Object
     $chlog = true;
     if ($id == null) {
-      $id = $this->db->query('INSERT INTO obj (objtype) VALUES (:otid) RETURNING id', [':otid'=>$otid])[0]->id;
+      $id = $this->db->insert('obj', [ ':objtype'=>$otid]);
       $this->log_save($otid, $id, 1, 'Object created');
       $chlog = false;
     }
@@ -520,7 +530,7 @@ class mod_obj {
       $dbq->params[":obj"] = $id;
       // Prepare
       foreach ($property as $value) {
-        if ($data[$value->property] != null && in_array($value->property, array_keys($data)) && $value->value != $data[$value->property]) {
+        if ($data[$value->property] !== null && in_array($value->property, array_keys($data)) && $value->value != $data[$value->property]) {
           $dbq->filter[] = "(:obj,:objproperty$dbc,:value$dbc)";
           $dbq->params[":objproperty$dbc"] = $value->property;
           $dbq->params[":value$dbc"] = $data[$value->property];
@@ -532,11 +542,13 @@ class mod_obj {
       if ($dbc > 0) {
         $datatype = $this->datatype[$type];
         $dbq->filter = implode(',', $dbq->filter);
+        $dbqconflict = ($this->db->driver2()->mysql)
+          ? "ON DUPLICATE KEY UPDATE value = VALUES(value)"
+          : "ON CONFLICT (obj, objproperty) DO UPDATE SET value = excluded.value";
         $dbquery = "
           INSERT INTO value_$datatype (obj, objproperty, value)
           VALUES $dbq->filter
-          ON CONFLICT (obj, objproperty) DO UPDATE SET
-            value = excluded.value
+          $dbqconflict
         ";
         $this->db->query($dbquery, $dbq->params);
       }
@@ -552,7 +564,7 @@ class mod_obj {
       $xlist = [];
       $otlist = [];
       // Current relations with log state
-      foreach ($this->db->query('SELECT obj, obj_ref as ref FROM obj_obj WHERE obj=:obj OR obj_ref=:obj', [':obj'=>$id]) as $rec) {
+      foreach ($this->db->query('SELECT obj, obj_ref as ref FROM obj_obj WHERE obj=:obj OR obj_ref=:objr', [':obj'=>$id, ':objr'=>$id]) as $rec) {
         if (!isset($xlist[$rec->obj]) && $rec->obj != $id) { $xlist[] = $rec->obj; }
         elseif (!isset($xlist[$rec->ref]) && $rec->ref != $id) { $xlist[] = $rec->ref; }
       }
@@ -607,19 +619,19 @@ class mod_obj {
 
     // Delete values
     $tlist = [];
-    foreach ($this->db->query('SELECT * FROM objproperty WHERE objtype=:objtype', [':objtype'=>$otid]) as $dbrow) {
+    foreach ($this->db->select('*', 'objproperty', [':objtype'=>$otid]) as $dbrow) {
       if (!isset($tlist[$dbrow->type])) {
         $tlist[] = $dbrow->type;
       }
     }
     foreach ($tlist as $type) {
-      $this->db->query("DELETE FROM value_".$this->datatype[$type]." WHERE obj=:id", [':id'=>$id]);
+      $this->db->delete('value_'.$this->datatype[$type], [':obj'=>$id]);
     }
 
     // Delete relations
     $xlist = [];
     $otlist = [];
-    foreach ($this->db->query('SELECT obj, obj_ref as ref FROM obj_obj WHERE obj=:obj OR obj_ref=:obj', [':obj'=>$id]) as $rec) {
+    foreach ($this->db->query('SELECT obj, obj_ref as ref FROM obj_obj WHERE obj=:obj OR obj_ref=:objr', [':obj'=>$id, ':objr'=>$id]) as $rec) {
       if (!isset($xlist[$rec->obj]) && $rec->obj != $id) { $xlist[] = $rec->obj; }
       elseif (!isset($xlist[$rec->ref]) && $rec->ref != $id) { $xlist[] = $rec->ref; }
     }
@@ -632,11 +644,11 @@ class mod_obj {
     foreach ($xlist as $rel) {
       $this->log_save($otlist[$rel], $rel, 6, $this->list_short(null, [$rel])[$rel].' (object deleted)');
     }
-    $this->db->query('DELETE FROM obj_obj WHERE obj=:obj OR obj_ref=:obj', [':obj'=>$id]);
+    $this->db->query('DELETE FROM obj_obj WHERE obj=:obj OR obj_ref=:objr', [':obj'=>$id, ':objr'=>$id]);
 
     // Delete object
     $this->log_save($otid, $id, 9, 'Object deleted');
-    $this->db->query('DELETE FROM obj WHERE id=:id AND objtype=:objtype', [':objtype'=>$otid, ':id'=>$id]);
+    $this->db->delete('obj', [':objtype'=>$otid, ':id'=>$id]);
 
     return true;
   }
@@ -644,8 +656,7 @@ class mod_obj {
   /******************************************************************
    * List property values
    * ====================
-   * $otid / $id    UUID or array of UUID's
-   * $available     List available relations
+   * $otid / $id / $propid   UUID or array of UUID's
    ******************************************************************/
 
   public function property_list($otid, $id, $propid) {
@@ -688,11 +699,14 @@ class mod_obj {
           'LEFT JOIN objtype_objtype oo ON oo.objtype = ot.id OR oo.objtype_ref = ot.id'
         ],
         'filter'=>[
-          'ot.id != :otid',
-          '((oo.objtype = :otid OR oo.objtype_ref = :otid) OR (oo.objtype = :otid AND oo.objtype_ref = :otid))'
+          '((oo.objtype = :otid0 OR oo.objtype_ref = :otid1) OR (oo.objtype = :otid2 AND oo.objtype_ref = :otid3))'
         ],
-        'params'=>[ ':otid'=>$otid ]
+        'params'=>[ ':otid0'=>$otid, ':otid1'=>$otid, ':otid2'=>$otid, ':otid3'=>$otid ]
       ];
+      if (count($this->db->select('*', 'objtype_objtype', [ ':objtype'=>$otid, ':objtype_ref'=>$otid ])) < 1) {
+        $dbq->filter[] = 'ot.id != :otid4';
+        $dbq->params[':otid4'] = $otid;
+      }
       if (!$_SESSION['sessman']['sa']) {
         $dbqin = $this->list2in($_SESSION['sessman']['groups'], 'smg');
         if (count($dbqin->params) <= 0) {
@@ -734,10 +748,10 @@ class mod_obj {
         LEFT JOIN obj r ON r.id = oo.obj_ref
         LEFT JOIN objtype oot ON oot.id = o.objtype
         LEFT JOIN objtype rot ON rot.id = r.objtype
-        WHERE (o.objtype = :otid AND o.id = :id)
-        OR (r.objtype = :otid AND r.id = :id)
+        WHERE (o.objtype = :ootid AND o.id = :oid)
+        OR (r.objtype = :rotid AND r.id = :rid)
       ";
-      foreach ($this->db->query($dbquery, [ 'otid'=>$otid, 'id'=>$id ]) as $rel) {
+      foreach ($this->db->query($dbquery, [ ':ootid'=>$otid, ':rotid'=>$otid, ':oid'=>$id, ':rid'=>$id ]) as $rel) {
         if ($rel->obj == $id) {
           $xlist[$rel->obj_ref] = (object)[
             'id'=>$rel->obj_ref,
@@ -799,9 +813,8 @@ class mod_obj {
       $dbc++;
     }
     $dbq->filter = implode(',', $dbq->filter);
-    $count = count($this->db->query("INSERT INTO obj_obj VALUES $dbq->filter RETURNING *", $dbq->params));
-
-    return $count > 0;
+    $this->db->query("INSERT INTO obj_obj VALUES $dbq->filter", $dbq->params);
+    return [];
   }
 
   /******************************************************************
@@ -821,16 +834,15 @@ class mod_obj {
       $dbc++;
     }
     $dbq->filter = implode(' OR ', $dbq->filter);
-    $count = count($this->db->query("DELETE FROM obj_obj WHERE $dbq->filter RETURNING *", $dbq->params));
-
-    return $count > 0;
+    $this->db->query("DELETE FROM obj_obj WHERE $dbq->filter", $dbq->params);
+    return [];
   }
 
   /******************************************************************
    * Retrieve log
    ******************************************************************/
   private function log_list_full($id) {
-    $log = $this->db->query('SELECT timestamp, username, action, details FROM obj_log WHERE obj=:id ORDER BY timestamp DESC', [':id'=>$id]);
+    $log = $this->db->select('timestamp, username, action, details', 'obj_log',  [':obj'=>$id], 'timestamp DESC');
     for ($i=0; $i < count($log); $i++) {
       $log[$i]->timestamp = mb_substr($log[$i]->timestamp, 0, strrpos($log[$i]->timestamp, ':'));
     }
@@ -842,7 +854,7 @@ class mod_obj {
    ******************************************************************/
   public function log_list($otid, $id) {
     if (!$_SESSION['sessman']['sa']) { return null; }
-    if ($this->db->query('SELECT log FROM objtype WHERE id=:id', [':id'=>$otid])[0]->log) {
+    if ($this->db->select('log', 'objtype', [':id'=>$otid])[0]->log) {
       return $this->log_list_full($id);
     }
     return [];

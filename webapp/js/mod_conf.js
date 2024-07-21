@@ -181,6 +181,7 @@ mod['config'] = {
    * Save settings
    ******************************************************************/
   save: function(navlist, cfglist) {
+    content.append(loader.removeClass('fadein').addClass('fadein'));
 
     $.each(mod.config.navigation.maps, function(idx) {
       delete mod.config.navigation.maps[idx].depth;

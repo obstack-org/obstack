@@ -38,7 +38,18 @@ class mod_acl {
         WHERE smgroup = :id
       ) AS ota ON ota.objtype = ot.id
     ";
-    return $this->db->query($dbquery, ['id'=>$groupid]);
+    $result = [];
+    foreach($this->db->query($dbquery, ['id'=>$groupid]) as $dbrow) {
+      $result[] = [
+        'id'=>$dbrow->id,
+        'name'=>$dbrow->name,
+        'read'=>($dbrow->read == 1),
+        'create'=>($dbrow->create == 1),
+        'update'=>($dbrow->update == 1),
+        'delete'=>($dbrow->delete == 1)
+      ];
+    }
+    return $result;
   }
 
   /******************************************************************

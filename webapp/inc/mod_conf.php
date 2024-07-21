@@ -111,7 +111,7 @@ class mod_conf {
     $dbqset = $this->settings_public;
     if (!$public) {
       $dbqset = array_merge($dbqset, $this->settings_private);
-      $result['navigation'] = $this->db->query("SELECT id, parent, name FROM ntree", []);
+      $result['navigation'] = $this->db->select('id, parent, name','ntree');
       if ($this->options != null && isset($this->options['sc_encryptionkey'])) {
         if (!isset($_SESSION['obstack'])) { $_SESSION['obstack'] = []; }
         if (!isset($_SESSION['obstack']['basebq'])) {
@@ -126,13 +126,15 @@ class mod_conf {
     if ($sa && $this->display == 'edit') {
       $dbqset = array_merge($dbqset, $this->settings_admin_edit);
     }
-    $dbqin = $this->list2in($dbqset);
+    $dbqinv = $this->list2in($dbqset, 'v');
+    $dbqind = $this->list2in($dbqset, 'd');
+    $dbqround = ($this->db->driver2()->mysql) ? 'round(value)' : 'round(value)::text';
     $dbquery = "
-      SELECT id, name, value FROM setting_varchar WHERE name IN ($dbqin->marks)
+      SELECT id, name, value FROM setting_varchar WHERE name IN ($dbqinv->marks)
       UNION
-      SELECT id, name, round(value)::text AS value FROM setting_decimal WHERE name IN ($dbqin->marks) ORDER BY name
+      SELECT id, name, $dbqround AS value FROM setting_decimal WHERE name IN ($dbqind->marks) ORDER BY name
     ";
-    $result['settings'] = $this->db->query($dbquery, $dbqin->params);
+    $result['settings'] = $this->db->query($dbquery, array_merge($dbqinv->params,$dbqind->params));
     return $result;
   }
 
@@ -155,14 +157,14 @@ class mod_conf {
       }
 
       // Current maps
-      foreach ($this->db->query("SELECT id FROM ntree", []) as $dbrow) {
+      foreach ($this->db->select('id','ntree') as $dbrow) {
         $xlist[] = $dbrow->id;
       }
       // New map
       $tmpid = [];
       foreach ($data['navigation'] as $rec) {
         if (!isset($rec['id']) || $rec['id'] == null || strlen($rec['id'])!=36 || (strlen($rec['id'])==36 && preg_match('/^[a-f\d]{8}(-[a-f\d]{4}){4}[a-f\d]{8}$/i', $rec['id']) !== 1)) {
-          $tmpid[$rec['id']] = $this->db->query('INSERT INTO ntree (name) VALUES (:name) RETURNING id', [':name'=>$rec['name'] ])[0]->id;
+          $tmpid[$rec['id']] = $this->db->insert('ntree', [':name'=>$rec['name'] ]);
         }
       }
       // Update temp id
@@ -177,7 +179,7 @@ class mod_conf {
       // Inventory, update parents
       foreach ($data['navigation'] as $rec) {
         $mlist[] = $rec['id'];
-        $this->db->query('UPDATE ntree SET name=:name, parent=:parent WHERE id=:id', [ ':name'=>$rec['name'], ':parent'=>$rec['parent'], ':id'=>$rec['id'] ]);
+        $this->db->update('ntree', [ ':name'=>$rec['name'], ':parent'=>$rec['parent']], [ ':id'=>$rec['id'] ]);
       }
       // Determine and remove deleted maps
       $rlist = array_diff($xlist, $mlist);
@@ -220,8 +222,8 @@ class mod_conf {
           $xlist = [];
           $dbqin = $this->list2in($mlist[$table]);
           $dbqvalue = ($table == 'decimal') ? 'round(value)::text as value' : 'value';
-          if ($this->db->driver() == 'mysql') {
-            $dbqvalue = str_replace('::text', '', $dbquery);
+          if ($this->db->driver2()->mysql) {
+            $dbqvalue = str_replace('::text', '', $dbqvalue);
           }
           foreach($this->db->query("SELECT id, name, $dbqvalue FROM setting_$table WHERE name IN ($dbqin->marks)", $dbqin->params) as $dbrow) {
             $xlist[$dbrow->name] = $dbrow->value;
@@ -237,7 +239,7 @@ class mod_conf {
               $dbc++;
             }
             elseif ($xlist[$rec] != $settings[$rec]) {
-              $this->db->query("UPDATE setting_$table SET value=:value WHERE name=:name", [ ':name'=>$rec, ':value'=>$settings[$rec] ]);
+              $this->db->update("setting_$table", [ ':value'=>$settings[$rec] ], [ ':name'=>$rec ]);
             }
           }
           // Process insert

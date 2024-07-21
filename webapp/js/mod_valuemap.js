@@ -177,6 +177,7 @@
    *   vallist   : value table (second tab)
    ******************************************************************/
    save: function(id, vmform, vallist) {
+    content.append(loader.removeClass('fadein').addClass('fadein'));
 
     // Prepare data formats
     vallist = vallist.html();

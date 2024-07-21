@@ -337,7 +337,7 @@ mod['obj'] = {
         (id == null || !api_objtype.acl.delete)?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
           obAlert('<b>WARNING!:</b><br>This action wil permanently delete this object, are you sure you want to continue?',
           {
-            Ok:function(){ $.when( api('delete',`objecttype/${type}/object/${id}`) ).always(function() { mod.obj.list(type); }); },
+            Ok:function(){ content.append(loader.removeClass('fadein').addClass('fadein')); $.when( api('delete',`objecttype/${type}/object/${id}`) ).always(function() { mod.obj.list(type); }); },
             Cancel:null
           });
         }),
@@ -364,6 +364,7 @@ mod['obj'] = {
    *    relations   : Relations list
    ******************************************************************/
    save: function(type, id, obj_config, rellist) {
+    content.append(loader.removeClass('fadein').addClass('fadein'));
 
     // Prepare data formats
     let dtsave = obj_config;

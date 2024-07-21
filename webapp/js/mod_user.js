@@ -285,6 +285,7 @@ mod['user'] = {
    *    grplist   : Group membership
    ******************************************************************/
   save: function(id, usrform, grplist) {
+    content.append(loader.removeClass('fadein').addClass('fadein'));
 
     // Prepare data formats
     let dtsave = usrform;

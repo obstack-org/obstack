@@ -222,6 +222,8 @@ mod['group'] = {
    *    permissions : Permissions table
    ******************************************************************/
   save: function(id, grpform, usrlist, acclist) {
+    content.append(loader.removeClass('fadein').addClass('fadein'));
+
     // Prepare data formats
     let dtsave = grpform;
     let aclsave = [];

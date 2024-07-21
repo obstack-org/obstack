@@ -49,11 +49,9 @@ class mod_valuemap {
       $dbq->set[':name'] = $data['name'];
     }
     if (isset($data['prio'])) {
-      if ($this->db->driver2()->mysql) {
-        $dbq->set[':prio'] = ($data['prio'] || $data['prio'] == '1') ? '1' : '0';
-      } else {
-        $dbq->set[':prio'] = ($data['prio'] || $data['prio'] == '1') ? 'true' : 'false';
-      }
+      $dbq->set[':prio'] = ($this->db->driver2()->mysql)
+        ? (($data['prio'] || $data['prio'] == '1') ? '1' : '0')
+        : (($data['prio'] || $data['prio'] == '1') ? 'true' : 'false');
     }
 
     // Create

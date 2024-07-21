@@ -32,20 +32,24 @@ class db {
     $this->dbconn = null;
     $this->persistent = false;
 
+    $options = [ PDO::ATTR_EMULATE_PREPARES=>false ];
+
     try {
       if (count($args) == 1) {
         $this->dbconn = new PDO($args[0]);
       }
       elseif (count($args) == 2) {
         $this->persistent = (is_bool($args[1]) && $args[1]);
-        $this->dbconn = new PDO($args[0], null, null, [PDO::ATTR_PERSISTENT=>$this->persistent]);
+        $options[PDO::ATTR_PERSISTENT] = $this->persistent;
+        $this->dbconn = new PDO($args[0], null, null, $options);
       }
       elseif (count($args) == 3) {
         $this->dbconn = new PDO($args[0], $this->dbuser, $this->dbpass);
       }
       else {
         $this->persistent = (is_bool($args[3]) && $args[3]);
-        $this->dbconn = new PDO($args[0], $this->dbuser, $this->dbpass, [PDO::ATTR_PERSISTENT=>$this->persistent]);
+        $options[PDO::ATTR_PERSISTENT] = $this->persistent;
+        $this->dbconn = new PDO($args[0], $this->dbuser, $this->dbpass, $options);
       }
     }
     catch (PDOException $e) {
@@ -79,6 +83,7 @@ class db {
         $this->driver->mysql_legacy = true;
       }
     }
+    $this->dbconn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
   }
 
   /******************************************************************

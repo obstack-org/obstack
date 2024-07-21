@@ -13,6 +13,7 @@
   align-items:center;
   font-size: 24px;
   font-weight: bold;
+  text-shadow: 0 0 4px #555;
 }
 .titlebar-control {
   position: absolute;
@@ -21,7 +22,7 @@
 }
 .titlebar-control-img {
   margin-right: 5px;
-  width: 30px;
+  width: 33px;
   cursor: pointer;
 }
 .titlebar-dropdown {
