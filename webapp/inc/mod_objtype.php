@@ -99,7 +99,8 @@ class mod_objtype {
    ******************************************************************/
   public function log($otid) {
     if (!in_array($otid, $this->log)) {
-      $this->log[$otid] = $this->db->select('log', 'objtype', [':id'=>$otid]);
+      $dblog = $this->db->select('log', 'objtype', [':id'=>$otid])[0]->log;
+      $this->log[$otid] = ($dblog || $dblog == 1);
     }
     return $this->log[$otid];
   }
@@ -222,9 +223,7 @@ class mod_objtype {
     $log = null;
     $dbq = (object)[ 'params'=>[] ];
     foreach ([ 'name', 'log', 'short', 'map' ] as $field) {
-      if (isset($data[$field])) {
-        $dbq->params[":$field"] = $data[$field];
-      }
+      $dbq->params[":$field"] = (isset($data[$field])) ? $data[$field] : null;
     }
     if (isset($data['log'])) {
       $log = ($data['log'] || $data['log'] == 'true' || $data['log'] == '1') ? true : false;
@@ -246,10 +245,12 @@ class mod_objtype {
       if ($chlog) {
         $logmsg = ($log) ? 'enabled' : 'disabled';
         $dbc = 0;
-        $dbq = (object)[ 'values'=>[], 'params'=>[ ':username'=>$_SESSION['sessman']['username'], ':detail'=>"Logging $logmsg" ] ];
-        foreach ($this->db->select('id','objtype', [':id'=>$id]) as $dbrow) {
-          $dbq->values[] = "(:obj$dbc, now(), :username, 10, :detail)";
+        $dbq = (object)[ 'values'=>[], 'params'=>[] ];
+        foreach ($this->db->select('id','obj', [':objtype'=>$id]) as $dbrow) {
+          $dbq->values[] = "(:obj$dbc, now(), :usr$dbc, 10, :dtl$dbc)";
           $dbq->params[":obj$dbc"] = $dbrow->id;
+          $dbq->params[":usr$dbc"] = $_SESSION['sessman']['username'];
+          $dbq->params[":dtl$dbc"] = "Logging $logmsg";
           $dbc++;
         }
         $dbq->values = implode(',', $dbq->values);
