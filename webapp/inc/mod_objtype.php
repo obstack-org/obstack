@@ -70,10 +70,11 @@ class mod_objtype {
       }
       else {
         $groups = str_replace('"','\'',substr(json_encode($_SESSION['sessman']['groups']),1,-1));
+        oblog($groups);
         if (strlen($groups) > 0) {
           $dbqcols = ($this->db->driver2()->mysql)
-            ? 'COALESCE(`read`, 0) AS `read`, COALESCE(`create`, 0) AS `create`, COALESCE(`update`, 0) AS `update`, COALESCE(`delete`, 0) AS `delete`'
-            : 'CAST(read AS int) AS read, CAST(\"create\" AS int) AS \"create\", CAST(update AS int) AS update, CAST(delete AS int) AS delete';
+            ? 'MAX(COALESCE(`read`, 0)) AS `read`, MAX(COALESCE(`create`, 0)) AS `create`, MAX(COALESCE(`update`, 0)) AS `update`, MAX(COALESCE(`delete`, 0)) AS `delete`'
+            : 'MAX(CAST(ota.read AS int)) AS read, MAX(CAST(ota.create AS int)) AS create, MAX(CAST(ota.update AS int)) AS update, MAX(CAST(ota.delete AS int)) AS delete';
           $dbquery = "
             SELECT
               $dbqcols
@@ -305,14 +306,14 @@ class mod_objtype {
    * Delete object type
    ******************************************************************/
   public function delete($otid) {
-    $dbq = (object)[ 'params'=>[':objtype'=>$otid] ];
+    $dbqparams = [':objtype'=>$otid];
     foreach ($this->valuetype as $type) {
-      $this->db->query("DELETE FROM value_$type WHERE objproperty IN (SELECT id FROM objproperty WHERE objtype=:objtype)", $dbq->params);
+      $this->db->query("DELETE FROM value_$type WHERE objproperty IN (SELECT id FROM objproperty WHERE objtype=:objtype)", $dbqparams);
     }
-    $this->db->delete('obj', $dbq->params);
-    $this->db->delete('objproperty', $dbq->params);
-    $this->db->delete('objtype_acl', $dbq->params);
-    $this->db->query('DELETE FROM objtype_objtype WHERE objtype=:otid or objtype_ref=:otid', $dbq->params);
+    $this->db->delete('obj', $dbqparams);
+    $this->db->delete('objproperty', $dbqparams);
+    $this->db->delete('objtype_acl', $dbqparams);
+    $this->db->query('DELETE FROM objtype_objtype WHERE objtype=:objtype or objtype_ref=:objtype_ref', array_merge($dbqparams, [':objtype_ref'=>$otid]));
     $this->db->delete('objtype', [':id'=>$otid]);
     return true;
   }

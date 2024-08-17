@@ -89,11 +89,12 @@ class mod_acl {
 
   public function objtype_list($otid) {
     $dbquery = null;
+    $dbparams = [];
     if (strlen($otid) < 36) {
       $dbqcols = ($this->db->driver2()->mysql)
         ? "'0' AS `read`, '0' AS `create`, '0' as `update`, '0' as `delete`"
         : "'0' AS read, '0' AS \"create\", '0' as update, '0' as delete";
-      $dbquery = "SELECT id, groupname $dbqcols FROM sessman_group ORDER BY groupname";
+      $dbquery = "SELECT id, groupname, $dbqcols FROM sessman_group ORDER BY groupname";
     }
     else {
       $dbqcols = ($this->db->driver2()->mysql)
@@ -113,9 +114,10 @@ class mod_acl {
         ) AS ota ON ota.smgroup = g.id
         ORDER BY g.groupname
       ";
+      $dbparams = ['otid'=>$otid];
     }
     $result = [];
-    foreach($this->db->query($dbquery, ['otid'=>$otid]) as $dbrow) {
+    foreach($this->db->query($dbquery, $dbparams) as $dbrow) {
       $result[] = [
         'id'=>$dbrow->id,
         'groupname'=>$dbrow->groupname,
