@@ -527,11 +527,11 @@ class mod_obj {
     foreach ($vlist as $type=>$property) {
       $dbc = 0;
       $dbq = (object)[ 'filter'=>[], 'params'=>[] ];
-      $dbq->params[":obj"] = $id;
       // Prepare
       foreach ($property as $value) {
         if ($data[$value->property] !== null && in_array($value->property, array_keys($data)) && $value->value != $data[$value->property]) {
-          $dbq->filter[] = "(:obj,:objproperty$dbc,:value$dbc)";
+          $dbq->filter[] = "(:obj$dbc,:objproperty$dbc,:value$dbc)";
+          $dbq->params[":obj$dbc"] = $id;
           $dbq->params[":objproperty$dbc"] = $value->property;
           $dbq->params[":value$dbc"] = $data[$value->property];
           $vlog[] = $value->name;

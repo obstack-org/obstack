@@ -265,7 +265,7 @@ mod['user'] = {
           }, Cancel:null });
         }),
         // -- Close
-        $('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() {
+        ((id==null)||(id=='self'))?null:$('<input/>', { class:'btn', type:'submit', value:'Close' }).on('click', function() {
           change.check(function() { mod.user.close(id); });
         })
       ]
@@ -318,7 +318,14 @@ mod['user'] = {
     else {
       delete dtsave.username;
       if (!jQuery.isEmptyObject(dtsave)) {
-        $.when( api('put',`auth/user/${id}`,dtsave) ).always(function() { mod.user.close(); });
+        $.when( api('put',`auth/user/${id}`,dtsave) ).always(function() {
+          if (id=='self') {
+            setTimeout(function(){ mod.user.open('self'); }, 800);
+          }
+          else {
+            mod.user.close();
+          }
+        });
       }
       else {
         mod.user.close();
