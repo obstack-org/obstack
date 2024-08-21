@@ -22,7 +22,7 @@ class mod_acl {
    ******************************************************************/
 
   public function group_list($groupid) {
-    $dbqcols = ($this->db->driver2()->mysql)
+    $dbqcols = ($this->db->driver()->mysql)
       ? "COALESCE(`read`, 0) AS `read`, COALESCE(`create`, 0) AS `create`, COALESCE(`update`, 0) AS `update`, COALESCE(`delete`, 0) AS `delete`"
       : "CAST(read AS int) AS read, CAST(\"create\" AS int) AS \"create\", CAST(update AS int) AS update, CAST(delete AS int) AS delete";
     $dbquery = "
@@ -91,13 +91,13 @@ class mod_acl {
     $dbquery = null;
     $dbparams = [];
     if (strlen($otid) < 36) {
-      $dbqcols = ($this->db->driver2()->mysql)
+      $dbqcols = ($this->db->driver()->mysql)
         ? "'0' AS `read`, '0' AS `create`, '0' as `update`, '0' as `delete`"
         : "'0' AS read, '0' AS \"create\", '0' as update, '0' as delete";
       $dbquery = "SELECT id, groupname, $dbqcols FROM sessman_group ORDER BY groupname";
     }
     else {
-      $dbqcols = ($this->db->driver2()->mysql)
+      $dbqcols = ($this->db->driver()->mysql)
         ? "COALESCE(`read`, 0) AS `read`, COALESCE(`create`, 0) AS `create`, COALESCE(`update`, 0) AS `update`, COALESCE(`delete`, 0) AS `delete`"
         : "CAST(read AS int) AS read, CAST(\"create\" AS int) AS \"create\", CAST(update AS int) AS update, CAST(delete AS int) AS delete";
       $dbquery = "

@@ -197,6 +197,11 @@ $(document).on('click', function(event) {
       $('#titlebar-dropdown').slideUp('fast');
     }
   }
+  if (event.target.className != 'obForm-info') {
+    $('.obForm-info-popup').each(function() {
+      $(this).remove();
+    });
+  }
 });
 
 // API function

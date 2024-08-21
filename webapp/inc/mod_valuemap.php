@@ -31,7 +31,7 @@ class mod_valuemap {
     }
     else {
       $result = $this->db->select('name, prio', 'valuemap', [':id'=>$id])[0];
-      if ($this->db->driver2()->mysql) {
+      if ($this->db->driver()->mysql) {
         $result->prio = ($result->prio == 1) ? true : false;
       }
       return $result;
@@ -49,7 +49,7 @@ class mod_valuemap {
       $dbq->set[':name'] = $data['name'];
     }
     if (isset($data['prio'])) {
-      $dbq->set[':prio'] = ($this->db->driver2()->mysql)
+      $dbq->set[':prio'] = ($this->db->driver()->mysql)
         ? (($data['prio'] || $data['prio'] == '1') ? '1' : '0')
         : (($data['prio'] || $data['prio'] == '1') ? 'true' : 'false');
     }

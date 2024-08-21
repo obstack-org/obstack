@@ -18,7 +18,7 @@ class mod_objtype {
   private $format;
   private $display;
   private $acl;
-  private $log;
+  private $logstate;
   private $valuetype = [1=>'varchar', 2=>'decimal', 3=>'uuid', 4=>'timestamp', 5=>'text'];
 
   /******************************************************************
@@ -27,7 +27,7 @@ class mod_objtype {
   public function __construct($db) {
     $this->db = $db;
     $this->acl = [];
-    $this->log = [];
+    $this->logstate = [];
     if (isset($_GET['format'])) { $this->format = $_GET['format']; }
     if (isset($_GET['display'])) { $this->display = $_GET['display']; }
   }
@@ -70,9 +70,8 @@ class mod_objtype {
       }
       else {
         $groups = str_replace('"','\'',substr(json_encode($_SESSION['sessman']['groups']),1,-1));
-        oblog($groups);
         if (strlen($groups) > 0) {
-          $dbqcols = ($this->db->driver2()->mysql)
+          $dbqcols = ($this->db->driver()->mysql)
             ? 'MAX(COALESCE(`read`, 0)) AS `read`, MAX(COALESCE(`create`, 0)) AS `create`, MAX(COALESCE(`update`, 0)) AS `update`, MAX(COALESCE(`delete`, 0)) AS `delete`'
             : 'MAX(CAST(ota.read AS int)) AS read, MAX(CAST(ota.create AS int)) AS create, MAX(CAST(ota.update AS int)) AS update, MAX(CAST(ota.delete AS int)) AS delete';
           $dbquery = "
@@ -99,11 +98,11 @@ class mod_objtype {
    * Retrieve Log state
    ******************************************************************/
   public function log($otid) {
-    if (!in_array($otid, $this->log)) {
+    if (!array_key_exists($otid, $this->logstate)) {
       $dblog = $this->db->select('log', 'objtype', [':id'=>$otid])[0]->log;
-      $this->log[$otid] = ($dblog || $dblog == 1);
+      $this->logstate += [ $otid => is_bool($dblog) ? $dblog : $dblog == 1 ];
     }
-    return $this->log[$otid];
+    return $this->logstate[$otid];
   }
 
   /******************************************************************
@@ -156,7 +155,7 @@ class mod_objtype {
       GROUP BY ot.id
     ";
     $dbresult = $this->db->query($dbquery, $dbq->params);
-    if ($this->db->driver() == 'mysql' && in_array($this->format, [ 'expand', 'full', 'aggr' ])) {
+    if ($this->db->driver()->mysql && in_array($this->format, [ 'expand', 'full', 'aggr' ])) {
       foreach($dbresult as $idx=>$obj) {
         $dbresult[$idx]->log = ($dbresult[$idx]->log == 1);
       }
@@ -228,7 +227,7 @@ class mod_objtype {
     }
     if (isset($data['log'])) {
       $log = ($data['log'] || $data['log'] == 'true' || $data['log'] == '1') ? true : false;
-      $dbq->params[':log'] = ($this->db->driver2()->mysql)
+      $dbq->params[':log'] = ($this->db->driver()->mysql)
         ? (($log) ? 1 : 0)
         : (($log) ? 'true' : 'false');
     }
@@ -306,6 +305,42 @@ class mod_objtype {
    * Delete object type
    ******************************************************************/
   public function delete($otid) {
+    // Log to all relations
+    $dbquery = "
+      SELECT
+        o.id AS oid,
+        o.objtype AS oot,
+        r.id AS rid,
+        r.objtype AS rot
+      FROM obj_obj oo
+      LEFT JOIN obj o ON o.id = oo.obj
+      LEFT JOIN obj r ON r.id = oo.obj_ref
+      WHERE o.objtype = :otid0 OR r.objtype = :otid1
+    ";
+    $dbrels = $this->db->query($dbquery, [':otid0'=>$otid, ':otid1'=>$otid]);
+
+    $objids = [];
+    $relids = [];
+    foreach ($dbrels as $rec) {
+      $objids[] = ($rec->oot == $otid) ? $rec->oid : $rec->rid;
+    }
+    $mod_obj = new mod_obj($this->db, $this);
+    $snames = $mod_obj->list_short(null, array_values(array_unique($objids)));
+    $dbc = 0;
+    $dbq = (object)['values'=>[], 'params'=>[]];
+    foreach ($dbrels as $rec) {
+      $dbq->values[] = "(:obj$dbc, now(), :usr$dbc, 6, :dtl$dbc)";
+      $dbq->params[":obj$dbc"] = ($rec->oot == $otid) ? $rec->rid : $rec->oid;
+      $dbq->params[":usr$dbc"] = $_SESSION['sessman']['username'];
+      $dbq->params[":dtl$dbc"] = $snames[($rec->oot == $otid) ? $rec->oid : $rec->rid].' (object deleted)';
+      $dbc++;
+    }
+    if (count($dbq->values) > 0) {
+      $dbq->values = implode(',', $dbq->values);
+      $this->db->query("INSERT INTO obj_log VALUES $dbq->values", $dbq->params);
+    }
+
+    // Delete
     $dbqparams = [':objtype'=>$otid];
     foreach ($this->valuetype as $type) {
       $this->db->query("DELETE FROM value_$type WHERE objproperty IN (SELECT id FROM objproperty WHERE objtype=:objtype)", $dbqparams);
@@ -353,7 +388,7 @@ class mod_objtype {
       ORDER BY op.prio, op.name
     ";
     $result = $this->db->query($dbquery, $dbq->params);
-    if ($this->db->driver() == 'mysql') {
+    if ($this->db->driver()->mysql) {
       foreach($result as $idx=>$obj) {
         foreach(['required', 'frm_visible', 'frm_readonly', 'tbl_visible', 'tbl_orderable'] as $property) {
           $result[$idx]->$property = ($result[$idx]->$property == 1);
@@ -374,7 +409,7 @@ class mod_objtype {
     $dbqparams = [ ':objtype'=>$otid ];
     foreach ($fields as $field) {
       if (isset($data[$field])) {
-        $dbqparams[":$field"] = ($this->db->driver2()->mysql)
+        $dbqparams[":$field"] = ($this->db->driver()->mysql)
           ? ((is_bool($data[$field])) ? (($data[$field] || $data[$field] == '1') ? 1 : 0) : $data[$field])
           : ((is_bool($data[$field])) ? (($data[$field] || $data[$field] == '1') ? 'true' : 'false') : $data[$field]);
       }

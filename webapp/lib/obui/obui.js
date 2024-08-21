@@ -123,7 +123,17 @@ var obForm = function(fields) {
     }
     let info = null;
     if (field.info != null) {
-      info = $('<span/>', { class:'obForm-info', title:field.info }).text(' 🛈');
+      info = $('<span/>', { class:'obForm-info' }).text(' 🛈');
+      info.on('click', function(event) {
+        $('.obForm-info-popup').each(function() {
+          $(this).remove();
+        });
+        let infopopup = $('<div/>', { class:'obForm-info-popup' }).text(field.info)
+        infopopup.css({'margin-left': $(this).position().left-8});
+        $(this).append(
+          infopopup
+        );
+      });
     }
 
     var fieldelem = $('<input disabled/>').text('[undefined]');

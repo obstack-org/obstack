@@ -158,6 +158,19 @@
   vertical-align: super;
   cursor: help;
 }
+.obForm-info-popup {
+  position: fixed;
+  max-width: 400px;
+  margin-top: -5px;
+  background: #fcfcfc;
+  border-radius: 4px;
+  box-shadow: 0 0 3px 3px rgba(34,34,340, 0.3);
+  -moz-box-shadow: 0 0 3px 3px rgba(34,34,34, 0.3);
+  -webkit-box-shadow: 0 0 3px 3px rgba(34,34,34, 0.3);
+  padding: 6px 10px;
+  overflow-y: auto;
+  z-index: 180;
+}
 input.obForm-field[type=number]::-webkit-inner-spin-button,
 input.obForm-field[type=number]::-webkit-outer-spin-button
 {

@@ -163,8 +163,6 @@ mod['config'] = {
               }
             });
           }),
-          // $('<input/>', { class:'btn', type:'submit', value:'Undo All', width:100 }).on('click', function() {
-          // })
         )
       );
 

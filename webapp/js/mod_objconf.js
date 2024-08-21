@@ -272,8 +272,9 @@ mod['objconf'] = {
         }),
         // -- Delete
         (id == null)?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
-          obAlert('<b>WARNING!:</b><br>This action wil permanently delete this object type, all related objects and all related values. Are you sure you want to continue?', { Ok:function(){
+          obAlert('<b>WARNING!:</b><br>This action wil permanently delete this object type and all related objects, values and relations. Are you sure you want to continue?', { Ok:function(){
             obAlert('<b>WARNING!:</b><br>Deleting object type. This can NOT be undone, are you really really sure?', { Ok:function(){
+              content.append(loader.removeClass('fadein').addClass('fadein'));
               $.when( api('delete',`objecttype/${id}`) ).always(function() {
                 change.reset();
                 location.reload(true);

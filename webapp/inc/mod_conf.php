@@ -128,7 +128,7 @@ class mod_conf {
     }
     $dbqinv = $this->list2in($dbqset, 'v');
     $dbqind = $this->list2in($dbqset, 'd');
-    $dbqround = ($this->db->driver2()->mysql) ? 'round(value)' : 'round(value)::text';
+    $dbqround = ($this->db->driver()->mysql) ? 'round(value)' : 'round(value)::text';
     $dbquery = "
       SELECT id, name, value FROM setting_varchar WHERE name IN ($dbqinv->marks)
       UNION
@@ -222,7 +222,7 @@ class mod_conf {
           $xlist = [];
           $dbqin = $this->list2in($mlist[$table]);
           $dbqvalue = ($table == 'decimal') ? 'round(value)::text as value' : 'value';
-          if ($this->db->driver2()->mysql) {
+          if ($this->db->driver()->mysql) {
             $dbqvalue = str_replace('::text', '', $dbqvalue);
           }
           foreach($this->db->query("SELECT id, name, $dbqvalue FROM setting_$table WHERE name IN ($dbqin->marks)", $dbqin->params) as $dbrow) {
@@ -249,8 +249,6 @@ class mod_conf {
           }
         }
       }
-
-
 
     }
 
