@@ -127,7 +127,7 @@ class mod_obj {
     // Retrieve objects
     if (!($otid == null && $id == null) && strlen($dbq->filter) > 0) {
       // Format per type
-      $type_case = ($this->db->driver2()->mysql)
+      $type_case = ($this->db->driver()->mysql)
         ? " WHEN 1 THEN vv.value
             WHEN 2 THEN rtrim(CAST(vd.value AS char))
             WHEN 3 THEN vu.value
@@ -520,6 +520,7 @@ class mod_obj {
     if ($id == null) {
       $id = $this->db->insert('obj', [ ':objtype'=>$otid]);
       $this->log_save($otid, $id, 1, 'Object created');
+      usleep(100000);
       $chlog = false;
     }
     $vlog = [];
@@ -542,7 +543,7 @@ class mod_obj {
       if ($dbc > 0) {
         $datatype = $this->datatype[$type];
         $dbq->filter = implode(',', $dbq->filter);
-        $dbqconflict = ($this->db->driver2()->mysql)
+        $dbqconflict = ($this->db->driver()->mysql)
           ? "ON DUPLICATE KEY UPDATE value = VALUES(value)"
           : "ON CONFLICT (obj, objproperty) DO UPDATE SET value = excluded.value";
         $dbquery = "
@@ -617,6 +618,9 @@ class mod_obj {
       $this->plugins->apply('delete', $otid, $tmpobj);
     }
 
+    // Get short
+    $short = $this->list_short(null, [$id])[$id];
+
     // Delete values
     $tlist = [];
     foreach ($this->db->select('*', 'objproperty', [':objtype'=>$otid]) as $dbrow) {
@@ -641,8 +645,9 @@ class mod_obj {
         $otlist[$dbrow->id] = $dbrow->objtype;
       }
     }
+
     foreach ($xlist as $rel) {
-      $this->log_save($otlist[$rel], $rel, 6, $this->list_short(null, [$rel])[$rel].' (object deleted)');
+      $this->log_save($otlist[$rel], $rel, 6, "$short (object deleted)");
     }
     $this->db->query('DELETE FROM obj_obj WHERE obj=:obj OR obj_ref=:objr', [':obj'=>$id, ':objr'=>$id]);
 

@@ -100,8 +100,6 @@ class basebq {
     return $result;
   }
 
-  // https://stackoverflow.com/questions/74782736/cryptojs-aes-cbc-decryption-in-php-without-iv
-
   private static function EVP_BytesToKey($salt, $password) {
     $derived = '';
     $tmp = '';

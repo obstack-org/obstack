@@ -90,10 +90,6 @@ class db {
    * Return SQL driver (e.g. mysql, pgsql)
    ******************************************************************/
   public function driver() {
-    return $this->dbconn->getAttribute(PDO::ATTR_DRIVER_NAME);
-  }
-
-  public function driver2() {
     return $this->driver;
   }
 

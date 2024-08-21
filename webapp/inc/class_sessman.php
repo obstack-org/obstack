@@ -132,7 +132,7 @@ class sessman {
    ******************************************************************/
   public function login_token($token) {
     // MySQL/pSQL
-    $dbqtoken = ($this->db->driver2()->mysql) ? 'PASSWORD(:token)' : 'crypt(:token, ut.token)';
+    $dbqtoken = ($this->db->driver()->mysql) ? 'PASSWORD(:token)' : 'crypt(:token, ut.token)';
     // Determine session state
     $user = $this->db->query("
       SELECT
@@ -217,8 +217,8 @@ class sessman {
    * Authentication by Database
    ******************************************************************/
   private function auth_db($username, $secret, $otp=null) {
-    $dbqsecret = ($this->db->driver2()->mysql) ? 'secret=PASSWORD(:secret)' : 'secret=crypt(:secret, secret)';
-    $dbqactive = ($this->db->driver2()->mysql) ? '1' : 'true';
+    $dbqsecret = ($this->db->driver()->mysql) ? 'secret=PASSWORD(:secret)' : 'secret=crypt(:secret, secret)';
+    $dbqactive = ($this->db->driver()->mysql) ? '1' : 'true';
     // Determine session state
     $user = $this->db->query(
       "SELECT id, username, firstname, lastname, totp, totp_secret, tokens, sa FROM sessman_user WHERE username=:username AND $dbqsecret AND active=$dbqactive",
@@ -385,7 +385,7 @@ class sessman {
       if (!$this->SA())  { return false; }
       $result = $this->db->select('id, username, firstname, lastname, active, tokens, sa','sessman_user', [], 'username');
       foreach(range(0,count($result)-1) as $idx) {
-        if ($this->db->driver2()->mysql) {
+        if ($this->db->driver()->mysql) {
           foreach(['active', 'tokens', 'sa'] as $key) {
             $result[$idx]->$key = ($result[$idx]->$key == '1') ? true : false;
           }
@@ -419,7 +419,7 @@ class sessman {
     }
     // Prepare response
     $result = $this->db->select('id, username, totp, firstname, lastname, active, tokens, sa','sessman_user', [':id'=>$id]);
-    if ($this->db->driver2()->mysql) {
+    if ($this->db->driver()->mysql) {
       foreach(['active', 'tokens', 'sa', 'totp'] as $key) {
         $result[0]->$key = ($result[0]->$key == '1') ? true : false;
       }
@@ -463,8 +463,8 @@ class sessman {
       if (isset($data[$key])) {
         if ($key == 'password') {
           $dbq->columns[] = 'secret';
-          $dbq->values[] = ($this->db->driver2()->mysql) ? 'PASSWORD(:secret)' : 'crypt(:secret, gen_salt(\'bf\'))';
-          $dbq->update[] = ($this->db->driver2()->mysql) ? 'secret=PASSWORD(:secret)' : 'secret=crypt(:secret, gen_salt(\'bf\'))';
+          $dbq->values[] = ($this->db->driver()->mysql) ? 'PASSWORD(:secret)' : 'crypt(:secret, gen_salt(\'bf\'))';
+          $dbq->update[] = ($this->db->driver()->mysql) ? 'secret=PASSWORD(:secret)' : 'secret=crypt(:secret, gen_salt(\'bf\'))';
           $dbq->params[':secret'] = $data[$key];
         }
         elseif ($key=='totp_reset' && ($data['totp_reset'] || $data['totp_reset'] == 1)) {
@@ -477,7 +477,7 @@ class sessman {
           $dbq->columns[] = $key;
           $dbq->values[]  = ":$key";
           $dbq->update[]  = "$key=:$key";
-          if ($this->db->driver2()->mysql) {
+          if ($this->db->driver()->mysql) {
             $dbq->params[":$key"] = ($data[$key] || $data[$key] == '1') ? '1' : '0';
           } else {
             $dbq->params[":$key"] = ($data[$key] || $data[$key] == '1') ? 'true' : 'false';
@@ -496,7 +496,7 @@ class sessman {
     if ($id == null) {
       $dbq->columns = implode(',', $dbq->columns);
       $dbq->values  = implode(',', $dbq->values);
-      if ($this->db->driver2()->mysql_legacy) {
+      if ($this->db->driver()->mysql_legacy) {
         $id = $this->db->query('SELECT uuid_generate_v4() AS id')[0]->id;
         $dbq->columns .= ',id';
         $dbq->values .= ',:id';
@@ -591,11 +591,11 @@ class sessman {
       if (!$this->SA()) { return false; }
     }
     // User tokens allowed
-    if (count($this->db->select('tokens','sessman_user', [':id'=>$userid, ':tokens'=>($this->db->driver2()->mysql) ? '1' : true ])) == 0) {
+    if (count($this->db->select('tokens','sessman_user', [':id'=>$userid, ':tokens'=>($this->db->driver()->mysql) ? '1' : true ])) == 0) {
       return [];
     }
     // Token(s)
-    $expiry = ($this->db->driver2()->mysql) ? 'DATE_FORMAT(expiry, \'%Y-%m-%d %H:%i\')' : 'TO_CHAR(expiry,\'YYYY-MM-DD HH24:MI\')';
+    $expiry = ($this->db->driver()->mysql) ? 'DATE_FORMAT(expiry, \'%Y-%m-%d %H:%i\')' : 'TO_CHAR(expiry,\'YYYY-MM-DD HH24:MI\')';
     if ($tokenid == null) {
       return $this->db->select("id, name, $expiry as expiry", 'sessman_usertokens', [':smuser'=>$userid]);
     }
@@ -626,11 +626,11 @@ class sessman {
       if (!$this->SA()) { return false; }
     }
     // User tokens allowed
-    if (count($this->db->select('tokens','sessman_user', [':id'=>$userid, ':tokens'=>($this->db->driver2()->mysql) ? '1' : true ])) == 0) {
+    if (count($this->db->select('tokens','sessman_user', [':id'=>$userid, ':tokens'=>($this->db->driver()->mysql) ? '1' : true ])) == 0) {
       return false;
     }
     // MySQL/pSQL
-    $dbqtoken = ($this->db->driver() == 'mysql') ? 'PASSWORD(:token)' : 'crypt(:token, gen_salt(\'bf\'))';
+    $dbqtoken = ($this->db->driver()->mysql) ? 'PASSWORD(:token)' : 'crypt(:token, gen_salt(\'bf\'))';
     if ($tokenid == null) {
       // Register token
       $token = bin2hex(random_bytes(random_int(16, 20)));
@@ -639,7 +639,7 @@ class sessman {
         'values'=>":smuser, :name, $dbqtoken, :expiry",
         'params'=>[':smuser'=>$userid, ':token'=>$token, ':name'=>$name, ':expiry'=>$expiry],
       ];
-      if ($this->db->driver2()->mysql_legacy) {
+      if ($this->db->driver()->mysql_legacy) {
         $tokenid = $this->db->query('SELECT uuid_generate_v4() AS id')[0]->id;
         $dbq->columns .= ',id';
         $dbq->values .= ',:id';
@@ -679,7 +679,7 @@ class sessman {
       if (!$this->SA()) { return false; }
     }
     // User tokens allowed
-    if (count($this->db->select('tokens','sessman_user', [':id'=>$userid, ':tokens'=>($this->db->driver2()->mysql) ? '1' : true ])) == 0) {
+    if (count($this->db->select('tokens','sessman_user', [':id'=>$userid, ':tokens'=>($this->db->driver()->mysql) ? '1' : true ])) == 0) {
       return false;
     }
     // Delete token
