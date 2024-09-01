@@ -117,7 +117,7 @@ class mod_conf {
         if (!isset($_SESSION['obstack']['basebq'])) {
           $_SESSION['obstack']['basebq'] = $this->basepass;
         }
-        setcookie('obstack_basebq',basebq::encode($_SESSION['obstack']['basebq']), [ 'expires'=>time()+10, 'samesite'=>'strict', 'path'=>'/' ]);
+        setcookie('obstack_basebq',basebq::encode($_SESSION['obstack']['basebq']), [ 'expires'=>time()+2, 'samesite'=>'strict', 'path'=>'/' ]);
       }
     }
     if ($sa) {

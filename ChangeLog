@@ -5,8 +5,10 @@
 v1.2.1 (xx-xx-2024):
 - Fix shortnames
 - Optimize URL detection
+- Optimize info popup
 - Add Plugin support
 - Add MySQL/MariaDB support
+- Rate limit on failed logins
 
 v1.2.0 (17-03-2024):
 - Manage allowed relations

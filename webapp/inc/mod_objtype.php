@@ -315,7 +315,8 @@ class mod_objtype {
       FROM obj_obj oo
       LEFT JOIN obj o ON o.id = oo.obj
       LEFT JOIN obj r ON r.id = oo.obj_ref
-      WHERE o.objtype = :otid0 OR r.objtype = :otid1
+      WHERE (o.objtype = :otid0 OR r.objtype = :otid1)
+      AND (o.id IS NOT NULL AND r.id IS NOT NULL)
     ";
     $dbrels = $this->db->query($dbquery, [':otid0'=>$otid, ':otid1'=>$otid]);
 
