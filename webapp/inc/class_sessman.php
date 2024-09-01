@@ -67,6 +67,7 @@ class sessman {
    ******************************************************************/
   private $db;
   private $sessionname;
+  private $rlmd;
 
   /******************************************************************
    * Initialize, start session
@@ -74,6 +75,13 @@ class sessman {
   public function __construct($db, $sessionname) {
     $this->db = $db;
     $this->sessionname = $sessionname;
+
+    $raddr = explode('.', $_SERVER['REMOTE_ADDR']);
+    $this->rlmd = (object)[
+      'baddr'=>'ff000000-0000-0000-0000-000000000000',
+      'raddr'=>sprintf('%02x%02x%02x%02x', $raddr[0], $raddr[1], $raddr[2], $raddr[3])
+    ];
+
     $this->settimeout(600);
     if (session_status()==PHP_SESSION_NONE) {
       session_name($sessionname);
@@ -85,6 +93,11 @@ class sessman {
    * Session user data
    ******************************************************************/
   private function session_create($user) {
+    $dbfilter = ($this->db->driver()->mysql) ? 'objproperty' : 'objproperty::text';
+    $this->db->query(
+      "DELETE FROM value_timestamp WHERE obj=:baddr AND $dbfilter LIKE :raddr",
+      [':baddr'=>$this->rlmd->baddr, ':raddr'=>substr($this->rlmd->baddr, 0, 8).'%'.$this->rlmd->raddr]
+    );
     $_SESSION['sessman'] = [];
     $_SESSION['sessman']['active'] = time();
     $_SESSION['sessman']['userid'] = $user->id;
@@ -111,6 +124,23 @@ class sessman {
   }
 
   /******************************************************************
+   * Login rate limit
+   ******************************************************************/
+  public function ratelimit() {
+    $dbfilter = ($this->db->driver()->mysql)
+      ? "objproperty LIKE :raddr AND value > DATE_SUB(NOW(),INTERVAL 5 MINUTE)"
+      : "objproperty::text LIKE :raddr AND value > now() - INTERVAL '5 minutes'";
+    $attempts = $this->db->query(
+      "SELECT * FROM value_timestamp WHERE obj=:baddr AND $dbfilter",
+      [':baddr'=>$this->rlmd->baddr, ':raddr'=>substr($this->rlmd->baddr, 0, 8).'%'.$this->rlmd->raddr]
+    );
+    if (count($attempts)>4) {
+      return true;
+    }
+    return false;
+  }
+
+  /******************************************************************
    * General login using username/password
    *   (tries LDAP and/or Radius login when enabled)
    ******************************************************************/
@@ -124,7 +154,14 @@ class sessman {
       return true;
     }
     // auth_db
-    return $this->auth_db($username, $secret, $otp);
+    if ($this->auth_db($username, $secret, $otp)) {
+      return true;
+    }
+    // Register failed login
+    $this->db->query(
+      "INSERT INTO value_timestamp VALUES (:baddr, :raddr, now())",
+      [':baddr'=>$this->rlmd->baddr,':raddr'=>substr($this->rlmd->baddr, 0, 8).sprintf('-%04x-%04x-%04x-%04x', mt_rand(0,0xFFFF), mt_rand(0,0xFFFF), mt_rand(0,0xFFFF), mt_rand(0,0xFFFF)).$this->rlmd->raddr]
+    );
   }
 
   /******************************************************************
@@ -160,6 +197,12 @@ class sessman {
       $user[0]->tfc = false;
       $this->session_create($user[0]);
       return true;
+    }
+    else {
+      $this->db->query(
+        "INSERT INTO value_timestamp VALUES (:baddr, :raddr, now())",
+        [':baddr'=>$this->rlmd->baddr,':raddr'=>substr($this->rlmd->baddr, 0, 8).sprintf('-%04x-%04x-%04x-%04x', mt_rand(0,0xFFFF), mt_rand(0,0xFFFF), mt_rand(0,0xFFFF), mt_rand(0,0xFFFF)).$this->rlmd->raddr]
+      );
     }
     // Logout
     $this->session_delete();
@@ -683,7 +726,7 @@ class sessman {
       return false;
     }
     // Delete token
-    $this->db->delete('sessman_usertokens', [':id'=>$tokenid, ':smuser'=>$userid]);
+    $this->db->delete('sessman_usertokens', [':smgroup'=>$tokenid, ':smuser'=>$userid]);
     return true;
   }
 
@@ -752,7 +795,7 @@ class sessman {
   public function group_delete($id) {
     if (!$this->SA())  { return false; }
     // delete group
-    $this->db->delete('sessman_usergroups', [':id'=>$id]);
+    $this->db->delete('sessman_usergroups', [':smgroup'=>$id]);
     $this->db->delete('sessman_group', [':id'=>$id]);
     return true;
   }

@@ -82,6 +82,9 @@ function oblog($data) {
 // Session Manager
 require_once 'inc/class_sessman.php';
 $sessman = new sessman($db, $sessionname);
+if ($sessman->ratelimit()) {
+  $api->http_error(428, 'Too many invalid login attempts.');
+}
 
 // SA shorthand
 function checkSA() {

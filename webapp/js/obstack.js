@@ -222,6 +222,9 @@ function api(httpmethod, path, data) {
       else if (response.status == 404) {
         obAlert('No access to object');
       }
+      else if (response.status == 428) {
+        obAlert(response.responseJSON.error, []);
+      }
       else {
         obAlert(response.responseJSON.error);
       }

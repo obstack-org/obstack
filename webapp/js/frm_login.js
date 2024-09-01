@@ -60,6 +60,9 @@ frm['login'] = {
       ).fail(function(apidata) {
         // OTP
         if ('responseJSON' in apidata) {
+          if ('error' in apidata.responseJSON) {
+            return false;
+          }
           let hasuri = ('uri' in apidata.responseJSON);
           let otpform = new obForm([ { id:'otp', name:'Enter your OTP authentication code:', type:'string' } ]);
           let popup_size = hasuri ? { width:400, height:500 } : { width:400, height:120 };
