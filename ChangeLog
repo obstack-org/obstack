@@ -9,6 +9,7 @@ v1.2.1 (xx-xx-2024):
 - Add Plugin support
 - Add MySQL/MariaDB support
 - Rate limit on failed logins
+- Version notification (optional)
 
 v1.2.0 (17-03-2024):
 - Manage allowed relations

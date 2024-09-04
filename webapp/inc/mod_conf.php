@@ -24,7 +24,7 @@ class mod_conf {
     'title', 'session_timeout'
   ];
   private $settings_admin = [
-    'totp_default_enabled'
+    'version_check', 'totp_default_enabled'
   ];
   private $settings_admin_edit = [
     'ldap_enabled', 'ldap_host', 'ldap_port', 'ldap_userdn', 'ldap_group-auth', 'ldap_group-sa',
@@ -120,9 +120,11 @@ class mod_conf {
         setcookie('obstack_basebq',basebq::encode($_SESSION['obstack']['basebq']), [ 'expires'=>time()+2, 'samesite'=>'strict', 'path'=>'/' ]);
       }
     }
+    // Admin fields (general)
     if ($sa) {
       $dbqset = array_merge($dbqset, $this->settings_admin);
     }
+    // Admin fields (config module)
     if ($sa && $this->display == 'edit') {
       $dbqset = array_merge($dbqset, $this->settings_admin_edit);
     }
@@ -135,6 +137,30 @@ class mod_conf {
       SELECT id, name, $dbqround AS value FROM setting_decimal WHERE name IN ($dbqind->marks) ORDER BY name
     ";
     $result['settings'] = $this->db->query($dbquery, array_merge($dbqinv->params,$dbqind->params));
+    // Version check
+    if ($sa) {
+      $result['version'] = [];
+      foreach ($result['settings'] as $rec) {
+        if ($rec->name == 'version_check') { $result['version']['notify'] = $rec->value; }
+      }
+      if (!isset($result['version']['notify'])) {
+        $result['version']['notify'] = "1";
+        $this->db->query("INSERT INTO setting_decimal (name, value) VALUES ('version_check', 1)", []);
+      }
+      if (!isset($_SESSION['obstack']['version']) && $result['version']['notify'] == 1) {
+        $_SESSION['obstack']['version'] = 0;
+        try {
+          $scc = stream_context_create(array('http'=>array('timeout'=>2)));
+          $json = @file_get_contents('https://www.obstack.org/resources/obstack.json', false, $scc);
+          $obst = json_decode($json);
+          if (isset($obst->obstack->version)) {
+            $_SESSION['obstack']['version'] = str_replace('.', '', $obst->obstack->version);
+          }
+        } catch (Exception $e) {}
+      }
+      $result['version']['available'] = $_SESSION['obstack']['version'];
+    }
+
     return $result;
   }
 
@@ -200,7 +226,7 @@ class mod_conf {
       foreach ($data['settings'] as $rec) {
         $settings[$rec['name']] = $rec['value'];
         if (in_array($rec['name'], array_merge($this->settings_public, $this->settings_private, $this->settings_admin, $this->settings_admin_edit))) {
-          if (in_array(end(explode('_', $rec['name'])), [ 'enabled', 'timeout', 'port', 'attr', 'sidebar-width' ])) {
+          if (in_array(end(explode('_', $rec['name'])), [ 'enabled', 'timeout', 'check', 'port', 'attr', 'sidebar-width' ])) {
             $mlist['decimal'][] = $rec['name'];
           }
           else {
