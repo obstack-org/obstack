@@ -26,7 +26,7 @@ class plugins {
           || count(array_diff(get_class_methods($class), $this->methods)) != 0
           || (crc32($tdcl->__ospVldTpy()) != 2347662633)
         ) {
-          $api->http_error(428, "Error loading Plugin: $class<br><br>Please check the <a href=\"https://www.obstack.org/docs/?doc=manual-plugins\" target=_blank>Plugins documentation</a>");
+          $api->http_error(428, "Error loading Plugin: $class<br><br>Please check the <a href=\"https://www.obstack.org/docs/?doc=development-plugins\" target=_blank>Plugins documentation</a>");
         }
         $this->plugins[$tdcl->objecttype] = new $class();
       }

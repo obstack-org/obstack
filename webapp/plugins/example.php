@@ -3,7 +3,7 @@
  *
  * Example plugin
  * For more information on plugin development, please
- * check: https://www.obstack.org/docs/?doc=manual-plugins
+ * check: https://www.obstack.org/docs/?doc=development-plugins
  *
  ******************************************************************/
 

@@ -1,7 +1,9 @@
 # Configuration
 
 * [Base configuration](#base-configuration)
-* [Database schema](#database-schema)
+* [Database setup](#database-setup)
+  * [PostgreSQL](#postgresql)
+  * [MySQL / MariaDB](#mysql--mariadb)
 * [Additional configuration](#additional-configuration)
 * [Configuring recoverable passwords](#configuring-recoverable-passwords)
 * [Configuring external authentication](#configuring-external-authentication)
@@ -35,9 +37,14 @@ db_connectionstring = pgsql:host=127.0.0.1;dbname=obstack;user=obstack;password=
 $obstack_conf = '/etc/obstack/obstack.conf';
 ```
 
-# Database schema
+# Database setup
 
-As described in the installation instruction, the database schema needs to be imported manually.
+While ObStack is developed with focus on using PostgeSQL, it also fully supports MySQL / MariaDB to allow ObStack to be used on e.g. a webhosting environment. ObStack's API is based on using UUIDv4 which MySQL / MariaDB not yet provides, so keep in mind that e.g. generating UUID's will be a little slower. 
+</br>Therefore we recommend using PostgreSQL if possible,  otherwise using MySQL / MariaDB will be fine as well.
+
+As described in the installation instruction, the database schema needs to be imported manually. 
+
+#### PostgreSQL
 
 Local installation:
 
@@ -57,6 +64,23 @@ curl -s https://raw.githubusercontent.com/obstack-org/obstack/main/resources/obs
 # Upgrade from v1.1.x
 curl -s https://raw.githubusercontent.com/obstack-org/obstack/main/resources/obstack-update-v1.2.0.sql \
   | docker exec -i obstack-db psql -U obstack obstack
+```
+
+#### MySQL / MariaDB
+
+Local installation:
+
+```bash
+# New setup
+cat /var/lib/obstack/resources/mysql-obstack-schema-v1.2.0.sql | sudo -u mysql obstack obstack
+```
+
+Or when using the <a href="https://github.com/obstack-org/obstack-docker" target="_blank">docker</a> image:
+
+```bash
+# New setup
+curl -s https://raw.githubusercontent.com/obstack-org/obstack/main/resources/mysql-obstack-schema-v1.2.0.sql \
+  | docker exec -i obstack-db mysql -u obstack -p obstack
 ```
 
 ### Additional configuration
