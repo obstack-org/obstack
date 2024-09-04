@@ -57,7 +57,7 @@ if (
 }
 $dbfunc = ($db->driver()->mysql) ? 'database()' : 'CURRENT_SCHEMA()';
 if(count($db->query_buffered('stdec',"SELECT 1 FROM information_schema.tables WHERE table_schema = $dbfunc AND table_name = 'setting_decimal'")) == 0){
-  $api->http_error(428, 'Database check failed, contact your system administrator.<br><br>(Reference: <a href="https://www.obstack.org/docs/?doc=general-configuration#database-schema" target=_blank>Database schema</a>)');
+  $api->http_error(428, 'Database check failed, contact your system administrator.<br><br>(Reference: <a href="https://www.obstack.org/docs/?doc=general-configuration#database" target=_blank>Database schema</a>)');
 }
 
 // App configuration

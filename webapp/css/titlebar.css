@@ -15,6 +15,22 @@
   font-weight: bold;
   text-shadow: 0 0 4px #555;
 }
+.titlebar-update {
+  position: absolute;
+  top: -4px;
+  right: 140px;
+  width: 170px;
+  padding: 2px;
+  font-style: italic;
+  background: #dcffe4;
+  border-radius: 8px;
+  color: #357960;
+  text-align: center;
+  box-shadow: 0 0 3px 3px rgba(220, 255, 228);
+  -moz-box-shadow: 0 0 3px 3px rgba(220, 255, 228);
+  -webkit-box-shadow: 0 0 3px 3px rgba(220, 255, 228);
+  cursor: pointer;
+}
 .titlebar-control {
   position: absolute;
   top: 15px;

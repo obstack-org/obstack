@@ -9,7 +9,7 @@ Obstack also supplies a <a href="https://github.com/obstack-org/obstack-docker" 
 * Linux server
 * Web server (Apache2, NGINX)
 * PHP >= v7.4 _**with packages:**_ pdo pdo_pgsql session mbstring json ldap
-* PostgreSQL >= v11 _**with packages:**_ contrib
+* PostgreSQL >= v11 _**with packages:**_ contrib </br><i>&nbsp;or:</i> MySQL >= 5.7 / MariaDB >= v10.2 <sup><i>(<a href="https://www.obstack.org/docs/?doc=general-configuration#database-setup">*</a>)</i></sup>
 
 ## Basic example (AlmaLinux8/Rocky8)
 
