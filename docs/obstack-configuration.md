@@ -39,10 +39,10 @@ $obstack_conf = '/etc/obstack/obstack.conf';
 
 # Database setup
 
-While ObStack is developed with focus on using PostgeSQL, it also fully supports MySQL / MariaDB to allow ObStack to be used on e.g. a webhosting environment. ObStack's API is based on using UUIDv4 which MySQL / MariaDB not yet provides, so keep in mind that e.g. generating UUID's will be a little slower. 
+While ObStack is developed with focus on using PostgeSQL, it also fully supports MySQL / MariaDB to allow ObStack to be used on e.g. a webhosting environment. ObStack's API is based on using UUIDv4 which MySQL / MariaDB not yet provides, so keep in mind that e.g. generating UUID's will be a little slower.
 </br>Therefore we recommend using PostgreSQL if possible,  otherwise using MySQL / MariaDB will be fine as well.
 
-As described in the installation instruction, the database schema needs to be imported manually. 
+As described in the installation instruction, the database schema needs to be imported manually.
 
 #### PostgreSQL
 
@@ -50,19 +50,19 @@ Local installation:
 
 ```bash
 # New setup
-cat /var/lib/obstack/resources/obstack-schema-v1.sql | sudo -u postgres psql obstack
+cat /var/lib/obstack/resources/obstack-schema-pgsql-v1.2.0.sql | sudo -u postgres psql obstack
 # Upgrade from v1.1.x
-cat /var/lib/obstack/resources/obstack-update-v1.2.0.sql | sudo -u postgres psql obstack
+cat /var/lib/obstack/resources/obstack-update-pgsql-v1.2.0.sql | sudo -u postgres psql obstack
 ```
 
 Or when using the <a href="https://github.com/obstack-org/obstack-docker" target="_blank">docker</a> image:
 
 ```bash
 # New setup
-curl -s https://raw.githubusercontent.com/obstack-org/obstack/main/resources/obstack-schema-v1.sql \
+curl -s https://raw.githubusercontent.com/obstack-org/obstack/main/resources/obstack-schema-pgsql-v1.2.0.sql \
   | docker exec -i obstack-db psql -U obstack obstack
 # Upgrade from v1.1.x
-curl -s https://raw.githubusercontent.com/obstack-org/obstack/main/resources/obstack-update-v1.2.0.sql \
+curl -s https://raw.githubusercontent.com/obstack-org/obstack/main/resources/obstack-update-pgsql-v1.2.0.sql \
   | docker exec -i obstack-db psql -U obstack obstack
 ```
 
@@ -72,14 +72,14 @@ Local installation:
 
 ```bash
 # New setup
-cat /var/lib/obstack/resources/mysql-obstack-schema-v1.2.0.sql | sudo -u mysql obstack obstack
+cat /var/lib/obstack/resources/obstack-schema-mysql-v1.2.0.sql | sudo -u mysql obstack obstack
 ```
 
 Or when using the <a href="https://github.com/obstack-org/obstack-docker" target="_blank">docker</a> image:
 
 ```bash
 # New setup
-curl -s https://raw.githubusercontent.com/obstack-org/obstack/main/resources/mysql-obstack-schema-v1.2.0.sql \
+curl -s https://raw.githubusercontent.com/obstack-org/obstack/main/resources/obstack-schema-mysql-v1.2.0.sql \
   | docker exec -i obstack-db mysql -u obstack -p obstack
 ```
 
@@ -92,6 +92,7 @@ Additional configurations can be managed in the WebUI under _Configuration_:
   * The application display name
   * The CSS color scheme
   * Session timeout
+  * Online update check
   * Default OTP settings for new users
   * LDAP server configuration
   * Radius server configuration

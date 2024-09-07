@@ -2,7 +2,7 @@
  CHANGES
 *********
 
-v1.2.1 (xx-xx-2024):
+v1.2.1 (07-09-2024):
 - Fix shortnames
 - Optimize URL detection
 - Optimize info popup

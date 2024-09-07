@@ -726,7 +726,7 @@ class sessman {
       return false;
     }
     // Delete token
-    $this->db->delete('sessman_usertokens', [':smgroup'=>$tokenid, ':smuser'=>$userid]);
+    $this->db->delete('sessman_usertokens', [':id'=>$tokenid, ':smuser'=>$userid]);
     return true;
   }
 

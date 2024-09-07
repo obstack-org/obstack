@@ -321,7 +321,6 @@ class mod_objtype {
     $dbrels = $this->db->query($dbquery, [':otid0'=>$otid, ':otid1'=>$otid]);
 
     $objids = [];
-    $relids = [];
     foreach ($dbrels as $rec) {
       $objids[] = ($rec->oot == $otid) ? $rec->oid : $rec->rid;
     }

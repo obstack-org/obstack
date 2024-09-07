@@ -15,7 +15,7 @@ class plugins {
   /***********************************************************************
    * Initialize with validating all plugin classes
    ***********************************************************************/
-  function __construct() {
+  public function __construct() {
     global $api;
     foreach(get_declared_classes() as $class) {
       if (get_parent_class($class) == 'ObStack_Plugin') {
@@ -36,7 +36,7 @@ class plugins {
   /***********************************************************************
    * Check if objecttype had a plugin configured, optional check method
    ***********************************************************************/
-  function hasPlugin($otid, $method=null) {
+  public function hasPlugin($otid, $method=null) {
     if (array_key_exists($otid, $this->plugins)) {
       if ($method != null) {
         return method_exists($this->plugins[$otid], $method);
@@ -49,7 +49,7 @@ class plugins {
   /***********************************************************************
    * Apply plugin, return unchanged data when no plugin available
    ***********************************************************************/
-  function apply($method, $otid, $data) {
+  public function apply($method, $otid, $data) {
     if ($this->hasPlugin($otid, $method)) {
       $result = is_object($data) ? $this->plugins[$otid]->$method(clone $data) : $this->plugins[$otid]->$method($data);
       if ($method != 'delete') {
@@ -77,7 +77,7 @@ class plugins {
 
 class ObStack_Plugin {
 
-  function __construct() {}
-  function __ospVldTpy() { return 'Fi[a:1T%Y80s'; }
+  public function __construct() { /* Presence check */ }
+  public function __ospVldTpy() { return 'Fi[a:1T%Y80s'; }
 
 }
