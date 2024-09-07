@@ -69,6 +69,14 @@ frm['titlebar'] = {
     controlbar.append(
       $('<img/>', { src: 'img/icusr.png', class: "titlebar-control-img" }).on('click', function(event) { frm.titlebar.load('icusr') })
     );
+    if (mod.user.self.sa && cfg.version.notify == 1 && cfg.version.available > version) {
+      controlbar.append(
+        $('<div/>', { class:'titlebar-update' }).html('&#9733 Update available')
+        .on('click', function(event) {
+          window.open('https://github.com/obstack-org/obstack', '_blank');
+        })
+      );
+    }
   },
 
   /******************************************************************

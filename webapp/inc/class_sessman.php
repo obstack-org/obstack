@@ -67,6 +67,7 @@ class sessman {
    ******************************************************************/
   private $db;
   private $sessionname;
+  private $rlmd;
 
   /******************************************************************
    * Initialize, start session
@@ -74,15 +75,29 @@ class sessman {
   public function __construct($db, $sessionname) {
     $this->db = $db;
     $this->sessionname = $sessionname;
+
+    $raddr = explode('.', $_SERVER['REMOTE_ADDR']);
+    $this->rlmd = (object)[
+      'baddr'=>'ff000000-0000-0000-0000-000000000000',
+      'raddr'=>sprintf('%02x%02x%02x%02x', $raddr[0], $raddr[1], $raddr[2], $raddr[3])
+    ];
+
     $this->settimeout(600);
-    session_name($sessionname);
-    session_start();
+    if (session_status()==PHP_SESSION_NONE) {
+      session_name($sessionname);
+      session_start();
+    }
   }
 
   /******************************************************************
    * Session user data
    ******************************************************************/
   private function session_create($user) {
+    $dbfilter = ($this->db->driver()->mysql) ? 'objproperty' : 'objproperty::text';
+    $this->db->query(
+      "DELETE FROM value_timestamp WHERE obj=:baddr AND $dbfilter LIKE :raddr",
+      [':baddr'=>$this->rlmd->baddr, ':raddr'=>substr($this->rlmd->baddr, 0, 8).'%'.$this->rlmd->raddr]
+    );
     $_SESSION['sessman'] = [];
     $_SESSION['sessman']['active'] = time();
     $_SESSION['sessman']['userid'] = $user->id;
@@ -109,6 +124,23 @@ class sessman {
   }
 
   /******************************************************************
+   * Login rate limit
+   ******************************************************************/
+  public function ratelimit() {
+    $dbfilter = ($this->db->driver()->mysql)
+      ? "objproperty LIKE :raddr AND value > DATE_SUB(NOW(),INTERVAL 5 MINUTE)"
+      : "objproperty::text LIKE :raddr AND value > now() - INTERVAL '5 minutes'";
+    $attempts = $this->db->query(
+      "SELECT * FROM value_timestamp WHERE obj=:baddr AND $dbfilter",
+      [':baddr'=>$this->rlmd->baddr, ':raddr'=>substr($this->rlmd->baddr, 0, 8).'%'.$this->rlmd->raddr]
+    );
+    if (count($attempts)>4) {
+      return true;
+    }
+    return false;
+  }
+
+  /******************************************************************
    * General login using username/password
    *   (tries LDAP and/or Radius login when enabled)
    ******************************************************************/
@@ -122,7 +154,14 @@ class sessman {
       return true;
     }
     // auth_db
-    return $this->auth_db($username, $secret, $otp);
+    if ($this->auth_db($username, $secret, $otp)) {
+      return true;
+    }
+    // Register failed login
+    $this->db->query(
+      "INSERT INTO value_timestamp VALUES (:baddr, :raddr, now())",
+      [':baddr'=>$this->rlmd->baddr,':raddr'=>substr($this->rlmd->baddr, 0, 8).sprintf('-%04x-%04x-%04x-%04x', mt_rand(0,0xFFFF), mt_rand(0,0xFFFF), mt_rand(0,0xFFFF), mt_rand(0,0xFFFF)).$this->rlmd->raddr]
+    );
   }
 
   /******************************************************************
@@ -130,7 +169,7 @@ class sessman {
    ******************************************************************/
   public function login_token($token) {
     // MySQL/pSQL
-    $dbqtoken = ($this->db->driver() == 'mysql') ? 'PASSWORD(:token)' : 'crypt(:token, ut.token)';
+    $dbqtoken = ($this->db->driver()->mysql) ? 'PASSWORD(:token)' : 'crypt(:token, ut.token)';
     // Determine session state
     $user = $this->db->query("
       SELECT
@@ -151,13 +190,19 @@ class sessman {
     // Set user
     if (!empty($user)) {
       $user[0]->groups = [];
-      foreach ($this->db->query('SELECT smgroup FROM sessman_usergroups WHERE smuser=:smuser', [':smuser'=>$user[0]->id]) as $dbrec) {
+      foreach ($this->db->select('smgroup','sessman_usergroups', [':smuser'=>$user[0]->id]) as $dbrec) {
         $user[0]->groups[] = $dbrec->smgroup;
       }
       $user[0]->ext = false;
       $user[0]->tfc = false;
       $this->session_create($user[0]);
       return true;
+    }
+    else {
+      $this->db->query(
+        "INSERT INTO value_timestamp VALUES (:baddr, :raddr, now())",
+        [':baddr'=>$this->rlmd->baddr,':raddr'=>substr($this->rlmd->baddr, 0, 8).sprintf('-%04x-%04x-%04x-%04x', mt_rand(0,0xFFFF), mt_rand(0,0xFFFF), mt_rand(0,0xFFFF), mt_rand(0,0xFFFF)).$this->rlmd->raddr]
+      );
     }
     // Logout
     $this->session_delete();
@@ -215,23 +260,23 @@ class sessman {
    * Authentication by Database
    ******************************************************************/
   private function auth_db($username, $secret, $otp=null) {
-    // MySQL/pSQL
-    $dbqsecret = ($this->db->driver() == 'mysql') ? 'secret=PASSWORD(:secret)' : 'secret=crypt(:secret, secret)';
+    $dbqsecret = ($this->db->driver()->mysql) ? 'secret=PASSWORD(:secret)' : 'secret=crypt(:secret, secret)';
+    $dbqactive = ($this->db->driver()->mysql) ? '1' : 'true';
     // Determine session state
     $user = $this->db->query(
-      "SELECT id, username, firstname, lastname, totp, totp_secret, tokens, sa FROM sessman_user WHERE username=:username AND $dbqsecret AND active=true",
+      "SELECT id, username, firstname, lastname, totp, totp_secret, tokens, sa FROM sessman_user WHERE username=:username AND $dbqsecret AND active=$dbqactive",
       [':username'=>strtolower($username), ':secret'=>$secret]
     );
     if (!empty($user)) {
       $user[0]->groups = [];
-      foreach ($this->db->query('SELECT smgroup FROM sessman_usergroups WHERE smuser=:smuser', [':smuser'=>$user[0]->id]) as $dbrec) {
+      foreach ($this->db->select('smgroup', 'sessman_usergroups', [':smuser'=>$user[0]->id]) as $dbrec) {
         $user[0]->groups[] = $dbrec->smgroup;
       }
       $user[0]->ext = false;
       // TOTP
       $user[0]->tfc = false;
       $totp_default = false;
-      foreach ($this->db->query('SELECT value FROM setting_decimal WHERE name=\'session_totp-default\'', []) as $dbrow) {
+      foreach ($this->db->select('value', 'setting_decimal', [':name'=>'session_totp-default']) as $dbrow) {
         if ($dbrow->value == '1') {
           $totp_default = true;
         }
@@ -241,7 +286,7 @@ class sessman {
         if ($user[0]->totp_secret == null) {
           $totp_secret = TOTP::genSecret(56);
           $user[0]->totp_secret = $totp_secret['secret'];
-          $this->db->query('UPDATE sessman_user SET totp_secret=:totp_secret WHERE id=:id', [':id'=>$user[0]->id, ':totp_secret'=>$user[0]->totp_secret]);
+          $this->db->update('sessman_user', [':totp_secret'=>$user[0]->totp_secret], [':id'=>$user[0]->id]);
           header('Content-Encoding: gzip');
           print gzencode(json_encode(TOTP::genURI( $user[0]->username, $user[0]->totp_secret, 6, 30, 'ObStack', 'sha256' )), 9);
         }
@@ -292,7 +337,7 @@ class sessman {
     if (@ldap_bind($ldapconn, "uid=$username,".$this->config_ldap['userdn'], $secret)) {
       // Database groups
       $dbgroups = [];
-      foreach ($this->db->query('SELECT id, ldapcn FROM sessman_group', []) as $dbrec) {
+      foreach ($this->db->select('id, ldapcn','sessman_group') as $dbrec) {
         if ($dbrec->ldapcn != null) {
           $dbgroups[trim($dbrec->ldapcn)] = $dbrec->id;
         }
@@ -341,7 +386,7 @@ class sessman {
     if (radius_send_request($radconn) == RADIUS_ACCESS_ACCEPT) {
       // Database groups
       $dbgroups = [];
-      foreach ($this->db->query('SELECT id, radiusattr FROM sessman_group', []) as $dbrec) {
+      foreach ($this->db->select('id, radiusattr','sessman_group') as $dbrec) {
         if ($dbrec->radiusattr != null) {
           foreach (explode(';', str_replace([',', '|'], ';', $dbrec->radiusattr)) as $group) {
             $dbgroups[trim($group)] = $dbrec->id;
@@ -381,7 +426,15 @@ class sessman {
     if ($id == null) {
       // List all users (SA only)
       if (!$this->SA())  { return false; }
-      return $this->db->query('SELECT id, username, firstname, lastname, active, tokens, sa FROM sessman_user ORDER BY username', []);
+      $result = $this->db->select('id, username, firstname, lastname, active, tokens, sa','sessman_user', [], 'username');
+      foreach(range(0,count($result)-1) as $idx) {
+        if ($this->db->driver()->mysql) {
+          foreach(['active', 'tokens', 'sa'] as $key) {
+            $result[$idx]->$key = ($result[$idx]->$key == '1') ? true : false;
+          }
+        }
+      }
+      return $result;
     }
     else {
       // List 'self'
@@ -408,12 +461,17 @@ class sessman {
       }
     }
     // Prepare response
-    $list = $this->db->query('SELECT id, username, totp, firstname, lastname, active, tokens, sa FROM sessman_user WHERE id=:id', ['id'=>$id]);
-    if ($self) {
-      unset($list[0]->id);
-      unset($list[0]->active);
+    $result = $this->db->select('id, username, totp, firstname, lastname, active, tokens, sa','sessman_user', [':id'=>$id]);
+    if ($this->db->driver()->mysql) {
+      foreach(['active', 'tokens', 'sa', 'totp'] as $key) {
+        $result[0]->$key = ($result[0]->$key == '1') ? true : false;
+      }
     }
-    return $list;
+    if ($self) {
+      unset($result[0]->id);
+      unset($result[0]->active);
+    }
+    return $result;
   }
 
   /******************************************************************
@@ -442,64 +500,72 @@ class sessman {
       if (!$this->SA()) { return false; }
       $fieldlist = ['username', 'password', 'firstname', 'lastname', 'active', 'tokens', 'sa', 'totp', 'totp_reset'];
     }
-    // // TOTP Reset
-    // if (isset($data['totp_reset'])) {
-    //   $data['totp_secret'] = '';
-    // }
     // Prepare SQL statement (MySQL/pSQL)
-    $dbqcol = '';
-    $dbqval = '';
-    $dbqupd = '';
-    $dbparams = [];
+    $dbq = (object)[ 'columns'=>[], 'values'=>[], 'update'=>[], 'params'=>[] ];
     foreach ($fieldlist as $key) {
       if (isset($data[$key])) {
         if ($key == 'password') {
-          $dbqcol .= ', secret';
-          $dbqval .= ', crypt(:password, gen_salt(\'bf\'))';
-          $dbqupd .= ', secret=crypt(:password, gen_salt(\'bf\'))';
-          if ($this->db->driver() == 'mysql') {
-            $dbqupd = ', secret=PASSWORD(:secret)';
+          $dbq->columns[] = 'secret';
+          $dbq->values[] = ($this->db->driver()->mysql) ? 'PASSWORD(:secret)' : 'crypt(:secret, gen_salt(\'bf\'))';
+          $dbq->update[] = ($this->db->driver()->mysql) ? 'secret=PASSWORD(:secret)' : 'secret=crypt(:secret, gen_salt(\'bf\'))';
+          $dbq->params[':secret'] = $data[$key];
+        }
+        elseif ($key=='totp_reset' && ($data['totp_reset'] || $data['totp_reset'] == 1)) {
+          $dbq->columns[] = 'totp_secret';
+          $dbq->values[]  = ':totp_secret';
+          $dbq->update[]  = 'totp_secret=:totp_secret';
+          $dbq->params[":totp_secret"] = null;
+        }
+        elseif (in_array($key, ['active', 'tokens', 'sa', 'totp'])) {
+          $dbq->columns[] = $key;
+          $dbq->values[]  = ":$key";
+          $dbq->update[]  = "$key=:$key";
+          if ($this->db->driver()->mysql) {
+            $dbq->params[":$key"] = ($data[$key] || $data[$key] == '1') ? '1' : '0';
+          } else {
+            $dbq->params[":$key"] = ($data[$key] || $data[$key] == '1') ? 'true' : 'false';
           }
         }
-        elseif ($key=='totp_reset') {
-          $dbqupd .= ($data[$key]==1)?", totp_secret=NULL":'';
-        }
         else {
-          $dbqcol .= ", $key";
-          $dbqval .= ", :$key";
-          $dbqupd .= ", $key=:$key";
-        }
-        if (in_array($key, ['active', 'tokens', 'sa'])) {
-          $dbparams[$key] = $data[$key] ? 'true' : 'false';
-        }
-        elseif (!in_array($key, ['totp_reset'])) {
-          $dbparams[$key] = $data[$key];
+          $dbq->columns[] = $key;
+          $dbq->values[]  = ":$key";
+          $dbq->update[]  = "$key=:$key";
+          $dbq->params[":$key"] = $data[$key];
         }
       }
     }
+
     // Create new user
     if ($id == null) {
-      $dbqcol = mb_substr($dbqcol,2);
-      $dbqval = mb_substr($dbqval,2);
-      $id = $this->db->query("INSERT INTO sessman_user ($dbqcol) VALUES ($dbqval) RETURNING id", $dbparams)[0]->id;
+      $dbq->columns = implode(',', $dbq->columns);
+      $dbq->values  = implode(',', $dbq->values);
+      if ($this->db->driver()->mysql_legacy) {
+        $id = $this->db->query('SELECT uuid_generate_v4() AS id')[0]->id;
+        $dbq->columns .= ',id';
+        $dbq->values .= ',:id';
+        $dbq->params[":id"] = $id;
+        $this->db->query("INSERT INTO sessman_user ($dbq->columns) VALUES ($dbq->values)", $dbq->params);
+      }
+      else {
+        $id = $this->db->query("INSERT INTO sessman_user ($dbq->columns) VALUES ($dbq->values) RETURNING id", $dbq->params)[0]->id;
+      }
       if (isset($data['groups'])) {
         foreach($data['groups'] as $groupid) { $this->usergroup_save($id, ['id'=>$groupid]); }
       }
       return [ ['id'=>$id] ];
     }
+
     // Update user
     else {
-      $dbqupd = mb_substr($dbqupd,2);
-      $dbparams['id'] = $id;
-      $result = [[]];
-      if (strlen($dbqupd)>0) {
-        $result = $this->db->query("UPDATE sessman_user SET $dbqupd WHERE id=:id", $dbparams);
+      $dbq->params[":id"] = $id;
+      if (count($dbq->update)>0) {
+        $this->db->query("UPDATE sessman_user SET ".implode(',', $dbq->update)." WHERE id=:id", $dbq->params);
       }
       if (isset($data['groups'])) {
-        $this->db->query('DELETE FROM sessman_usergroups WHERE smuser=:smuser', [':smuser'=>$id]);
+        $this->db->delete('sessman_usergroups', [':smuser'=>$id]);
         foreach($data['groups'] as $groupid) { $this->usergroup_save($id, ['id'=>$groupid]); }
       }
-      return $result;
+      return [[]];
     }
   }
 
@@ -507,12 +573,10 @@ class sessman {
    * Delete user
    ******************************************************************/
   public function user_delete($id) {
-    if ((!$this->SA()) || ($id == $_SESSION['sessman']['userid'])) { return false; }
-    // delete user
-    $this->db->query('DELETE FROM sessman_usertokens WHERE smuser=:id', [':id'=>$id]);
-    $this->db->query('DELETE FROM sessman_usergroups WHERE smuser=:id', [':id'=>$id]);
-    $count = count($this->db->query('DELETE FROM sessman_user WHERE id=:id RETURNING *', [':id'=>$id]));
-    return $count > 0;
+    $this->db->delete('sessman_usertokens', [':smuser'=>$id]);
+    $this->db->delete('sessman_usergroups', [':smuser'=>$id]);
+    $this->db->delete('sessman_user', [':id'=>$id]);
+    return true;
   }
 
   /******************************************************************
@@ -538,7 +602,8 @@ class sessman {
   public function usergroup_save($userid, $data) {
     if (!$this->SA())  { return false; }
     if ($userid == 'self') { return false; }
-    return $this->db->query('INSERT INTO sessman_usergroups VALUES (:smuser, :smgroup)', [':smuser'=>$userid, ':smgroup'=>$data['id']]);
+    $this->db->query('INSERT INTO sessman_usergroups VALUES (:smuser, :smgroup)', [':smuser'=>$userid, ':smgroup'=>$data['id']]);
+    return true;
   }
 
   /******************************************************************
@@ -547,11 +612,8 @@ class sessman {
   public function usergroup_delete($userid, $groupid) {
     if (!$this->SA())  { return false; }
     if ($userid == 'self') { return false; }
-    if (count($this->db->query('SELECT tokens FROM sessman_user WHERE id=:id AND tokens = true', [':id'=>$userid])) == 0) {
-      return false;
-    }
-    $count = count($this->db->query('DELETE FROM sessman_usergroups WHERE smuser=:smuser AND smgroup=:smgroup RETURNING *', [':smuser'=>$userid, ':smgroup'=>$groupid]));
-    return $count > 0;
+    $this->db->query('sessman_usergroups', [':smuser'=>$userid, ':smgroup'=>$groupid]);
+    return true;
   }
 
   /******************************************************************
@@ -572,18 +634,17 @@ class sessman {
       if (!$this->SA()) { return false; }
     }
     // User tokens allowed
-    if (count($this->db->query('SELECT tokens FROM sessman_user WHERE id=:id AND tokens = true', [':id'=>$userid])) == 0) {
+    if (count($this->db->select('tokens','sessman_user', [':id'=>$userid, ':tokens'=>($this->db->driver()->mysql) ? '1' : true ])) == 0) {
       return [];
     }
     // Token(s)
-    $dbquery = 'SELECT id, name, TO_CHAR(expiry,\'YYYY-MM-DD HH24:MI\') as expiry FROM sessman_usertokens WHERE smuser=:smuser';
-    $dbparams = [':smuser'=>$userid];
-    if ($tokenid != null) {
-      $dbquery = str_replace('SELECT id, ', 'SELECT ', $dbquery);
-      $dbquery .= ' AND id=:id';
-      $dbparams['id'] = $tokenid;
+    $expiry = ($this->db->driver()->mysql) ? 'DATE_FORMAT(expiry, \'%Y-%m-%d %H:%i\')' : 'TO_CHAR(expiry,\'YYYY-MM-DD HH24:MI\')';
+    if ($tokenid == null) {
+      return $this->db->select("id, name, $expiry as expiry", 'sessman_usertokens', [':smuser'=>$userid]);
     }
-    return $this->db->query($dbquery, $dbparams);
+    else {
+      return $this->db->select("name, $expiry as expiry", 'sessman_usertokens', [':smuser'=>$userid, ':id'=>$tokenid]);
+    }
   }
 
   /******************************************************************
@@ -608,31 +669,36 @@ class sessman {
       if (!$this->SA()) { return false; }
     }
     // User tokens allowed
-    if (count($this->db->query('SELECT tokens FROM sessman_user WHERE id=:id AND tokens = true', [':id'=>$userid])) == 0) {
+    if (count($this->db->select('tokens','sessman_user', [':id'=>$userid, ':tokens'=>($this->db->driver()->mysql) ? '1' : true ])) == 0) {
       return false;
     }
     // MySQL/pSQL
-    $dbqtoken = 'crypt(:token, gen_salt(\'bf\'))';
-    if ($this->db->driver() == 'mysql') {
-      $dbqtoken = 'PASSWORD(:token)';
-    }
+    $dbqtoken = ($this->db->driver()->mysql) ? 'PASSWORD(:token)' : 'crypt(:token, gen_salt(\'bf\'))';
     if ($tokenid == null) {
       // Register token
       $token = bin2hex(random_bytes(random_int(16, 20)));
-      $result = $this->db->query(
-        "INSERT INTO sessman_usertokens (smuser, token, name, expiry) VALUES (:smuser, $dbqtoken, :name, :expiry) RETURNING id",
-        [':smuser'=>$userid, ':token'=>$token, ':name'=>$name, ':expiry'=>$expiry]
-      );
-      if (!empty($result)) {
-        return [ 'id'=>$result[0]->id, 'token'=>$token ];
+      $dbq = (object)[
+        'columns'=>'smuser, name, token, expiry',
+        'values'=>":smuser, :name, $dbqtoken, :expiry",
+        'params'=>[':smuser'=>$userid, ':token'=>$token, ':name'=>$name, ':expiry'=>$expiry],
+      ];
+      if ($this->db->driver()->mysql_legacy) {
+        $tokenid = $this->db->query('SELECT uuid_generate_v4() AS id')[0]->id;
+        $dbq->columns .= ',id';
+        $dbq->values .= ',:id';
+        $dbq->params[":id"] = $tokenid;
+        $this->db->query("INSERT INTO sessman_usertokens ($dbq->columns) VALUES ($dbq->values)", $dbq->params);
+      }
+      else {
+        $tokenid = $this->db->query("INSERT INTO sessman_usertokens ($dbq->columns) VALUES ($dbq->values) RETURNING id", $dbq->params)[0]->id;
+      }
+      if (count($this->db->select('id', 'sessman_usertokens', [':id'=>$tokenid])) > 0) {
+        return [ 'id'=>$tokenid, 'token'=>$token ];
       }
     }
     else {
       // Update token
-      $this->db->query(
-        'UPDATE sessman_usertokens SET name=:name, expiry=:expiry WHERE id=:id AND smuser=:smuser',
-        [':id'=>$tokenid, ':smuser'=>$userid, ':name'=>$name, ':expiry'=>$expiry]
-      );
+      $this->db->update('sessman_usertokens', [':name'=>$name, ':expiry'=>$expiry], [':id'=>$tokenid, ':smuser'=>$userid]);
       return [];
     }
     return false;
@@ -656,12 +722,12 @@ class sessman {
       if (!$this->SA()) { return false; }
     }
     // User tokens allowed
-    if (count($this->db->query('SELECT tokens FROM sessman_user WHERE id=:id AND tokens = true', [':id'=>$userid])) == 0) {
+    if (count($this->db->select('tokens','sessman_user', [':id'=>$userid, ':tokens'=>($this->db->driver()->mysql) ? '1' : true ])) == 0) {
       return false;
     }
     // Delete token
-    $count = count($this->db->query('DELETE FROM sessman_usertokens WHERE id=:id AND smuser=:smuser RETURNING *', [':id'=>$tokenid, ':smuser'=>$userid]));
-    return $count > 0;
+    $this->db->delete('sessman_usertokens', [':id'=>$tokenid, ':smuser'=>$userid]);
+    return true;
   }
 
   /******************************************************************
@@ -671,14 +737,12 @@ class sessman {
    ******************************************************************/
   public function group_list($id = null) {
     if (!$this->SA())  { return false; }
-    $dbquery = 'SELECT id, groupname, ldapcn, radiusattr FROM sessman_group';
-    $dbparams = [];
-    if ($id != null) {
-      $dbquery = str_replace('SELECT id, ', 'SELECT ', $dbquery);
-      $dbquery .= ' WHERE id=:id';
-      $dbparams['id'] = $id;
+    if ($id == null) {
+      return $this->db->select('id, groupname, ldapcn, radiusattr', 'sessman_group');
     }
-    return $this->db->query($dbquery, $dbparams);
+    else {
+      return $this->db->select('groupname, ldapcn, radiusattr', 'sessman_group', [':id'=>$id]);
+    }
   }
 
   /******************************************************************
@@ -696,25 +760,19 @@ class sessman {
    ******************************************************************/
   public function group_save($id, $data) {
     if (!$this->SA())  { return false; }
+
     // Prepare SQL statement (MySQL/pSQL)
-    $dbqcol = '';
-    $dbqval = '';
-    $dbqupd = '';
     $dbparams = [];
     $fieldlist = ['groupname', 'ldapcn', 'radiusattr'];
     foreach ($fieldlist as $key) {
       if (isset($data[$key])) {
-        $dbqcol .= ", $key";
-        $dbqval .= ", :$key";
-        $dbqupd .= ", $key=:$key";
-        $dbparams[$key] = $data[$key];
+        $dbparams[":$key"] = $data[$key];
       }
     }
+
     // Create new group
     if ($id == null) {
-      $dbqcol = mb_substr($dbqcol,2);
-      $dbqval = mb_substr($dbqval,2);
-      $id = $this->db->query("INSERT INTO sessman_group ($dbqcol) VALUES ($dbqval) RETURNING id", $dbparams)[0]->id;
+      $id = $this->db->insert("sessman_group", $dbparams);
       if (isset($data['users'])) {
         foreach($data['users'] as $userid) { $this->groupmember_save($id, ['id'=>$userid]); }
       }
@@ -722,13 +780,12 @@ class sessman {
     }
     // Update group
     else {
-      $dbqupd = mb_substr($dbqupd,2);
-      $dbparams['id'] = $id;
+      $this->db->update("sessman_group", $dbparams, [':id'=>$id]);
       if (isset($data['users'])) {
-        $this->db->query('DELETE FROM sessman_usergroups WHERE smgroup=:smgroup', [':smgroup'=>$id]);
+        $this->db->delete('sessman_usergroups', [':smgroup'=>$id]);
         foreach($data['users'] as $userid) { $this->groupmember_save($id, ['id'=>$userid]); }
       }
-      return $this->db->query("UPDATE sessman_group SET $dbqupd WHERE id=:id", $dbparams);
+      return [[]];
     }
   }
 
@@ -738,9 +795,9 @@ class sessman {
   public function group_delete($id) {
     if (!$this->SA())  { return false; }
     // delete group
-    $this->db->query('DELETE FROM sessman_usergroups WHERE smgroup=:id', [':id'=>$id]);
-    $count = count($this->db->query('DELETE FROM sessman_group WHERE id=:id RETURNING *', [':id'=>$id]));
-    return $count > 0;
+    $this->db->delete('sessman_usergroups', [':smgroup'=>$id]);
+    $this->db->delete('sessman_group', [':id'=>$id]);
+    return true;
   }
 
   /******************************************************************
@@ -760,7 +817,17 @@ class sessman {
       LEFT JOIN sessman_user su ON su.id = sg.smuser
       WHERE sg.smgroup = :id
     ';
-    return $this->db->query($dbquery, [':id'=>$id]);
+    $result = [];
+    foreach ($this->db->query($dbquery, [':id'=>$id]) as $dbrow) {
+      $result[] = [
+        'id'=>$dbrow->id,
+        'username'=>$dbrow->username,
+        'firstname'=>$dbrow->firstname,
+        'lastname'=>$dbrow->lastname,
+        'active'=>($dbrow->active || $dbrow->active == '1') ? true : false
+      ];
+    }
+    return $result;
   }
 
   /******************************************************************

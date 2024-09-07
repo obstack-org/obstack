@@ -50,7 +50,7 @@ mod['obj'] = {
           columns = [...columns, { id:column.id, name:column.name, orderable:column.tbl_orderable}];
           if (column.type == 1) {
             $.each(apidata_objects, function(idx, rec) {
-              if (apidata_objects[idx][column.id] != null && apidata_objects[idx][column.id].trim().match(/^http/) && apidata_objects[idx][column.id].trim().match(/http[s]?\:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}([a-zA-Z0-9\/?=&#%]*)?$/)) {
+              if (apidata_objects[idx][column.id] != null && apidata_objects[idx][column.id].trim().match(/^(ht|f)tp/) && apidata_objects[idx][column.id].trim().match(/(ht|f)tp[s]?\:\/\/[a-zA-Z0-9\-\.\:@]+([a-zA-Z0-9\/\:\.\-_?=&#%]*)?$/)) {
                 columns_allowhtml = [...columns_allowhtml, column.id];
                 apidata_objects[idx][column.id] = $('<a/>', { href:apidata_objects[idx][column.id], target:'_blank'}).text(apidata_objects[idx][column.id]).on('click').on('click', function(event) {
                   event.stopPropagation();
@@ -337,7 +337,7 @@ mod['obj'] = {
         (id == null || !api_objtype.acl.delete)?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
           obAlert('<b>WARNING!:</b><br>This action wil permanently delete this object, are you sure you want to continue?',
           {
-            Ok:function(){ $.when( api('delete',`objecttype/${type}/object/${id}`) ).always(function() { mod.obj.list(type); }); },
+            Ok:function(){ content.append(loader.removeClass('fadein').addClass('fadein')); $.when( api('delete',`objecttype/${type}/object/${id}`) ).always(function() { mod.obj.list(type); }); },
             Cancel:null
           });
         }),
@@ -364,6 +364,7 @@ mod['obj'] = {
    *    relations   : Relations list
    ******************************************************************/
    save: function(type, id, obj_config, rellist) {
+    content.append(loader.removeClass('fadein').addClass('fadein'));
 
     // Prepare data formats
     let dtsave = obj_config;

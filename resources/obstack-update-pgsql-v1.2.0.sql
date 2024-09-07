@@ -15,10 +15,6 @@ CREATE TABLE setting_decimal (
 	CONSTRAINT setting_decimal_un UNIQUE (name)
 );
 
-INSERT INTO setting_decimal (name, value) VALUES
-('db_version',120),
-('totp_default_enabled',0);
-
 CREATE TABLE ntree (
 	id uuid NOT NULL DEFAULT uuid_generate_v4(),
 	parent uuid,
@@ -52,3 +48,5 @@ CREATE TABLE public.value_blob (
 	data bytea NULL,
 	CONSTRAINT value_blob_pk PRIMARY KEY (obj, objproperty)
 );
+
+INSERT INTO setting_decimal (name, value) VALUES ('db_version', 120), ('totp_default_enabled',0), ('session_timeout',600);

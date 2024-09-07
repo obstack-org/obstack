@@ -9,7 +9,7 @@ Obstack also supplies a <a href="https://github.com/obstack-org/obstack-docker" 
 * Linux server
 * Web server (Apache2, NGINX)
 * PHP >= v7.4 _**with packages:**_ pdo pdo_pgsql session mbstring json ldap
-* PostgreSQL >= v11 _**with packages:**_ contrib
+* PostgreSQL >= v11 _**with packages:**_ contrib </br><i>&nbsp;or:</i> MySQL >= 5.7 / MariaDB >= v10.2 <sup><i>(<a href="https://www.obstack.org/docs/?doc=general-configuration#database-setup">*</a>)</i></sup>
 
 ## Basic example (AlmaLinux8/Rocky8)
 
@@ -38,7 +38,7 @@ sudo -u postgres bash -c "cd; createdb obstack; psql -c \"CREATE USER obstack WI
 # Setup ObStack
 cd /var/lib
 sudo git clone "https://github.com/obstack-org/obstack.git"
-sudo -u postgres psql obstack </var/lib/obstack/resources/obstack-schema-v1.sql
+sudo -u postgres psql obstack </var/lib/obstack/resources/obstack-schema-pgsql-v1.2.0.sql
 sudo -u postgres bash -c "cd; psql obstack -c \"GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO obstack; GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO obstack;\""
 sudo ln -s /var/lib/obstack/webapp /var/www/html/obstack
 sudo mkdir -pm 750 /etc/obstack

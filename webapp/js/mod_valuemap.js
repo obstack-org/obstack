@@ -149,8 +149,10 @@
         (id==null)?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
           obAlert('<b>WARNING!:</b><br>This action wil permanently delete this valuemap, affecting all concerning objects. Are you sure you want to continue?', { Ok:function(){
             obAlert('<b>WARNING!:</b><br>Deleting valuemap. This can NOT be undone, are you really really sure?', { Ok:function(){
-              change.reset();
-              mod.valuemap.list();
+              $.when( api('delete', `valuemap/${id}`) ).always(function() {
+                change.reset();
+                mod.valuemap.list();
+              });
             }, Cancel:null });
           }, Cancel:null });
         }),
@@ -175,6 +177,7 @@
    *   vallist   : value table (second tab)
    ******************************************************************/
    save: function(id, vmform, vallist) {
+    content.append(loader.removeClass('fadein').addClass('fadein'));
 
     // Prepare data formats
     vallist = vallist.html();

@@ -19,6 +19,7 @@ mod['config'] = {
     'css_content-color':'#444444',
     'css_content-background':'#fafafa',
     'session_timeout': '600',
+    'version_check': '0',
     'totp_default_enabled':'0',
     'ldap_enabled':'0',
     'ldap_host':'',
@@ -111,7 +112,7 @@ mod['config'] = {
             value.prop('type', 'range').prop('min', '80').prop('max', '300').css('width', '300').prop('value', curval);
           }
         }
-        if (name.indexOf('totp_default_enabled') == 0 || name.indexOf('ldap_enabled') == 0 || name.indexOf('radius_enabled') == 0) {
+        if (name.indexOf('totp_default_enabled') == 0 || name.indexOf('version_check') == 0 || name.indexOf('ldap_enabled') == 0 || name.indexOf('radius_enabled') == 0) {
           value.prop('type', 'checkbox').removeClass('input-conf').addClass('nomrg').prop('checked', curval=='1');
         }
         cfglist.addrow([
@@ -163,8 +164,6 @@ mod['config'] = {
               }
             });
           }),
-          // $('<input/>', { class:'btn', type:'submit', value:'Undo All', width:100 }).on('click', function() {
-          // })
         )
       );
 
@@ -181,6 +180,7 @@ mod['config'] = {
    * Save settings
    ******************************************************************/
   save: function(navlist, cfglist) {
+    content.append(loader.removeClass('fadein').addClass('fadein'));
 
     $.each(mod.config.navigation.maps, function(idx) {
       delete mod.config.navigation.maps[idx].depth;
@@ -191,7 +191,7 @@ mod['config'] = {
     $.each(cfglist.html().find('tbody').find('input'), function() {
       let name = $(this).attr('hnm');
       let value = this.value;
-      if (name.indexOf('totp_default_enabled') == 0 || name.indexOf('ldap_enabled') == 0 || name.indexOf('radius_enabled') == 0) {
+      if (name.indexOf('totp_default_enabled') == 0 || name.indexOf('version_check') == 0 || name.indexOf('ldap_enabled') == 0 || name.indexOf('radius_enabled') == 0) {
         value = ($(this).prop('checked')) ? '1' : '0';
       }
       cfgsave = [ ...cfgsave, { name:name, value:value} ];

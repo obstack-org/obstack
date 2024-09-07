@@ -1,13 +1,19 @@
 <?php
 // PHP configuration
 date_default_timezone_set('UTC');
-error_reporting(E_ALL ^ E_NOTICE);
 
 // Prepare API response
 require_once 'inc/class_sAPI.php';
 $api = new sAPI(2);
 $payload = $api->payload();
 $result = null;
+
+// Prepare Plugins
+require_once 'inc/class_plugins.php';
+foreach (glob("plugins/*.php") as $plgfile) {
+  include_once $plgfile;
+}
+$plugins = new plugins();
 
 // Base configuration
 require_once 'config.php';
@@ -23,7 +29,13 @@ if ( count($bcnf->get()) == 0 || $bcnf->get('db_connectionstring') == null ) {
 $debug = false;
 if (in_array(strtolower($bcnf->get('debug')), ['yes', 'true'])) {
   $debug = true;
+  error_reporting(E_ALL ^ E_NOTICE);
 }
+
+// Session
+$sessionname = "obstack_session";
+session_name($sessionname);
+session_start();
 
 // Database connection
 require_once 'inc/class_db.php';
@@ -43,8 +55,9 @@ if (
 ) {
   $api->http_error(428, 'Error in configuration.<br><br>Please check the <a href="https://www.obstack.org/docs/?doc=general-configuration#upgrade-nodes" target=_blank>Upgrade nodes</a>');
 }
-if(count($db->query("SELECT 1 FROM information_schema.tables WHERE table_schema = CURRENT_SCHEMA() AND table_name = 'setting_decimal'", [])) == 0){
-  $api->http_error(428, 'Database check failed, contact your system administrator.<br><br>(Reference: <a href="https://www.obstack.org/docs/?doc=general-configuration#database-schema" target=_blank>Database schema</a>)');
+$dbfunc = ($db->driver()->mysql) ? 'database()' : 'CURRENT_SCHEMA()';
+if(count($db->query_buffered('stdec',"SELECT 1 FROM information_schema.tables WHERE table_schema = $dbfunc AND table_name = 'setting_decimal'")) == 0){
+  $api->http_error(428, 'Database check failed, contact your system administrator.<br><br>(Reference: <a href="https://www.obstack.org/docs/?doc=general-configuration#database" target=_blank>Database schema</a>)');
 }
 
 // App configuration
@@ -54,13 +67,24 @@ if (!$acnf->verify()) {
   $api->http_error(428, 'Encryption check failed, contact your system administrator.<br><br>(Reference: <a href="https://www.obstack.org/docs/?doc=general-configuration" target=_blank>General configuration</a>)');
 }
 
+// Global log function
+$oblog = [];
+function oblog($data) {
+  global $oblog;
+  $oblog[] = $data;
+  header("ObStack-Log: ".json_encode($oblog));
+}
+
 /******************************************************************
  * API Routes
  ******************************************************************/
 
 // Session Manager
 require_once 'inc/class_sessman.php';
-$sessman = new sessman($db, "obstack_session");
+$sessman = new sessman($db, $sessionname);
+if ($sessman->ratelimit()) {
+  $api->http_error(428, 'Too many invalid login attempts.');
+}
 
 // SA shorthand
 function checkSA() {

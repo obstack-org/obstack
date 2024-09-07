@@ -272,8 +272,9 @@ mod['objconf'] = {
         }),
         // -- Delete
         (id == null)?null:$('<input/>', { class:'btn', type:'submit', value:'Delete'  }).on('click', function() {
-          obAlert('<b>WARNING!:</b><br>This action wil permanently delete this object type, all related objects and all related values. Are you sure you want to continue?', { Ok:function(){
+          obAlert('<b>WARNING!:</b><br>This action wil permanently delete this object type and all related objects, values and relations. Are you sure you want to continue?', { Ok:function(){
             obAlert('<b>WARNING!:</b><br>Deleting object type. This can NOT be undone, are you really really sure?', { Ok:function(){
+              content.append(loader.removeClass('fadein').addClass('fadein'));
               $.when( api('delete',`objecttype/${id}`) ).always(function() {
                 change.reset();
                 location.reload(true);
@@ -302,6 +303,7 @@ mod['objconf'] = {
    *   ptable   : Properties table (second tab)
    ******************************************************************/
   save: function(id, objtype_config, proplist, rellist, acclist) {
+    content.append(loader.removeClass('fadein').addClass('fadein'));
 
     // Loader
     content.append(loader.removeClass('fadein').addClass('fadein'));
@@ -404,7 +406,7 @@ mod['objconf'] = {
             if (propform_data != null) {
               propform_data = $.extend(propform_data, {
                 id: (newrec) ? null : rdata.id,
-                required:(propform_data.type=="1"),
+                required:(propform_data.reqr=="1"),
                 type_objtype:(propform_data.type=="3")?propform_data.tsrc:null,
                 type_valuemap:(propform_data.type=="4")?propform_data.tsrc:null,
                 tbl_visible:(propform_data.table<9),
@@ -430,7 +432,6 @@ mod['objconf'] = {
       });
 
       let popup_html = popup.html();
-      console.log(basebq);
       if (basebq == null) {
         popup_html.find('select[name=type]').find('option[value=12]').attr('disabled','disabled').append(' - [UNAVAILABLE]');
       }

@@ -8,7 +8,8 @@
 
 // Development options
 const debug = false;
-const build = '240319'
+const build = '240907'
+const version = 121;
 
 // Loading options
 const hthead = $('head');

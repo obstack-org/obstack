@@ -30,5 +30,5 @@ const def = {
       11:'password',
       12:'password'
     },
-    logtype         : { 1:'Create', 2:'Update', 5:'Assign', 6:'Unassign', 9:'Delete', 10:'ObjectType' }
+    logtype: { 1:'Create', 2:'Update', 5:'Assign', 6:'Unassign', 9:'Delete', 10:'ObjectType' }
   };

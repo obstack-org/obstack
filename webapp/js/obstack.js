@@ -197,6 +197,11 @@ $(document).on('click', function(event) {
       $('#titlebar-dropdown').slideUp('fast');
     }
   }
+  if (event.target.className != 'obForm-info') {
+    $('.obForm-info-popup').each(function() {
+      $(this).remove();
+    });
+  }
 });
 
 // API function
@@ -217,6 +222,9 @@ function api(httpmethod, path, data) {
       else if (response.status == 404) {
         obAlert('No access to object');
       }
+      else if (response.status == 428) {
+        obAlert(response.responseJSON.error, []);
+      }
       else {
         obAlert(response.responseJSON.error);
       }
@@ -225,17 +233,29 @@ function api(httpmethod, path, data) {
         console.log({status:response.status, request:`${httpmethod}: ${path}`, data:data});
         console.log(response.responseText);
       }
+      // Header Logs
+      log(xhr);
     },
-    success: function (response) {
+    success: function (response, status, xhr) {
       try {
         if ('error' in response) {
           obAlert(response.error, null);
         }
       }
       catch(err) {}
+      // Header Logs
+      log(xhr);
     }
   });
   return xhr;
+}
+
+// Log from xhr
+function log(xhr) {
+  let log = xhr.getResponseHeader('obstack-log');
+  if (log != null) {
+    console.log(log);
+  }
 }
 
 // Function for locking all functions in an array

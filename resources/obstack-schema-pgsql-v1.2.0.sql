@@ -205,4 +205,4 @@ CREATE TABLE valuemap_value (
 );
 
 INSERT INTO sessman_user (username,secret,active,sa) VALUES ('admin', crypt('admin', gen_salt('bf')), true, true);
-INSERT INTO setting_decimal (name, value) VALUES ('db_version',120), ('totp_default_enabled',0), ('session_timeout',600);
+INSERT INTO setting_decimal (name, value) VALUES ('db_version', 120), ('totp_default_enabled',0), ('session_timeout',600);

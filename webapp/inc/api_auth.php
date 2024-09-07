@@ -8,6 +8,9 @@ if (!$sessman->authorized()) {
     UNION
     SELECT name, round(value)::text AS value FROM setting_decimal WHERE name LIKE 'session_%' OR name LIKE 'ldap_%' OR name LIKE 'radius_%'
   ";
+  if ($db->driver()->mysql) {
+    $dbquery = str_replace('::text', '', $dbquery);
+  }
   foreach($db->query($dbquery, []) as $dbrow) {
     $cname = explode('_', $dbrow->name, 2);
     if (!isset($sessman_config[$cname[0]])) { $sessman_config[$cname[0]] = []; }
@@ -15,7 +18,9 @@ if (!$sessman->authorized()) {
     elseif (in_array($cname[1], ['port','attr','timeout'])) { $sessman_config[$cname[0]][$cname[1]] = intval($dbrow->value); }
     else { $sessman_config[$cname[0]][$cname[1]]  = $dbrow->value; }
   }
-  $sessman->settimeout($sessman_config['session']['timeout']);
+  if (isset($sessman_config['session']['timeout'])) {
+    $sessman->settimeout($sessman_config['session']['timeout']);
+  }
   $sessman->config_ldap = (array_key_exists('ldap', $sessman_config)) ? $sessman_config['ldap'] : null ;
   $sessman->config_radius = (array_key_exists('radius', $sessman_config)) ? $sessman_config['radius'] : null ;
 }
