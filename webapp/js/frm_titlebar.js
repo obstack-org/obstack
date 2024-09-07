@@ -69,7 +69,7 @@ frm['titlebar'] = {
     controlbar.append(
       $('<img/>', { src: 'img/icusr.png', class: "titlebar-control-img" }).on('click', function(event) { frm.titlebar.load('icusr') })
     );
-    if (cfg.version.notify == 1 && version > cfg.version.available) {
+    if (mod.user.self.sa && cfg.version.notify == 1 && cfg.version.available > version) {
       controlbar.append(
         $('<div/>', { class:'titlebar-update' }).html('&#9733 Update available')
         .on('click', function(event) {

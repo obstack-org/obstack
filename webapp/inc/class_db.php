@@ -68,11 +68,9 @@ class db {
     }
     else {
       $version = $this->query('SELECT version() AS version')[0]->version;
-      if (isset($_SESSION)) {
-        if (!isset($_SESSION['db'])) {
-          $_SESSION['db'] = [];
-          $_SESSION['db']['version'] = $version;
-        }
+      if (isset($_SESSION) && !isset($_SESSION['db'])) {
+        $_SESSION['db'] = [];
+        $_SESSION['db']['version'] = $version;
       }
     }
     if ($this->dbconn->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql') {
@@ -202,7 +200,7 @@ class db {
    *  $params       : Array of parameters for PDO
    *  $name         : Store/retrieve data: $_SESSION['db']['buffered'][$name]
    *****************************************************************************/
-  public function query_buffered($name, $query, $params=[], $internal=false) {
+  public function query_buffered($name, $query, $params=[]) {
     $result = null;
     if (isset($_SESSION['db']['buffered'][$name])) {
       $result = $_SESSION['db']['buffered'][$name];

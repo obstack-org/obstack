@@ -38,7 +38,7 @@ sudo -u postgres bash -c "cd; createdb obstack; psql -c \"CREATE USER obstack WI
 # Setup ObStack
 cd /var/lib
 sudo git clone "https://github.com/obstack-org/obstack.git"
-sudo -u postgres psql obstack </var/lib/obstack/resources/obstack-schema-v1.sql
+sudo -u postgres psql obstack </var/lib/obstack/resources/obstack-schema-pgsql-v1.2.0.sql
 sudo -u postgres bash -c "cd; psql obstack -c \"GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO obstack; GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO obstack;\""
 sudo ln -s /var/lib/obstack/webapp /var/www/html/obstack
 sudo mkdir -pm 750 /etc/obstack

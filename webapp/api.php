@@ -1,7 +1,6 @@
 <?php
 // PHP configuration
 date_default_timezone_set('UTC');
-error_reporting(E_ALL ^ E_NOTICE);
 
 // Prepare API response
 require_once 'inc/class_sAPI.php';
@@ -30,6 +29,7 @@ if ( count($bcnf->get()) == 0 || $bcnf->get('db_connectionstring') == null ) {
 $debug = false;
 if (in_array(strtolower($bcnf->get('debug')), ['yes', 'true'])) {
   $debug = true;
+  error_reporting(E_ALL ^ E_NOTICE);
 }
 
 // Session

@@ -211,32 +211,30 @@ class mod_obj {
 
     // Apply plugin(s)
     foreach ($idlist as $id) {
-      if ($id != null) {
-        if (isset($this->cache->object[$id]->meta) && array_key_exists($this->cache->object[$id]->objecttype, $this->plugins->plugins)) {
-          $object = (object)[ 'id'=>$id ];
-          foreach ($this->cache->object[$id]->meta as $property=>$value) {
-            $object->$property = $value->value;
-          }
-          foreach ($this->plugins->apply('read', $this->cache->object[$id]->objecttype, $object) as $property=>$value) {
-            if ($property != 'id') {
-              $this->cache->object[$id]->meta[$property]->value = $value;
-              $this->cache->object[$id]->meta[$property]->value_text = $value;
-              if ($this->cache->object[$id]->meta[$property]->type == 3) {
-                foreach($xlist->object as $xval=>$xrec) {
-                  if (isset($xrec[$id]) && $xrec[$id] == $property) {
-                    unset($xlist->object[$xval][$id]);
-                  }
+      if ($id != null && isset($this->cache->object[$id]->meta) && array_key_exists($this->cache->object[$id]->objecttype, $this->plugins->plugins)) {
+        $object = (object)[ 'id'=>$id ];
+        foreach ($this->cache->object[$id]->meta as $property=>$value) {
+          $object->$property = $value->value;
+        }
+        foreach ($this->plugins->apply('read', $this->cache->object[$id]->objecttype, $object) as $property=>$value) {
+          if ($property != 'id') {
+            $this->cache->object[$id]->meta[$property]->value = $value;
+            $this->cache->object[$id]->meta[$property]->value_text = $value;
+            if ($this->cache->object[$id]->meta[$property]->type == 3) {
+              foreach($xlist->object as $xval=>$xrec) {
+                if (isset($xrec[$id]) && $xrec[$id] == $property) {
+                  unset($xlist->object[$xval][$id]);
                 }
-                $xlist->object[$value][$id] = $property;
               }
-              if ($this->cache->object[$id]->meta[$property]->type == 4) {
-                foreach($xlist->valuemap as $xval=>$xrec) {
-                  if (isset($xrec[$id]) && $xrec[$id] == $property) {
-                    unset($xlist->valuemap[$xval][$id]);
-                  }
+              $xlist->object[$value][$id] = $property;
+            }
+            if ($this->cache->object[$id]->meta[$property]->type == 4) {
+              foreach($xlist->valuemap as $xval=>$xrec) {
+                if (isset($xrec[$id]) && $xrec[$id] == $property) {
+                  unset($xlist->valuemap[$xval][$id]);
                 }
-                $xlist->valuemap[$value][$id] = $property;
               }
+              $xlist->valuemap[$value][$id] = $property;
             }
           }
         }
@@ -680,7 +678,7 @@ class mod_obj {
       AND TYPE IN (11,12)
     ';
     $result = $this->db->query($dbquery, [':otid'=>$otid, ':id'=>$id, ':propid'=>$propid]);
-    if (count($result) <= 0) {
+    if (empty($result)) {
       return [];
     }
     else {

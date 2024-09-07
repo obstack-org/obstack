@@ -30,6 +30,7 @@ class mod_conf {
     'ldap_enabled', 'ldap_host', 'ldap_port', 'ldap_userdn', 'ldap_group-auth', 'ldap_group-sa',
     'radius_enabled', 'radius_host', 'radius_port', 'radius_secret', 'radius_attr', 'radius_group-auth', 'radius_group-sa'
   ];
+  private $objson = 'https://www.obstack.org/resources/obstack.json';
 
   /******************************************************************
    * Initialize
@@ -151,12 +152,12 @@ class mod_conf {
         $_SESSION['obstack']['version'] = 0;
         try {
           $scc = stream_context_create(array('http'=>array('timeout'=>2)));
-          $json = @file_get_contents('https://www.obstack.org/resources/obstack.json', false, $scc);
+          $json = @file_get_contents($this->objson, false, $scc);
           $obst = json_decode($json);
           if (isset($obst->obstack->version)) {
             $_SESSION['obstack']['version'] = str_replace('.', '', $obst->obstack->version);
           }
-        } catch (Exception $e) {}
+        } catch (Exception $e) { unset($e); }
       }
       $result['version']['available'] = $_SESSION['obstack']['version'];
     }
