@@ -101,6 +101,23 @@ class mod_conf {
   }
 
   /******************************************************************
+   * Load Configuration (if not already present in session)
+   ******************************************************************/
+
+  private function load() {
+    if (!isset($_SESSION['settings'])) {
+      $_SESSION['settings'] = [];
+      foreach ($this->db->query('SELECT id, name, value FROM setting_varchar', []) as $rec) {
+        $_SESSION['settings'][$rec->name] = $rec;
+      };
+      foreach ($this->db->query('SELECT id, name, value FROM setting_decimal', []) as $rec) {
+        $rec->value = (int)$rec->value;
+        $_SESSION['settings'][$rec->name] = $rec;
+      };
+    }
+  }
+
+  /******************************************************************
    * List Configuration
    * ==================
    *  $public     Public only (eg for non authorized users)
@@ -108,10 +125,11 @@ class mod_conf {
    ******************************************************************/
 
   public function list($public=true, $sa=false) {
-    $result = [];
-    $dbqset = $this->settings_public;
+    $this->load();
+    $result = [ 'settings'=>[] ];
+    $cfgset = $this->settings_public;
     if (!$public) {
-      $dbqset = array_merge($dbqset, $this->settings_private);
+      $cfgset = array_merge($cfgset, $this->settings_private);
       $result['navigation'] = $this->db->select('id, parent, name','ntree');
       if ($this->options != null && isset($this->options['sc_encryptionkey'])) {
         if (!isset($_SESSION['obstack'])) { $_SESSION['obstack'] = []; }
@@ -123,46 +141,60 @@ class mod_conf {
     }
     // Admin fields (general)
     if ($sa) {
-      $dbqset = array_merge($dbqset, $this->settings_admin);
+      $cfgset = array_merge($cfgset, $this->settings_admin);
     }
     // Admin fields (config module)
     if ($sa && $this->display == 'edit') {
-      $dbqset = array_merge($dbqset, $this->settings_admin_edit);
+      $cfgset = array_merge($cfgset, $this->settings_admin_edit);
     }
-    $dbqinv = $this->list2in($dbqset, 'v');
-    $dbqind = $this->list2in($dbqset, 'd');
-    $dbqround = ($this->db->driver()->mysql) ? 'round(value)' : 'round(value)::text';
-    $dbquery = "
-      SELECT id, name, value FROM setting_varchar WHERE name IN ($dbqinv->marks)
-      UNION
-      SELECT id, name, $dbqround AS value FROM setting_decimal WHERE name IN ($dbqind->marks) ORDER BY name
-    ";
-    $result['settings'] = $this->db->query($dbquery, array_merge($dbqinv->params,$dbqind->params));
+    // Gather settings
+    $this->load();
+    foreach ($cfgset as $cfgname) {
+      if (isset($_SESSION['settings'][$cfgname])) {
+        $result['settings'][] = $_SESSION['settings'][$cfgname];
+      }
+    }
+
     // Version check
     if ($sa) {
-      $result['version'] = [];
-      foreach ($result['settings'] as $rec) {
-        if ($rec->name == 'version_check') { $result['version']['notify'] = $rec->value; }
-      }
-      if (!isset($result['version']['notify'])) {
-        $result['version']['notify'] = "1";
+      if (!isset($_SESSION['settings']['version_check'])) {
+        $_SESSION['settings']['version_check'] = (object)[ 'value'=>1 ];
         $this->db->query("INSERT INTO setting_decimal (name, value) VALUES ('version_check', 1)", []);
       }
-      if (!isset($_SESSION['obstack']['version']) && $result['version']['notify'] == 1) {
+      $result['version'] = [
+        'notify'=>$_SESSION['settings']['version_check']->value
+      ];
+      if (!isset($_SESSION['obstack']['version']) && $_SESSION['settings']['version_check']->value == 1) {
         $_SESSION['obstack']['version'] = 0;
         try {
           $scc = stream_context_create(array('http'=>array('timeout'=>2)));
           $json = @file_get_contents($this->objson, false, $scc);
           $obst = json_decode($json);
           if (isset($obst->obstack->version)) {
-            $_SESSION['obstack']['version'] = str_replace('.', '', $obst->obstack->version);
+            $_SESSION['obstack']['version'] = intval(str_replace('.', '', $obst->obstack->version));
           }
         } catch (Exception $e) { unset($e); }
       }
-      $result['version']['available'] = $_SESSION['obstack']['version'];
+      if (isset($_SESSION['obstack']['version'])) {
+        $result['version']['available'] = $_SESSION['obstack']['version'];
+      }
     }
 
     return $result;
+  }
+
+  /******************************************************************
+   * Get setting
+   * ===========
+   *  $public     Public only (eg for non authorized users)
+   *  $sa         SuperAdmin
+   ******************************************************************/
+
+  public function get($key) {
+    if (empty($_SESSION['settings'])) {
+      $this->load();
+    }
+    return $_SESSION['settings'][$key]->value;
   }
 
   /******************************************************************
@@ -228,12 +260,15 @@ class mod_conf {
         $settings[$rec['name']] = $rec['value'];
         if (in_array($rec['name'], array_merge($this->settings_public, $this->settings_private, $this->settings_admin, $this->settings_admin_edit))) {
           if (in_array(end(explode('_', $rec['name'])), [ 'enabled', 'timeout', 'check', 'port', 'attr', 'sidebar-width' ])) {
+            if (mb_substr($rec['name'],-8) == '_timeout' && intval($rec['value']) < 30) {
+              $settings[$rec['name']] = 30;
+            }
             $mlist['decimal'][] = $rec['name'];
           }
           else {
             if ((mb_substr($rec['name'],0,4) == 'css_' && (
               ((mb_substr($rec['name'],-6) == '-color' || mb_substr($rec['name'],-11) == '-background') && preg_match('/^#[0-9a-f]{6}$/', $rec['value'])) ||
-              (mbsubstr($rec['name'],-6) == '-width' && preg_match('/^[1-9][0-9]{2}$/', $rec['value']))
+              (mb_substr($rec['name'],-6) == '-width' && preg_match('/^[1-9][0-9]{2}$/', $rec['value']))
             )) ||
               mb_substr($rec['name'],0,4) != 'css_'
             ) {
@@ -276,6 +311,8 @@ class mod_conf {
           }
         }
       }
+
+      unset($_SESSION['settings']);
 
     }
 

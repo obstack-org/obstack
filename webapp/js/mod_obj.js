@@ -259,45 +259,48 @@ mod['obj'] = {
       }
     });
 
-    let rellist = new obFTable({
-      table: {
-        id: `${type}_relations`,
-        data: api_relations,
-        columns: [
-          { id: 'rtp', name:'Type', orderable: true },
-          { id: 'rf1', name:'Field', orderable: true },
-          { id: 'rf2', name:'', orderable: false },
-          { id: 'rf3', name:'', orderable: false },
-          { id: 'rf4', name:'', orderable: false }
-        ],
-        columns_resizable: true,
-        columns_hidden: ['id', 'objtype']
-      },
-      search:   true,
-      create:   (!acl_save)?null:function() { mod.obj.relations.open(type, id, rellist.table(), null); },
-      open:     function(td) {
-        let tr = $(td).parent();
-        if (tr.hasClass('delete')) {
-          obAlert('Do you want to remove the deletion mark?', { Ok:function(){ tr.removeClass('delete'); }, Cancel:null });
+    let rellist = null;
+    if (api_relations != null) {
+      rellist = new obFTable({
+        table: {
+          id: `${type}_relations`,
+          data: api_relations,
+          columns: [
+            { id: 'rtp', name:'Type', orderable: true },
+            { id: 'rf1', name:'Field', orderable: true },
+            { id: 'rf2', name:'', orderable: false },
+            { id: 'rf3', name:'', orderable: false },
+            { id: 'rf4', name:'', orderable: false }
+          ],
+          columns_resizable: true,
+          columns_hidden: ['id', 'objtype']
+        },
+        search:   true,
+        create:   (!acl_save)?null:function() { mod.obj.relations.open(type, id, rellist.table(), null); },
+        open:     function(td) {
+          let tr = $(td).parent();
+          if (tr.hasClass('delete')) {
+            obAlert('Do you want to remove the deletion mark?', { Ok:function(){ tr.removeClass('delete'); }, Cancel:null });
+          }
+          else {
+            mod.obj.relations.open(type, id, rellist.table(), tr, acl_save);
+          }
         }
-        else {
-          mod.obj.relations.open(type, id, rellist.table(), tr, acl_save);
-        }
-      }
-    });
+      });
+    }
 
     // Logs
-    let logs = null;
+    let loglist = null;
     if (mod.user.self.sa && api_objtype.log && (id != null)) {
-      logs =$('<table/>', { class: 'log-table' });
-      logs.append(
+      loglist =$('<table/>', { class: 'log-table' });
+      loglist.append(
         $('<th/>', { class: 'log-th', width: 160}).text('Date/Time'),
         $('<th/>', { class: 'log-th', width: 100 }).text('User'),
         $('<th/>', { class: 'log-th', width: 100 }).text('Action'),
         $('<th/>', { class: 'log-th', width: 450 }).text('Details')
       );
       $.each(api_log, function(idx, log) {
-        logs.append(
+        loglist.append(
           $('<tr/>').append(
             $('<td/>', { class: 'log-td' }).text(log.timestamp),
             $('<td/>', { class: 'log-td' }).text(log.username),
@@ -311,8 +314,8 @@ mod['obj'] = {
     // Draw
     let obtabs = new obTabs({ tabs: [
       { title:'Properties', html:$('<div/>', { class:'content-tab-wrapper' }).append(propform_html) },
-      { title:'Relations',  html:$('<div/>', { class:'content-tab-wrapper' }).append(rellist.html()) },
-      (logs==null)?null:{ title:'Log', html:$('<div/>', { class:'content-tab-wrapper' }).append(logs) }
+      (rellist==null)?null:{ title:'Relations',  html:$('<div/>', { class:'content-tab-wrapper' }).append(rellist.html()) },
+      (loglist==null)?null:{ title:'Log', html:$('<div/>', { class:'content-tab-wrapper' }).append(loglist) }
     ]});
 
     let obcontent = {
@@ -327,7 +330,7 @@ mod['obj'] = {
           });
           if (propform_data != null) {
             change.reset();
-            mod.obj.save(type, id, propform_data, rellist.table());
+            mod.obj.save(type, id, propform_data, (rellist==null)?null:rellist.table());
           }
           else {
             obtabs.showtab('_obTab0');
