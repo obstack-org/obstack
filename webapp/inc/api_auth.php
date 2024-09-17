@@ -2,27 +2,18 @@
 
 // Sessman config
 if (!$sessman->authorized()) {
+  $acnf->list();
   $sessman_config = [];
-  $dbquery = "
-    SELECT name, value FROM setting_varchar WHERE name LIKE 'session_%' OR name LIKE 'ldap_%' OR name LIKE 'radius_%'
-    UNION
-    SELECT name, round(value)::text AS value FROM setting_decimal WHERE name LIKE 'session_%' OR name LIKE 'ldap_%' OR name LIKE 'radius_%'
-  ";
-  if ($db->driver()->mysql) {
-    $dbquery = str_replace('::text', '', $dbquery);
+  foreach($_SESSION['settings'] as $cfkey=>$cfrec) {
+    $cname = explode('_', $cfkey, 2);
+    if (in_array($cname[0], ['ldap', 'radius'])) {
+      if (!isset($sessman_config[$cname[0]])) { $sessman_config[$cname[0]] = []; }
+      if ($cname[1] == 'enabled') { $sessman_config[$cname[0]][$cname[1]] = ($cfrec->value == '1') ? true : false; }
+      else { $sessman_config[$cname[0]][$cname[1]]  = $cfrec->value; }
+    }
   }
-  foreach($db->query($dbquery, []) as $dbrow) {
-    $cname = explode('_', $dbrow->name, 2);
-    if (!isset($sessman_config[$cname[0]])) { $sessman_config[$cname[0]] = []; }
-    if ($cname[1] == 'enabled') { $sessman_config[$cname[0]][$cname[1]] = ($dbrow->value == '1') ? true : false; }
-    elseif (in_array($cname[1], ['port','attr','timeout'])) { $sessman_config[$cname[0]][$cname[1]] = intval($dbrow->value); }
-    else { $sessman_config[$cname[0]][$cname[1]]  = $dbrow->value; }
-  }
-  if (isset($sessman_config['session']['timeout'])) {
-    $sessman->settimeout($sessman_config['session']['timeout']);
-  }
-  $sessman->config_ldap = (array_key_exists('ldap', $sessman_config)) ? $sessman_config['ldap'] : null ;
-  $sessman->config_radius = (array_key_exists('radius', $sessman_config)) ? $sessman_config['radius'] : null ;
+  $sessman->config_ldap = (array_key_exists('ldap', $sessman_config)) ? $sessman_config['ldap'] : null;
+  $sessman->config_radius = (array_key_exists('radius', $sessman_config)) ? $sessman_config['radius'] : null;
 }
 
 // Use token (Header: "X-API-Key":"[token]")
