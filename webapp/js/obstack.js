@@ -107,6 +107,8 @@ let state = {
 
 // Document onload function
 let basebq = null;
+let session_timeout = 600;
+let session_heartbeat = $.now();
 $(document).ready( function () {
   $.when(
     api('get','config')
@@ -179,6 +181,29 @@ $(document).ready( function () {
   .fail(function() {
     obAlert(response.error, null);
   });
+
+  let explout = 99;
+  let expwarn = setInterval(function() {
+    if (($.now() - session_heartbeat)/1000 > session_timeout - 20) {
+      if (explout > 20) {
+        explout = 20;
+        obAlert('Your session is about to expire, do you want to coninue?', { Continue: function() {
+          api('get', 'auth');
+          session_heartbeat = $.now();
+          explout = 99;
+        } });
+      }
+      else {
+        explout--;
+      }
+      if (explout < 1) {
+        clearInterval(expwarn);
+        $('body').empty();
+        obAlert('Your session has expired, please log in again.', { Ok: function(){ location.reload(true); } });
+      }
+    }
+  }, 1000);
+
 });
 
 $(window).bind('beforeunload',function(){
@@ -187,7 +212,7 @@ $(window).bind('beforeunload',function(){
   }
 });
 
-// global default onclick
+// global default events
 $(document).on('click', function(event) {
   if (event.target.className != 'titlebar-control-img') {
     if (event.target.className == 'titlebar-dropdown-item') {
@@ -202,6 +227,10 @@ $(document).on('click', function(event) {
       $(this).remove();
     });
   }
+  session_heartbeat = $.now();
+});
+$(document).on('keydown paste', function() {
+  session_heartbeat = $.now();
 });
 
 // API function
@@ -317,6 +346,9 @@ function setConfig(data) {
     }
     if (value.name == 'totp_default_enabled') {
       cfg.settings.totp_default_enabled = (value.value == '1');
+    }
+    if (value.name == 'session_timeout') {
+      session_timeout = parseInt(value.value);
     }
   });
 }

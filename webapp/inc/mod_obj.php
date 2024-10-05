@@ -390,6 +390,9 @@ class mod_obj {
           'property'=>$objecttype->property,
           'acl'=>$objecttype->acl
         ];
+        if (empty($objecttype->relations)) {
+          unset($obj->relation);
+        }
         if (isset($objecttype->meta)) {
           $obj->meta = $objecttype->meta;
         }

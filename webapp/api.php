@@ -82,6 +82,10 @@ function oblog($data) {
 // Session Manager
 require_once 'inc/class_sessman.php';
 $sessman = new sessman($db, $sessionname);
+$sessman_timeout = $acnf->get('session_timeout');
+if (($sessman_timeout) > 0) {
+  $sessman->settimeout($sessman_timeout);
+}
 if ($sessman->ratelimit()) {
   $api->http_error(428, 'Too many invalid login attempts.');
 }
