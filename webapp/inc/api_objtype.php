@@ -54,12 +54,18 @@ elseif ($api->route('/objecttype/{objecttype}/object')) {
 elseif ($api->route('/objecttype/{objecttype}/object/{object}')) {
   if ($api->method('GET'))     { $result = $obj->open($api->param('objecttype'), $api->param('object')); }
   if ($api->method('PUT'))     { $result = $obj->save($api->param('objecttype'), $api->param('object'), $api->payload()); }
+  if ($api->method('POST'))    { $result = $obj->file_save($api->param('objecttype'), $api->param('object')); }
   if ($api->method('DELETE') && ($obj->delete($api->param('objecttype'), $api->param('object')))) { $result = ['delete'=>true]; }
 }
 
 // --> /objecttype/[objecttype]/object/[object]/property/[property]
 elseif ($api->route('/objecttype/{objecttype}/object/{object}/property/{property}')) {
   if ($api->method('GET'))     { $result = $obj->property_list($api->param('objecttype'), $api->param('object'), $api->param('property')); }
+}
+
+// --> /objecttype/[objecttype]/object/[object]/property/[property]/content
+elseif ($api->route('/objecttype/{objecttype}/object/{object}/property/{property}/content')) {
+  if ($api->method('GET'))     { $obj->file_open($api->param('objecttype'), $api->param('object'), $api->param('property')); }
 }
 
 // --> /objecttype/[objecttype]/object/[object]/relation

@@ -225,20 +225,44 @@ mod['obj'] = {
       }
     });
 
-    // Options for Password field
+    // Options for fields: File, Password
     $.each(apidata.property, function(key, property) {
+      if ([15].includes(property.type)) {
+        let felem = propform_html.find(`#${property.id}`);
+        let ficon = [
+          '&emsp;', $('<img/>', { class:'pointer', src:'img/icdwn.png', style:'margin-bottom:-3px;', width:16, title:'Download' }).on('click', function() {
+            window.location.href = `${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content`;
+          })
+        ];
+        // Add open icon basedn on extension
+        if (felem.val().indexOf('.') != -1) {
+          fext = felem.val().substr( (felem.val().lastIndexOf('.') +1) ).toLowerCase();
+          if ($.inArray(fext, def.mediatype) != -1) {
+            ficon = [
+              ...ficon,
+              '&ensp;', $('<img/>', { class:'pointer', src:'img/icbrw.png', style:'margin-bottom:-3px;', width:16, title:'View in new tab' }).on('click', function() {
+                  window.open(`${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?format=view`, '_blank');
+                })
+              ];
+            }
+        }
+        felem
+          .css('display','inline-block')
+          .before('<br>')
+          .after(ficon);
+      }
       if ([12].includes(property.type)) {
         propform_html.find(`#${property.id}`)
           .css('display','inline-block')
           .before('<br>')
           .after(
-            '&emsp;', $('<img/>', { class:'pointer', src:'img/icpsg.png', style:'margin-bottom:-3px;', width:16, title:'Generate' }).on('click', function(event) {
+            '&emsp;', $('<img/>', { class:'pointer', src:'img/icpsg.png', style:'margin-bottom:-3px;', width:16, title:'Generate' }).on('click', function() {
               obPwgen($('#_obTab0-content'), $(this).siblings(':input'));
             }),
-            '&emsp;', $('<img/>', { class:'pointer', src:'img/icmgn.png', style:'margin-bottom:-3px;', width:16, title:'Open' }).on('click', function(event) {
+            '&emsp;', $('<img/>', { class:'pointer', src:'img/icmgn.png', style:'margin-bottom:-3px;', width:16, title:'Open' }).on('click', function() {
               mod.obj.properties.open(type, id, property.id);
             }),
-            '&ensp;', $('<img/>', { class:'pointer', src:'img/iccpy.png', style:'margin-bottom:-3px;', width:16, title:'Copy' }).on('click', function(event) {
+            '&ensp;', $('<img/>', { class:'pointer', src:'img/iccpy.png', style:'margin-bottom:-3px;', width:16, title:'Copy' }).on('click', function() {
               mod.obj.properties.open(type, id, property.id, $(this));
             })
           );
@@ -326,7 +350,7 @@ mod['obj'] = {
         (!acl_save)?null:$('<input/>', { class:'btn', type:'submit', value:'Save'  }).on('click', function() {
           let propform_data = propform.validate();
           $.each(apidata.property, function(key, property) {
-            if ([12].includes(property.type)) { propform_html.find(`#${property.id}`) .css('display','inline-block'); }
+            if ([12,15].includes(property.type)) { propform_html.find(`#${property.id}`).css('display','inline-block'); }
           });
           if (propform_data != null) {
             change.reset();
@@ -369,8 +393,18 @@ mod['obj'] = {
    save: function(type, id, obj_config, rellist) {
     content.append(loader.removeClass('fadein').addClass('fadein'));
 
-    // Prepare data formats
-    let dtsave = obj_config;
+    let dtsave = {};
+    let dtfile = new FormData;
+    $.each(obj_config, function(key, value) {
+      if (key.startsWith('f_')) {
+        dtfile.append(key, $('#'+key)[0].files[0])
+      }
+      else {
+        dtsave[key] = value;
+      }
+    });
+
+    // Relations
     if (rellist != null) {
       dtsave['relations'] = [];
       $.each(rellist.html().find('tbody').children('tr'), function() {
@@ -381,12 +415,25 @@ mod['obj'] = {
       });
     }
 
-    if (id == null) {
-      $.when(api('post',`objecttype/${type}/object`,dtsave)).always(function() { mod.obj.list(type); });
-    }
-    else {
-      $.when( api('put',`objecttype/${type}/object/${id}`,dtsave) ).always(function() { mod.obj.list(type); });
-    }
+    // Save
+    let sdat = (id == null)
+      ? ['post', `objecttype/${type}/object`]
+      : ['put', `objecttype/${type}/object/${id}`];
+    $.when(api(sdat[0], sdat[1], dtsave)).always(function(apidata) {
+      if (!!dtfile.entries().next().value) {
+
+        console.log(apidata);
+        if (sdat[0] == 'post') {
+          sdat[1] = `objecttype/${type}/object/${apidata.id}`;
+        }
+        $.when(upload(sdat[1], dtfile)).done(function() {
+          mod.obj.list(type);
+        });
+      }
+      else {
+        mod.obj.list(type);
+      }
+    });
 
   },
 

@@ -125,9 +125,7 @@ var obForm = function(fields) {
     if (field.info != null) {
       info = $('<span/>', { class:'obForm-info' }).text(' 🛈');
       info.on('click', function(event) {
-        $('.obForm-info-popup').each(function() {
-          $(this).remove();
-        });
+        $('.obForm-info-popup').each(function() { $(this).remove(); });
         let infopopup = $('<div/>', { class:'obForm-info-popup' }).text(field.info)
         infopopup.css({'margin-left': $(this).position().left-8});
         $(this).append(
@@ -147,6 +145,25 @@ var obForm = function(fields) {
     if (['string', 'number', 'password', 'checkbox', 'date', 'datetime-local'].indexOf(field.type) != -1) {
       fieldelem = $('<input/>', fieldattr);
     }
+
+    if (field.type == 'file') {
+      fieldattr.type = 'string';
+      fieldattr.class += ' obForm-field-file pointer';
+      fieldelem = $('<input/>', fieldattr).css("background-color","#eee").prop('readonly', true);
+      fieldelem.on('click', function() {
+        let fileinput = $('#f_'+this.id);
+        if (fileinput.length == 0) {
+          fileinput = $('<input/>', { id:'f_'+this.id, name:'f_'+this.id, type:'file', style:'display:none;' }).on('change', function() {
+            if (fileinput.val().length > 0) {
+              fieldelem.val(fileinput.val().split('\\').pop());
+            }
+          });
+          $(this).before(fileinput);
+        }
+        fileinput.click();
+      });
+    }
+
     if (field.type == 'select') {
       fieldelem = $('<select/>', fieldattr);
       if (field.value == null) {
@@ -202,6 +219,7 @@ var obForm = function(fields) {
         });
       }
     }
+
     if (['string', 'number', 'password', 'textarea'].indexOf(field.type) != -1) {
       if (field.type == 'number') {
         if (field.regex_input == null) {

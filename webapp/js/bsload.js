@@ -8,7 +8,7 @@
 
 // Development options
 const debug = false;
-const build = '240917'
+const build = '241005'
 const version = 122;
 
 // Loading options
