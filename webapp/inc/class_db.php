@@ -92,6 +92,13 @@ class db {
   }
 
   /******************************************************************
+   * Return dbconn for public usage
+   ******************************************************************/
+  public function dbconn() {
+    return $this->dbconn;
+  }
+
+  /******************************************************************
    * Perform SQL query
    *  $query    : SQL query
    *  $params   : Array of parameters for PDO

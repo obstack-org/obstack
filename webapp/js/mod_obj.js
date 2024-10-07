@@ -72,11 +72,60 @@ mod['obj'] = {
                 '&emsp;', $('<img/>', { class:'pointer', src:'img/iccpy.png', style:'margin-bottom:-3px;', width:14, title:'Copy' }).on('click', function(event) {
                   event.stopPropagation();
                   let img = $(this);
-                  mod.obj.properties.open(apidata_type.objecttype.id, JSON.parse(img.parents('tr').attr('hdt')).id, column.id, img);
+                  mod.obj.properties.open_pwd(apidata_type.objecttype.id, JSON.parse(img.parents('tr').attr('hdt')).id, column.id, img);
                 })
               ];
             });
           }
+          if (column.type == 15) {
+            columns_allowhtml = [...columns_allowhtml, column.id];
+            $.each(apidata_objects, function(idx, rec) {
+              if (
+                apidata_objects[idx][column.id] != null &&
+                apidata_objects[idx][column.id].length > 0 &&
+                apidata_objects[idx][column.id].indexOf('.') != -1
+              ) {
+                let fext = apidata_objects[idx][column.id].substr( (apidata_objects[idx][column.id].lastIndexOf('.') +1) ).toLowerCase();
+                let type = apidata_type.objecttype.id;
+                let id = this.id;
+                let property = column;
+                if ($.inArray(fext, def.mediatype) != -1) {
+                  apidata_objects[idx][column.id] = [
+                    $('<img/>', { class:'pointer', src:'img/icmgn.png', style:'margin-bottom:-3px;', width:12, title:'Preview' }).on('click', function(event) {
+                      event.stopPropagation();
+                      if (event.ctrlKey || event.shiftKey) {
+                        window.open(`${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?format=view`, '_blank');
+                      }
+                      else {
+                        mod.obj.properties.open_img(type, id, property, '.content-wrapper');
+                      }
+                    })
+                    , '&ensp;', ...apidata_objects[idx][column.id]
+                  ];
+                }
+                else if ($.inArray(fext, def.doctype) != -1) {
+                  apidata_objects[idx][column.id] = [
+                    $('<img/>', { class:'pointer', src:'img/icbrw.png', style:'margin-bottom:-3px;', width:12, title:'View in new tab' }).on('click', function(event) {
+                        event.stopPropagation();
+                        window.open(`${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?format=view`, '_blank');
+                      })
+                      , '&ensp;', ...apidata_objects[idx][column.id]
+                    ];
+                }
+                else {
+                  apidata_objects[idx][column.id] = [
+                    $('<img/>', { class:'pointer', src:'img/icdwn.png', style:'margin-bottom:-3px;', width:12, title:'Download' }).on('click', function(event) {
+                        event.stopPropagation();
+                        window.location.href = `${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content`;
+                      })
+                      , '&ensp;', ...apidata_objects[idx][column.id]
+                    ];
+
+                }
+              }
+            });
+          }
+
         }
         else {
           columns_remove = [...columns_remove, column.name];
@@ -225,21 +274,59 @@ mod['obj'] = {
       }
     });
 
-    // Options for Password field
+    // Options for fields: File, Password
     $.each(apidata.property, function(key, property) {
+      if ([15].includes(property.type)) {
+        let felem = propform_html.find(`#${property.id}`);
+        let ficon = [];
+        // Add open icon basedn on extension
+        if (felem.val().length > 0 && felem.val().indexOf('.') != -1) {
+          fext = felem.val().substr( (felem.val().lastIndexOf('.') +1) ).toLowerCase();
+          ficon = [
+            '&emsp;', $('<img/>', { class:'pointer', src:'img/icdwn.png', style:'margin-bottom:-3px;', width:16, title:'Download' }).on('click', function() {
+              window.location.href = `${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content`;
+            })
+          ];
+          if ($.inArray(fext, def.mediatype) != -1) {
+            ficon = [
+              ...ficon,
+              '&ensp;', $('<img/>', { class:'pointer', src:'img/icmgn.png', style:'margin-bottom:-3px;', width:16, title:'Preview' }).on('click', function(event) {
+                  if (event.ctrlKey || event.shiftKey) {
+                    window.open(`${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?format=view`, '_blank');
+                  }
+                  else {
+                    mod.obj.properties.open_img(type, id, property, '#_obTab0-content');
+                  }
+                })
+              ];
+          }
+          if ($.inArray(fext, def.doctype) != -1) {
+            ficon = [
+              ...ficon,
+              '&ensp;', $('<img/>', { class:'pointer', src:'img/icbrw.png', style:'margin-bottom:-3px;', width:16, title:'View in new tab' }).on('click', function() {
+                  window.open(`${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?format=view`, '_blank');
+                })
+              ];
+          }
+        }
+        felem
+          .css('display','inline-block')
+          .before('<br>')
+          .after(ficon);
+      }
       if ([12].includes(property.type)) {
         propform_html.find(`#${property.id}`)
           .css('display','inline-block')
           .before('<br>')
           .after(
-            '&emsp;', $('<img/>', { class:'pointer', src:'img/icpsg.png', style:'margin-bottom:-3px;', width:16, title:'Generate' }).on('click', function(event) {
+            '&emsp;', $('<img/>', { class:'pointer', src:'img/icpsg.png', style:'margin-bottom:-3px;', width:16, title:'Generate' }).on('click', function() {
               obPwgen($('#_obTab0-content'), $(this).siblings(':input'));
             }),
-            '&emsp;', $('<img/>', { class:'pointer', src:'img/icmgn.png', style:'margin-bottom:-3px;', width:16, title:'Open' }).on('click', function(event) {
-              mod.obj.properties.open(type, id, property.id);
+            '&emsp;', $('<img/>', { class:'pointer', src:'img/icmgn.png', style:'margin-bottom:-3px;', width:16, title:'Open' }).on('click', function() {
+              mod.obj.properties.open_pwd(type, id, property.id);
             }),
-            '&ensp;', $('<img/>', { class:'pointer', src:'img/iccpy.png', style:'margin-bottom:-3px;', width:16, title:'Copy' }).on('click', function(event) {
-              mod.obj.properties.open(type, id, property.id, $(this));
+            '&ensp;', $('<img/>', { class:'pointer', src:'img/iccpy.png', style:'margin-bottom:-3px;', width:16, title:'Copy' }).on('click', function() {
+              mod.obj.properties.open_pwd(type, id, property.id, $(this));
             })
           );
       }
@@ -326,7 +413,7 @@ mod['obj'] = {
         (!acl_save)?null:$('<input/>', { class:'btn', type:'submit', value:'Save'  }).on('click', function() {
           let propform_data = propform.validate();
           $.each(apidata.property, function(key, property) {
-            if ([12].includes(property.type)) { propform_html.find(`#${property.id}`) .css('display','inline-block'); }
+            if ([12,15].includes(property.type)) { propform_html.find(`#${property.id}`).css('display','inline-block'); }
           });
           if (propform_data != null) {
             change.reset();
@@ -369,8 +456,18 @@ mod['obj'] = {
    save: function(type, id, obj_config, rellist) {
     content.append(loader.removeClass('fadein').addClass('fadein'));
 
-    // Prepare data formats
-    let dtsave = obj_config;
+    let dtsave = {};
+    let dtfile = new FormData;
+    $.each(obj_config, function(key, value) {
+      if (key.startsWith('f_')) {
+        dtfile.append(key, $('#'+key)[0].files[0])
+      }
+      else {
+        dtsave[key] = value;
+      }
+    });
+
+    // Relations
     if (rellist != null) {
       dtsave['relations'] = [];
       $.each(rellist.html().find('tbody').children('tr'), function() {
@@ -381,12 +478,25 @@ mod['obj'] = {
       });
     }
 
-    if (id == null) {
-      $.when(api('post',`objecttype/${type}/object`,dtsave)).always(function() { mod.obj.list(type); });
-    }
-    else {
-      $.when( api('put',`objecttype/${type}/object/${id}`,dtsave) ).always(function() { mod.obj.list(type); });
-    }
+    // Save
+    let sdat = (id == null)
+      ? ['post', `objecttype/${type}/object`]
+      : ['put', `objecttype/${type}/object/${id}`];
+    $.when(api(sdat[0], sdat[1], dtsave)).always(function(apidata) {
+      if (!!dtfile.entries().next().value) {
+
+        console.log(apidata);
+        if (sdat[0] == 'post') {
+          sdat[1] = `objecttype/${type}/object/${apidata.id}`;
+        }
+        $.when(upload(sdat[1], dtfile)).done(function() {
+          mod.obj.list(type);
+        });
+      }
+      else {
+        mod.obj.list(type);
+      }
+    });
 
   },
 
@@ -399,7 +509,17 @@ mod['obj'] = {
    ******************************************************************/
   properties: {
 
-    open: function(type, id, property, cpsrc=null) {
+    /******************************************************************
+     * mod.obj.properties.open_pwd(type, id, property, cpsrc)
+     * ==================
+     * Open the property popup
+     *    type      : Object type UUID
+     *    id        : Object UUID
+     *    property  : Relations table
+     *    cpsrc     : Copy's Source element
+     ******************************************************************/
+
+    open_pwd: function(type, id, property, cpsrc=null) {
 
       $.when(
         api('get',`objecttype/${type}/object/${id}/property/${property}`)
@@ -454,10 +574,49 @@ mod['obj'] = {
           }, 1000);
         }
       });
+    },
+
+    /******************************************************************
+     * mod.obj.properties.open_img(type, id, property)
+     * ==================
+     * Open the property popup
+     *    type      : Object type UUID
+     *    id        : Object UUID
+     *    property  : Relations table
+     ******************************************************************/
+
+    open_img: function(type, id, property, target='') {
+
+      let img = $('<img/>', {
+        src: `${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?format=view`,
+        style: 'max-width:600px; max-height:350px;',
+        class: 'pointer'
+      }).on('click', function(){
+        window.open(`${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?format=view`, '_blank');
+        popup.remove();
+      });
+      let popup = new obPopup2({
+        content: img,
+        control: { 'Ok':null },
+        size: { width:600, height:400 }
+      });
+      $(target).append(popup.html());
+      img.parent().prop('style', 'text-align:center;');
+
+      let btn = popup.html().find('.btn');
+      btn.on('keydown', function(event) {
+          if ($.inArray(event.which, ['13','27'])) {
+            popup.remove();
+          }
+          else {
+            event.preventDefault();
+            return false;
+          }
+        });
+      btn.focus();
     }
 
   },
-
 
   /******************************************************************
    * mod.obj.relations
