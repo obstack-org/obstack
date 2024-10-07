@@ -33,5 +33,6 @@ const def = {
       15:'file'
     },
     logtype: { 1:'Create', 2:'Update', 5:'Assign', 6:'Unassign', 9:'Delete', 10:'ObjectType' },
-    mediatype: ['bmp','gif','png','apng','jpg','jpeg','jfif','webp','mp3','mp4','mp2t','m4a','mkv','mov','ogg','acc','wav','webm','flv','pdf','txt','htm','html','json','yml','yaml']
+    doctype: ['pdf','txt','htm','html','json','yml','yaml'],
+    mediatype: ['bmp','gif','png','apng','jpg','jpeg','jfif','webp','mp3','mp4','mp2t','m4a','mkv','mov','ogg','acc','wav','webm','flv']
   };
