@@ -158,7 +158,7 @@ class mod_conf {
     // Version check
     if ($sa) {
       if (!isset($_SESSION['settings']['version_check'])) {
-        $_SESSION['settings']['version_check'] = (object)[ 'value'=>1 ];
+        $_SESSION['settings']['version_check'] = (object)[ 'name'=>'version_check', 'value'=>1 ];
         $this->db->query("INSERT INTO setting_decimal (name, value) VALUES ('version_check', 1)", []);
       }
       $result['version'] = [
