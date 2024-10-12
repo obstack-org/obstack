@@ -222,7 +222,7 @@ $(document).on('click', function(event) {
       $('#titlebar-dropdown').slideUp('fast');
     }
   }
-  if (event.target.className != 'obForm-info') {
+  if (!$(event.target).is('.obForm-info, .obForm-field-file')) {
     $('.obForm-info-popup').each(function() {
       $(this).remove();
     });
@@ -260,6 +260,48 @@ function api(httpmethod, path, data) {
       // On debug log responses
       if (debug) {
         console.log({status:response.status, request:`${httpmethod}: ${path}`, data:data});
+        console.log(response.responseText);
+      }
+      // Header Logs
+      log(xhr);
+    },
+    success: function (response, status, xhr) {
+      try {
+        if ('error' in response) {
+          obAlert(response.error, null);
+        }
+      }
+      catch(err) {}
+      // Header Logs
+      log(xhr);
+    }
+  });
+  return xhr;
+}
+
+// Upload function
+function upload(path, data) {
+  let xhr = $.ajax({
+    url: `${apibase}/v2/${path}`,
+    type: 'post',
+    cache : false,
+    contentType : false,
+    processType : false,
+    processData: false,
+    enctype: "multipart/form-data",
+    data: data,
+    error: function (response) {
+      if (response.status == 401) {
+        if (path != 'auth') {
+          location.reload(true);
+        }
+      }
+      else if (response.status == 404) {
+        obAlert('Error uploading file, please contact your administrator.<br/>(Check max. file size settings)', { Ok: function(){ loader.remove(); }});
+      }
+      // On debug log responses
+      if (debug) {
+        console.log({status:response.status, request:`post: ${path}`, data:data});
         console.log(response.responseText);
       }
       // Header Logs

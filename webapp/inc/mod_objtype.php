@@ -19,7 +19,7 @@ class mod_objtype {
   private $display;
   private $acl;
   private $logstate;
-  private $valuetype = [1=>'varchar', 2=>'decimal', 3=>'uuid', 4=>'timestamp', 5=>'text'];
+  private $valuetype = [1=>'varchar', 2=>'decimal', 3=>'uuid', 4=>'timestamp', 5=>'text', 6=>'blob'];
 
   /******************************************************************
    * Initialize

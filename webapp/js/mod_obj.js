@@ -58,12 +58,14 @@ mod['obj'] = {
               }
             });
           }
+          // Checkbox: V or X
           if (column.type == 5) {
             columns_allowhtml = [...columns_allowhtml, column.id];
             $.each(apidata_objects, function(idx, rec) {
               apidata_objects[idx][column.id] = htbool(apidata_objects[idx][column.id]);
             });
           }
+          // Password
           if (column.type == 12) {
             columns_allowhtml = [...columns_allowhtml, column.id];
             $.each(apidata_objects, function(idx, rec) {
@@ -72,11 +74,57 @@ mod['obj'] = {
                 '&emsp;', $('<img/>', { class:'pointer', src:'img/iccpy.png', style:'margin-bottom:-3px;', width:14, title:'Copy' }).on('click', function(event) {
                   event.stopPropagation();
                   let img = $(this);
-                  mod.obj.properties.open(apidata_type.objecttype.id, JSON.parse(img.parents('tr').attr('hdt')).id, column.id, img);
+                  mod.obj.properties.open_pwd(apidata_type.objecttype.id, JSON.parse(img.parents('tr').attr('hdt')).id, column.id, img);
                 })
               ];
             });
           }
+          // File
+          if (column.type == 15) {
+            columns_allowhtml = [...columns_allowhtml, column.id];
+            $.each(apidata_objects, function(idx, rec) {
+              let fname = apidata_objects[idx][column.id];
+              if (fname != null && fname.length > 0) {
+                let id = this.id;
+                let fext = fname.substr( (fname.lastIndexOf('.') +1) ).toLowerCase();
+                let fcontent = `${apibase}/v2/objecttype/${apidata_type.objecttype.id}/object/${id}/property/${column.id}/content?fn=${fname}`;
+                if ($.inArray(fext, def.mediatype) != -1) {
+                  apidata_objects[idx][column.id] = [
+                    $('<img/>', { class:'pointer', src:'img/icmgn.png', style:'margin-bottom:-3px;', width:12, title:'Preview' }).on('click', function(event) {
+                      event.stopPropagation();
+                      if (event.ctrlKey || event.shiftKey) {
+                        window.open(`${fcontent}&format=view`, '_blank');
+                      }
+                      else {
+                        mod.obj.properties.open_img(apidata_type.objecttype.id, id, column, '.content-wrapper', fname);
+                      }
+                    })
+                    , '&ensp;', ...fname
+                  ];
+                }
+                else if ($.inArray(fext, def.doctype) != -1) {
+                  apidata_objects[idx][column.id] = [
+                    $('<img/>', { class:'pointer', src:'img/icbrw.png', style:'margin-bottom:-3px;', width:12, title:'View in new tab' }).on('click', function(event) {
+                        event.stopPropagation();
+                        window.open(`${fcontent}&format=view`, '_blank');
+                      })
+                      , '&ensp;', ...fname
+                    ];
+                }
+                else {
+                  apidata_objects[idx][column.id] = [
+                    $('<img/>', { class:'pointer', src:'img/icdwn.png', style:'margin-bottom:-3px;', width:12, title:'Download' }).on('click', function(event) {
+                        event.stopPropagation();
+                        window.location.href = content;
+                      })
+                      , '&ensp;', ...fname
+                    ];
+
+                }
+              }
+            });
+          }
+
         }
         else {
           columns_remove = [...columns_remove, column.name];
@@ -225,21 +273,82 @@ mod['obj'] = {
       }
     });
 
-    // Options for Password field
+    // Options for fields: File, Password
     $.each(apidata.property, function(key, property) {
+      if ([15].includes(property.type)) {
+        let ficon = [];
+        let felem = propform_html.find(`#${property.id}`);
+        let fname = felem.val();
+        let fext = fname.substr( (fname.lastIndexOf('.') +1) ).toLowerCase();
+        let fcontent = `${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?fn=${fname}`;
+
+        propform_html.find(`#${property.id}`)
+          .css('display','inline-block')
+          .after(
+            '&emsp;', $('<img/>', { class:'pointer', src:'img/icmap.png', style:'margin-bottom:-5px;', width:18, title:'Generate' }).on('click', function() {
+              propform_html.find(`#${property.id}`).click();
+            })
+          );
+
+        felem.on('click', function(){
+          setTimeout(function() {
+            let finput = $('#f_'+property.id);
+            let fpopup = $(`#obp_${property.id}`);
+            let lcontrol = fpopup.find('.obPopup-lcontrol');
+
+            if (finput.length == 0 && fname.length > 0) {
+              // Media file preview
+              if ($.inArray(fext, def.mediatype) != -1) {
+                fpopup.css('height', '400px');
+                fpopup.find('span').replaceWith(
+                  $('<img/>', {
+                    src: `${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?fn=${fname}&format=view`,
+                    style: 'max-width:600px; max-height:350px; position:absolute; top:50%; left:50%; transform:translate(-50%,-58%);',
+                    class: 'pointer'
+                  }).on('click', function(){
+                    window.open(`${fcontent}&format=view`, '_blank');
+                    $('.obPopup-overlay').parent().remove();
+                  })
+                );
+              }
+              // Download icon
+              lcontrol.append(
+                '&emsp;',
+                $('<img/>', { class:'pointer', src:'img/icdwn.png', width:16, title:'Download' }).on('click', function() {
+                  window.location.href = fcontent;
+                })
+              );
+              // New-tab icon
+              if ($.inArray(fext, [...def.mediatype, ...def.doctype]) != -1) {
+                lcontrol.append(
+                  '&emsp;',
+                  $('<img/>', { class:'pointer', src:'img/icbrw.png', width:16, title:'View in new tab' }).on('click', function() {
+                    window.open(`${fcontent}&format=view`, '_blank');
+                  })
+                );
+              }
+            }
+          }, 10);
+        });
+
+        felem
+          .css('display','inline-block')
+          .before('<br>')
+          .after(ficon);
+      }
       if ([12].includes(property.type)) {
         propform_html.find(`#${property.id}`)
           .css('display','inline-block')
           .before('<br>')
           .after(
-            '&emsp;', $('<img/>', { class:'pointer', src:'img/icpsg.png', style:'margin-bottom:-3px;', width:16, title:'Generate' }).on('click', function(event) {
+            '&emsp;', $('<img/>', { class:'pointer', src:'img/icpsg.png', style:'margin-bottom:-3px;', width:16, title:'Generate' }).on('click', function() {
               obPwgen($('#_obTab0-content'), $(this).siblings(':input'));
             }),
-            '&emsp;', $('<img/>', { class:'pointer', src:'img/icmgn.png', style:'margin-bottom:-3px;', width:16, title:'Open' }).on('click', function(event) {
-              mod.obj.properties.open(type, id, property.id);
+            '&emsp;', $('<img/>', { class:'pointer', src:'img/icmgn.png', style:'margin-bottom:-3px;', width:16, title:'Open' }).on('click', function() {
+              mod.obj.properties.open_pwd(type, id, property.id);
             }),
-            '&ensp;', $('<img/>', { class:'pointer', src:'img/iccpy.png', style:'margin-bottom:-3px;', width:16, title:'Copy' }).on('click', function(event) {
-              mod.obj.properties.open(type, id, property.id, $(this));
+            '&ensp;', $('<img/>', { class:'pointer', src:'img/iccpy.png', style:'margin-bottom:-3px;', width:16, title:'Copy' }).on('click', function() {
+              mod.obj.properties.open_pwd(type, id, property.id, $(this));
             })
           );
       }
@@ -326,7 +435,7 @@ mod['obj'] = {
         (!acl_save)?null:$('<input/>', { class:'btn', type:'submit', value:'Save'  }).on('click', function() {
           let propform_data = propform.validate();
           $.each(apidata.property, function(key, property) {
-            if ([12].includes(property.type)) { propform_html.find(`#${property.id}`) .css('display','inline-block'); }
+            if ([12,15].includes(property.type)) { propform_html.find(`#${property.id}`).css('display','inline-block'); }
           });
           if (propform_data != null) {
             change.reset();
@@ -369,8 +478,26 @@ mod['obj'] = {
    save: function(type, id, obj_config, rellist) {
     content.append(loader.removeClass('fadein').addClass('fadein'));
 
-    // Prepare data formats
-    let dtsave = obj_config;
+    let dtsave = {};
+    let dtfile = new FormData;
+
+    // File uploads
+    $.each(obj_config, function(key, value) {
+      if (key.startsWith('f_')) {
+        let felem = $('#'+key);
+        if (felem[0].files.length > 0) {
+          dtfile.append(key, felem[0].files[0]);
+        }
+        else {
+          dtfile.append(key, new File([''], ''));
+        }
+      }
+      else {
+        dtsave[key] = value;
+      }
+    });
+
+    // Relations
     if (rellist != null) {
       dtsave['relations'] = [];
       $.each(rellist.html().find('tbody').children('tr'), function() {
@@ -381,12 +508,23 @@ mod['obj'] = {
       });
     }
 
-    if (id == null) {
-      $.when(api('post',`objecttype/${type}/object`,dtsave)).always(function() { mod.obj.list(type); });
-    }
-    else {
-      $.when( api('put',`objecttype/${type}/object/${id}`,dtsave) ).always(function() { mod.obj.list(type); });
-    }
+    // Save
+    let sdat = (id == null)
+      ? ['post', `objecttype/${type}/object`]
+      : ['put', `objecttype/${type}/object/${id}`];
+    $.when(api(sdat[0], sdat[1], dtsave)).always(function(apidata) {
+      if (!!dtfile.entries().next().value) {
+        if (sdat[0] == 'post') {
+          sdat[1] = `objecttype/${type}/object/${apidata.id}`;
+        }
+        $.when(upload(sdat[1], dtfile)).done(function() {
+          mod.obj.list(type);
+        });
+      }
+      else {
+        mod.obj.list(type);
+      }
+    });
 
   },
 
@@ -399,7 +537,17 @@ mod['obj'] = {
    ******************************************************************/
   properties: {
 
-    open: function(type, id, property, cpsrc=null) {
+    /******************************************************************
+     * mod.obj.properties.open_pwd(type, id, property, cpsrc)
+     * ==================
+     * Open the property popup
+     *    type      : Object type UUID
+     *    id        : Object UUID
+     *    property  : Relations table
+     *    cpsrc     : Copy's Source element
+     ******************************************************************/
+
+    open_pwd: function(type, id, property, cpsrc=null) {
 
       $.when(
         api('get',`objecttype/${type}/object/${id}/property/${property}`)
@@ -423,7 +571,8 @@ mod['obj'] = {
           let popup = new obPopup2({
             content: new obForm([{ id:fieldid, name:'Password', type:'string', value:value }]).html(),
             control: { 'Close (5)':null },
-            size: { width:400, height:120 }
+            size: { width:400, height:120 },
+            autofocus: false
           });
           $('#_obTab0-content').append(popup.html());
           let pwfield = popup.html().find(`#${fieldid}`);
@@ -454,10 +603,36 @@ mod['obj'] = {
           }, 1000);
         }
       });
+    },
+
+    /******************************************************************
+     * mod.obj.properties.open_img(type, id, property)
+     * ==================
+     * Open the property popup
+     *    type      : Object type UUID
+     *    id        : Object UUID
+     *    property  : Relations table
+     ******************************************************************/
+
+    open_img: function(type, id, property, target='', fn='default') {
+
+      let img = $('<img/>', {
+        src: `${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?fn=${fn}&format=view`,
+        style: 'max-width:600px; max-height:350px; position:absolute; top:50%; left:50%; transform:translate(-50%,-58%);',
+        class: 'pointer'
+      }).on('click', function(){
+        window.open(`${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?fn=${fn}&format=view`, '_blank');
+        popup.remove();
+      });
+      let popup = new obPopup2({
+        content: img,
+        control: { 'Ok':null },
+        size: { width:600, height:400 }
+      });
+      $(target).append(popup.html());
     }
 
   },
-
 
   /******************************************************************
    * mod.obj.relations

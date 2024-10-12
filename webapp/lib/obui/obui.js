@@ -125,9 +125,7 @@ var obForm = function(fields) {
     if (field.info != null) {
       info = $('<span/>', { class:'obForm-info' }).text(' 🛈');
       info.on('click', function(event) {
-        $('.obForm-info-popup').each(function() {
-          $(this).remove();
-        });
+        $('.obForm-info-popup').each(function() { $(this).remove(); });
         let infopopup = $('<div/>', { class:'obForm-info-popup' }).text(field.info)
         infopopup.css({'margin-left': $(this).position().left-8});
         $(this).append(
@@ -147,6 +145,67 @@ var obForm = function(fields) {
     if (['string', 'number', 'password', 'checkbox', 'date', 'datetime-local'].indexOf(field.type) != -1) {
       fieldelem = $('<input/>', fieldattr);
     }
+
+    if (field.type == 'file') {
+      fieldattr.type = 'string';
+      fieldattr.class += ' obForm-field-file pointer';
+      fieldelem = $('<input/>', fieldattr).css("background-color","#eee").prop('readonly', true);
+      fieldelem.on('click', function() {
+
+        let lcontrol = $('<div/>', { class:'obPopup-lcontrol'});
+        let filename = $('<span/>').text((fieldelem.val().length > 0) ? fieldelem.val() : '[no file selected]' );
+        let fileinput = $('#f_'+field.id);
+
+        let popup = new obPopup2({
+          id: field.id,
+          content: filename,
+          control: { 'Close':null },
+          size: { width:600, height:65 }
+        });
+        $(this).parent().append(popup.html());
+
+        // Upload button
+        popup.html().find('.obPopup-control').prepend(
+          $('<input/>', { class:'btn', type:'button', value:'Upload' }).on('click', function() {
+            if (fileinput.length == 0) {
+              fileinput = $('<input/>', { id:'f_'+field.id, name:'f_'+field.id, type:'file', style:'display:none;' }).on('change', function() {
+                if (fileinput.val().length > 0) {
+                  fieldelem.val(fileinput.val().split('\\').pop());
+                  $('.obPopup-overlay').parent().remove();
+                }
+              });
+              fieldelem.before(fileinput);
+            }
+            fileinput.click();
+          })
+        );
+
+        // Delete icon
+        if (fieldelem.val().length != 0) {
+          lcontrol.append(
+            $('<img/>', { class:'pointer', src:'img/icbin.png', width:16, title:'Delete' }).on('click', function() {
+              obAlert('Are you sure you want to delete this file?', { Ok:function() {
+                if (fileinput.length == 0) {
+                  fileinput = $('<input/>', { id:'f_'+field.id, name:'f_'+field.id, type:'file', style:'display:none;' }).on('change', function() {
+                    if (fileinput.val().length > 0) {
+                      fieldelem.val(fileinput.val().split('\\').pop());
+                      popup.remove();
+                    }
+                  });
+                  fieldelem.before(fileinput);
+                }
+                fieldelem.val('');
+                fileinput.val('');
+                popup.remove();
+              }, Cancel:null });
+            })
+          );
+        }
+
+        popup.html().find('.obPopup').append(lcontrol);
+      });
+    }
+
     if (field.type == 'select') {
       fieldelem = $('<select/>', fieldattr);
       if (field.value == null) {
@@ -202,6 +261,7 @@ var obForm = function(fields) {
         });
       }
     }
+
     if (['string', 'number', 'password', 'textarea'].indexOf(field.type) != -1) {
       if (field.type == 'number') {
         if (field.regex_input == null) {
@@ -974,11 +1034,13 @@ var obPopup2 = function(coptions) {
    * Constructor
    ******************************************************************/
 
-  var options = {
+  let options = {
+    id: null,
     ontop: null,
     size: null,
     content: null,
-    control: null
+    control: null,
+    autofocus: true
   };
   $.extend(options, coptions);
 
@@ -991,9 +1053,13 @@ var obPopup2 = function(coptions) {
     style = `top:15%;left:50%;margin-left:-${margin_left}px;width:${options.size.width}px;height:${options.size.height}px`;
   }
 
-  var popup = {
+  let wrapper_options = { class: 'obPopup', style:style };
+  if (options.id != null) {
+    wrapper_options.id = `obp_${options.id}`;
+  }
+  let popup = {
     element: $('<div/>'),
-    wrapper: $('<div/>', { class: 'obPopup', style:style }),
+    wrapper: $('<div/>', wrapper_options),
     control: $('<div/>', { class: 'obPopup-control' }),
     content: $('<div/>')
   };
@@ -1030,6 +1096,21 @@ var obPopup2 = function(coptions) {
 
   // Retrieve element
   this.html = function() {
+    if (options.autofocus) {
+      setTimeout(function(){
+        let btn = popup.element.find('.btn').last();
+        btn.on('keydown', function(event) {
+          if ($.inArray(event.which, ['13','27'])) {
+            $('.obPopup-overlay').remove();
+          }
+          else {
+            event.preventDefault();
+            return false;
+          }
+        });
+        btn.focus();
+      }, 100);
+    }
     return popup.element;
   }
 

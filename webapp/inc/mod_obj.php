@@ -6,6 +6,8 @@
  *  -> open($otid, $id)
  *  -> save($otid, $id, $data)
  *  -> delete($otid, $id)
+ *  -> file_open($otid, $id)
+ *  -> file_save($otid, $id)  // $_FILES
  *  -> relation_list($otid, $id $available=false)
  *  -> relation_save($id, $id_ref, $private=false)
  *  -> relation_delete($id, $id_ref, $private=false)
@@ -24,8 +26,8 @@ class mod_obj {
   private $objtype;
   private $cache;
   private $plugins;
-  private $datatype  = [ 1=>'varchar', 2=>'decimal', 3=>'uuid', 4=>'uuid', 5=>'decimal', 6=>'text', 8=>'timestamp', 9=>'timestamp', 11=>'varchar', 12=>'varchar' ];
-  private $propertytype = [ 1=>'Text', 2=>'Number', 3=>'Object Type', 4=>'Value Map', 5=>'Checkbox', 6=>'Textbox', 8=>'Date', 9=>'DateTime', 11=>'Password (hash)', 12=>'Password (encrypt)' ];
+  private $datatype  = [ 1=>'varchar', 2=>'decimal', 3=>'uuid', 4=>'uuid', 5=>'decimal', 6=>'text', 8=>'timestamp', 9=>'timestamp', 11=>'varchar', 12=>'varchar', 15=>'blob' ];
+  private $propertytype = [ 1=>'Text', 2=>'Number', 3=>'Object Type', 4=>'Value Map', 5=>'Checkbox', 6=>'Textbox', 8=>'Date', 9=>'DateTime', 11=>'Password (hash)', 12=>'Password (encrypt)', 15=>'File' ];
 
   /******************************************************************
    * Initialize
@@ -135,7 +137,8 @@ class mod_obj {
             WHEN 5 THEN CAST(vd.value AS char)
             WHEN 6 THEN vx.value
             WHEN 8 THEN DATE_FORMAT(vt.value,'%Y-%m-%d')
-            WHEN 9 THEN DATE_FORMAT(vt.value,'%Y-%m-%d %H:%i')"
+            WHEN 9 THEN DATE_FORMAT(vt.value,'%Y-%m-%d %H:%i')
+            WHEN 15 THEN vb.value"
         : " WHEN 1 THEN vv.value
             WHEN 2 THEN rtrim(TO_CHAR(vd.value, 'FM99999999.99999999'),'.')
             WHEN 3 THEN vu.value::varchar
@@ -143,7 +146,8 @@ class mod_obj {
             WHEN 5 THEN TO_CHAR(vd.value,'FM9')
             WHEN 6 THEN vx.value
             WHEN 8 THEN TO_CHAR(vt.value,'YYYY-MM-DD')
-            WHEN 9 THEN TO_CHAR(vt.value,'YYYY-MM-DD HH24:MI')";
+            WHEN 9 THEN TO_CHAR(vt.value,'YYYY-MM-DD HH24:MI')
+            WHEN 15 THEN vb.value";
       // Retrieve data
       $dbquery = "
         SELECT
@@ -164,6 +168,7 @@ class mod_obj {
         LEFT JOIN value_timestamp vt ON vt.objproperty = op.id AND vt.obj = o.id
         LEFT JOIN value_uuid vu ON vu.objproperty = op.id AND vu.obj = o.id
         LEFT JOIN value_varchar vv ON vv.objproperty = op.id AND vv.obj = o.id
+        LEFT JOIN value_blob vb ON vb.objproperty = op.id AND vb.obj = o.id
         $dbq->filter
         ORDER BY o.id, op.prio, op.name
       ";
@@ -540,8 +545,8 @@ class mod_obj {
           $dbc++;
         }
       }
-      // Save all
-      if ($dbc > 0) {
+      // Save values
+      if ($dbc > 0 && $type != 15) {
         $datatype = $this->datatype[$type];
         $dbq->filter = implode(',', $dbq->filter);
         $dbqconflict = ($this->db->driver()->mysql)
@@ -555,6 +560,7 @@ class mod_obj {
         $this->db->query($dbquery, $dbq->params);
       }
     }
+
     // Update log
     $vlog = implode(', ', $vlog);
     if ($chlog && strlen($vlog) > 0) {
@@ -657,6 +663,118 @@ class mod_obj {
     $this->db->delete('obj', [':objtype'=>$otid, ':id'=>$id]);
 
     return true;
+  }
+
+  /******************************************************************
+   * Download file
+   ******************************************************************/
+  public function file_open($otid, $id, $propid) {
+    if (!$this->objtype->acl($otid)->read) { return null; }
+
+    // Get blob
+    $query = '
+      SELECT
+        vb.value AS filename,
+        vb.data as data
+      FROM value_blob vb
+      LEFT JOIN obj o ON o.id = vb.obj
+      LEFT JOIN objproperty op ON op.id = vb.objproperty
+      WHERE vb.objproperty = :propid
+      AND vb.obj = :id
+      AND o.objtype = :otid
+      AND type = 15
+    ';
+    $content = null;
+    $filename = null;
+    if ($this->db->driver()->mysql) {
+      $result = $this->db->query($query,[':otid'=>$otid, ':id'=>$id, ':propid'=>$propid] );
+      if (!empty($result)) {
+        $content = $result[0]->data;
+        $filename = $result[0]->filename;
+      }
+    }
+    else {
+      $dbquery = $this->db->dbconn()->prepare($query);
+      foreach ([':otid'=>$otid, ':id'=>$id, ':propid'=>$propid] as $paramkey => $paramvalue) {
+        $dbquery->bindValue($paramkey, $paramvalue);
+      }
+      $dbquery->execute();
+      $dbquery->bindColumn(1, $filename, PDO::PARAM_STR);
+      $dbquery->bindColumn(2, $data, PDO::PARAM_LOB);
+      $dbquery->fetch(PDO::FETCH_BOUND);
+
+      // Read stream
+      ob_start();
+      fpassthru($data);
+      $content = ob_get_contents();
+      ob_end_clean();
+    }
+
+    // Present file
+    ob_flush();
+    if (isset($_GET['format']) && strtolower($_GET['format']) == 'base64') {
+      echo($content);
+    }
+    else {
+      header("Cache-Control: public");
+      header("Content-Description: File Transfer");
+      if (isset($_GET['format']) && strtolower($_GET['format']) == 'view') {
+        header('Content-Type: image');
+      }
+      else {
+        header("Content-Disposition: attachment; filename=".$filename);
+      }
+      header("Content-Transfer-Encoding: binary");
+      echo(base64_decode($content));
+    }
+    die();
+  }
+
+  /******************************************************************
+   * Upload file content
+   ******************************************************************/
+  public function file_save($otid, $id) {
+    // Prepare
+    $acl = $this->objtype->acl($otid);
+    if ($id == null) {
+      if (!$acl->create) { return null; }
+    }
+    else {
+      if (!$acl->update) { return null; }
+    }
+
+    // Generate error on multiple max file size behaviours
+    $fclear = [];
+    if (empty($_FILES)) {
+      return null;
+    }
+    foreach($_FILES as $fid => $file) {
+      if ($file['error'] == 4) {    // https://www.php.net/manual/en/features.file-upload.errors.php
+        $fclear[] = substr($fid,2);
+      }
+      elseif ($file['error'] != 0 || empty($file['name'])) {
+        return null;
+      }
+    }
+    // Store files
+    foreach($_FILES as $fid => $file) {
+      $dbqconflict = ($this->db->driver()->mysql)
+        ? "ON DUPLICATE KEY UPDATE value = VALUES(value), data = VALUES(data)"
+        : "ON CONFLICT (obj, objproperty) DO UPDATE SET value = excluded.value, data = excluded.data";
+      $dbquery = "
+        INSERT INTO value_blob (obj, objproperty, value, data)
+        VALUES (:obj, :objproperty, :value, :data)
+        $dbqconflict
+      ";
+      $this->db->query($dbquery, [':obj'=>$id, ':objproperty'=>substr($fid,2), ':value'=>$file['name'],':data'=>base64_encode(file_get_contents($file['tmp_name']))]);
+    }
+    // Clear files
+    if (count($fclear) > 0) {
+      $dbqin = $this->list2in($fclear, 'objp');
+      $this->db->query("DELETE FROM value_blob WHERE obj=:id AND objproperty IN ($dbqin->marks)", array_merge([':id'=>$id], $dbqin->params));
+    }
+
+    return [];
   }
 
   /******************************************************************
