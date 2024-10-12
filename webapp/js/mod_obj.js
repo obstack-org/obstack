@@ -58,12 +58,14 @@ mod['obj'] = {
               }
             });
           }
+          // Checkbox: V or X
           if (column.type == 5) {
             columns_allowhtml = [...columns_allowhtml, column.id];
             $.each(apidata_objects, function(idx, rec) {
               apidata_objects[idx][column.id] = htbool(apidata_objects[idx][column.id]);
             });
           }
+          // Password
           if (column.type == 12) {
             columns_allowhtml = [...columns_allowhtml, column.id];
             $.each(apidata_objects, function(idx, rec) {
@@ -77,48 +79,45 @@ mod['obj'] = {
               ];
             });
           }
+          // File
           if (column.type == 15) {
             columns_allowhtml = [...columns_allowhtml, column.id];
             $.each(apidata_objects, function(idx, rec) {
-              if (
-                apidata_objects[idx][column.id] != null &&
-                apidata_objects[idx][column.id].length > 0 &&
-                apidata_objects[idx][column.id].indexOf('.') != -1
-              ) {
-                let fext = apidata_objects[idx][column.id].substr( (apidata_objects[idx][column.id].lastIndexOf('.') +1) ).toLowerCase();
-                let type = apidata_type.objecttype.id;
+              let fname = apidata_objects[idx][column.id];
+              if (fname != null && fname.length > 0) {
                 let id = this.id;
-                let property = column;
+                let fext = fname.substr( (fname.lastIndexOf('.') +1) ).toLowerCase();
+                let fcontent = `${apibase}/v2/objecttype/${apidata_type.objecttype.id}/object/${id}/property/${column.id}/content?fn=${fname}`;
                 if ($.inArray(fext, def.mediatype) != -1) {
                   apidata_objects[idx][column.id] = [
                     $('<img/>', { class:'pointer', src:'img/icmgn.png', style:'margin-bottom:-3px;', width:12, title:'Preview' }).on('click', function(event) {
                       event.stopPropagation();
                       if (event.ctrlKey || event.shiftKey) {
-                        window.open(`${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?format=view`, '_blank');
+                        window.open(`${fcontent}&format=view`, '_blank');
                       }
                       else {
-                        mod.obj.properties.open_img(type, id, property, '.content-wrapper');
+                        mod.obj.properties.open_img(apidata_type.objecttype.id, id, column, '.content-wrapper', fname);
                       }
                     })
-                    , '&ensp;', ...apidata_objects[idx][column.id]
+                    , '&ensp;', ...fname
                   ];
                 }
                 else if ($.inArray(fext, def.doctype) != -1) {
                   apidata_objects[idx][column.id] = [
                     $('<img/>', { class:'pointer', src:'img/icbrw.png', style:'margin-bottom:-3px;', width:12, title:'View in new tab' }).on('click', function(event) {
                         event.stopPropagation();
-                        window.open(`${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?format=view`, '_blank');
+                        window.open(`${fcontent}&format=view`, '_blank');
                       })
-                      , '&ensp;', ...apidata_objects[idx][column.id]
+                      , '&ensp;', ...fname
                     ];
                 }
                 else {
                   apidata_objects[idx][column.id] = [
                     $('<img/>', { class:'pointer', src:'img/icdwn.png', style:'margin-bottom:-3px;', width:12, title:'Download' }).on('click', function(event) {
                         event.stopPropagation();
-                        window.location.href = `${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content`;
+                        window.location.href = content;
                       })
-                      , '&ensp;', ...apidata_objects[idx][column.id]
+                      , '&ensp;', ...fname
                     ];
 
                 }
@@ -277,38 +276,61 @@ mod['obj'] = {
     // Options for fields: File, Password
     $.each(apidata.property, function(key, property) {
       if ([15].includes(property.type)) {
-        let felem = propform_html.find(`#${property.id}`);
         let ficon = [];
-        // Add open icon basedn on extension
-        if (felem.val().length > 0 && felem.val().indexOf('.') != -1) {
-          fext = felem.val().substr( (felem.val().lastIndexOf('.') +1) ).toLowerCase();
-          ficon = [
-            '&emsp;', $('<img/>', { class:'pointer', src:'img/icdwn.png', style:'margin-bottom:-3px;', width:16, title:'Download' }).on('click', function() {
-              window.location.href = `${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content`;
+        let felem = propform_html.find(`#${property.id}`);
+        let fname = felem.val();
+        let fext = fname.substr( (fname.lastIndexOf('.') +1) ).toLowerCase();
+        let fcontent = `${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?fn=${fname}`;
+
+        propform_html.find(`#${property.id}`)
+          .css('display','inline-block')
+          .after(
+            '&emsp;', $('<img/>', { class:'pointer', src:'img/icmap.png', style:'margin-bottom:-5px;', width:18, title:'Generate' }).on('click', function() {
+              propform_html.find(`#${property.id}`).click();
             })
-          ];
-          if ($.inArray(fext, def.mediatype) != -1) {
-            ficon = [
-              ...ficon,
-              '&ensp;', $('<img/>', { class:'pointer', src:'img/icmgn.png', style:'margin-bottom:-3px;', width:16, title:'Preview' }).on('click', function(event) {
-                  if (event.ctrlKey || event.shiftKey) {
-                    window.open(`${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?format=view`, '_blank');
-                  }
-                  else {
-                    mod.obj.properties.open_img(type, id, property, '#_obTab0-content');
-                  }
+          );
+
+        felem.on('click', function(){
+          setTimeout(function() {
+            let finput = $('#f_'+property.id);
+            let fpopup = $(`#obp_${property.id}`);
+            let lcontrol = fpopup.find('.obPopup-lcontrol');
+
+            if (finput.length == 0 && fname.length > 0) {
+              // Media file preview
+              if ($.inArray(fext, def.mediatype) != -1) {
+                fpopup.css('height', '400px');
+                fpopup.find('span').replaceWith(
+                  $('<img/>', {
+                    src: `${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?fn=${fname}&format=view`,
+                    style: 'max-width:600px; max-height:350px; position:absolute; top:50%; left:50%; transform:translate(-50%,-58%);',
+                    class: 'pointer'
+                  }).on('click', function(){
+                    window.open(`${fcontent}&format=view`, '_blank');
+                    $('.obPopup-overlay').parent().remove();
+                  })
+                );
+              }
+              // Download icon
+              lcontrol.append(
+                '&emsp;',
+                $('<img/>', { class:'pointer', src:'img/icdwn.png', width:16, title:'Download' }).on('click', function() {
+                  window.location.href = fcontent;
                 })
-              ];
-          }
-          if ($.inArray(fext, def.doctype) != -1) {
-            ficon = [
-              ...ficon,
-              '&ensp;', $('<img/>', { class:'pointer', src:'img/icbrw.png', style:'margin-bottom:-3px;', width:16, title:'View in new tab' }).on('click', function() {
-                  window.open(`${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?format=view`, '_blank');
-                })
-              ];
-          }
-        }
+              );
+              // New-tab icon
+              if ($.inArray(fext, [...def.mediatype, ...def.doctype]) != -1) {
+                lcontrol.append(
+                  '&emsp;',
+                  $('<img/>', { class:'pointer', src:'img/icbrw.png', width:16, title:'View in new tab' }).on('click', function() {
+                    window.open(`${fcontent}&format=view`, '_blank');
+                  })
+                );
+              }
+            }
+          }, 10);
+        });
+
         felem
           .css('display','inline-block')
           .before('<br>')
@@ -458,9 +480,17 @@ mod['obj'] = {
 
     let dtsave = {};
     let dtfile = new FormData;
+
+    // File uploads
     $.each(obj_config, function(key, value) {
       if (key.startsWith('f_')) {
-        dtfile.append(key, $('#'+key)[0].files[0])
+        let felem = $('#'+key);
+        if (felem[0].files.length > 0) {
+          dtfile.append(key, felem[0].files[0]);
+        }
+        else {
+          dtfile.append(key, new File([''], ''));
+        }
       }
       else {
         dtsave[key] = value;
@@ -484,8 +514,6 @@ mod['obj'] = {
       : ['put', `objecttype/${type}/object/${id}`];
     $.when(api(sdat[0], sdat[1], dtsave)).always(function(apidata) {
       if (!!dtfile.entries().next().value) {
-
-        console.log(apidata);
         if (sdat[0] == 'post') {
           sdat[1] = `objecttype/${type}/object/${apidata.id}`;
         }
@@ -543,7 +571,8 @@ mod['obj'] = {
           let popup = new obPopup2({
             content: new obForm([{ id:fieldid, name:'Password', type:'string', value:value }]).html(),
             control: { 'Close (5)':null },
-            size: { width:400, height:120 }
+            size: { width:400, height:120 },
+            autofocus: false
           });
           $('#_obTab0-content').append(popup.html());
           let pwfield = popup.html().find(`#${fieldid}`);
@@ -585,14 +614,14 @@ mod['obj'] = {
      *    property  : Relations table
      ******************************************************************/
 
-    open_img: function(type, id, property, target='') {
+    open_img: function(type, id, property, target='', fn='default') {
 
       let img = $('<img/>', {
-        src: `${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?format=view`,
-        style: 'max-width:600px; max-height:350px;',
+        src: `${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?fn=${fn}&format=view`,
+        style: 'max-width:600px; max-height:350px; position:absolute; top:50%; left:50%; transform:translate(-50%,-58%);',
         class: 'pointer'
       }).on('click', function(){
-        window.open(`${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?format=view`, '_blank');
+        window.open(`${apibase}/v2/objecttype/${type}/object/${id}/property/${property.id}/content?fn=${fn}&format=view`, '_blank');
         popup.remove();
       });
       let popup = new obPopup2({
@@ -601,19 +630,6 @@ mod['obj'] = {
         size: { width:600, height:400 }
       });
       $(target).append(popup.html());
-      img.parent().prop('style', 'text-align:center;');
-
-      let btn = popup.html().find('.btn');
-      btn.on('keydown', function(event) {
-          if ($.inArray(event.which, ['13','27'])) {
-            popup.remove();
-          }
-          else {
-            event.preventDefault();
-            return false;
-          }
-        });
-      btn.focus();
     }
 
   },

@@ -301,7 +301,7 @@ function upload(path, data) {
       }
       // On debug log responses
       if (debug) {
-        console.log({status:response.status, request:`${httpmethod}: ${path}`, data:data});
+        console.log({status:response.status, request:`post: ${path}`, data:data});
         console.log(response.responseText);
       }
       // Header Logs

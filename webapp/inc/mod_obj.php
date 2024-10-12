@@ -742,12 +742,17 @@ class mod_obj {
     else {
       if (!$acl->update) { return null; }
     }
+
     // Generate error on multiple max file size behaviours
+    $fclear = [];
     if (empty($_FILES)) {
       return null;
     }
     foreach($_FILES as $fid => $file) {
-      if ($file['error'] != 0 || empty($file['name'])) {
+      if ($file['error'] == 4) {    // https://www.php.net/manual/en/features.file-upload.errors.php
+        $fclear[] = substr($fid,2);
+      }
+      elseif ($file['error'] != 0 || empty($file['name'])) {
         return null;
       }
     }
@@ -763,6 +768,12 @@ class mod_obj {
       ";
       $this->db->query($dbquery, [':obj'=>$id, ':objproperty'=>substr($fid,2), ':value'=>$file['name'],':data'=>base64_encode(file_get_contents($file['tmp_name']))]);
     }
+    // Clear files
+    if (count($fclear) > 0) {
+      $dbqin = $this->list2in($fclear, 'objp');
+      $this->db->query("DELETE FROM value_blob WHERE obj=:id AND objproperty IN ($dbqin->marks)", array_merge([':id'=>$id], $dbqin->params));
+    }
+
     return [];
   }
 

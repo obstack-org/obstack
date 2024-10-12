@@ -2,7 +2,7 @@
  CHANGES
 *********
 
-v1.2.2 (xx-xx-2024):
+v1.2.2 (12-10-2024):
 - Add File uploads
 - Session timeout messages
 - Optimize configuration loading
