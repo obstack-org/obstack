@@ -2,6 +2,9 @@
  CHANGES
 *********
 
+v1.2.3 (xx-xx-xxxx)
+- Auto database setup
+
 v1.2.2 (12-10-2024):
 - Add File uploads
 - Session timeout messages
