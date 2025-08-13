@@ -10,6 +10,7 @@
 
 * [/objecttype/{objecttype}/object](#objecttypeobjecttypeobject)
 * [/objecttype/{objecttype}/object/{object}](#objecttypeobjecttypeobjectobject)
+* [/objecttype/{objecttype}/object/{object}/property/{property}/content](#objecttypeobjecttypeobjectobjectpropertypropertycontent)
 
 * [/objecttype/{objecttype}/object/{object}/relation](#objecttypeobjecttypeobjectobjectrelation)
 * [/objecttype/{objecttype}/object/{object}/relation/available](#objecttypeobjecttypeobjectobjectrelationavailable)
@@ -121,6 +122,7 @@ Each object property has a type, that determines both the internal data type and
 | 9 | Date and time |
 | 11 | Password (hash) |
 | 12 | Password (recoverable) |
+| 15 | File |
 
 GET:
 ```javascript
@@ -255,6 +257,7 @@ POST:
 |---|---|
 | GET | Returns object list of details per value |
 | PUT | Update object |
+| POST | Post files if applicable |
 | DELETE | Delete object |
 
 Object key/value explanation:
@@ -299,6 +302,27 @@ PUT:
 
 // Response
 []
+```
+
+### /objecttype/{objecttype}/object/{object}/property/{property}/content
+
+| Method | Description |
+|---|---|
+| GET | Download file |
+
+Allows URI variable ?format=...
+
+| Type | Description |
+|---|---|
+| | Download file |
+| view | Viewable in browser
+| base64 | File content as base64 |
+
+GET:
+```bash
+  ./object/b0caaedb-5eb8-46ca-aa78-52155780408a/property/9d832ee0-7033-4f0c-9d71-aa5c4bf654a2/content
+  ./object/b0caaedb-5eb8-46ca-aa78-52155780408a/property/9d832ee0-7033-4f0c-9d71-aa5c4bf654a2/content?format=view
+  ./object/b0caaedb-5eb8-46ca-aa78-52155780408a/property/9d832ee0-7033-4f0c-9d71-aa5c4bf654a2/content?format=base64
 ```
 
 ### /objecttype/{objecttype}/object/{object}/relation
