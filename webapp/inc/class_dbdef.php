@@ -47,7 +47,10 @@ class dbdef {
                 'name'          => ['varchar',  64,     false,  null],
                 'value'         => ['varchar',  128,    false,  null]
             ],
-            []
+            [
+                'p' => [ 'id' ],
+                'u' => [ 'name' ]
+            ]
         ],
         'setting_decimal' => [
             [
@@ -55,7 +58,10 @@ class dbdef {
                 'name'          => ['varchar',  64,     false,  null],
                 'value'         => ['numeric',  null,   false,  null]
             ],
-            []
+            [
+                'p' => [ 'id' ],
+                'u' => [ 'name' ]
+            ]
         ],
         // Sessman
         'sessman_user' => [
@@ -71,7 +77,10 @@ class dbdef {
                 'totp'          => ['bool',     null,   false,  'false'],
                 'totp_secret'   => ['varchar',  128,    true,   null]
             ],
-            []
+            [
+                'p' => [ 'id' ],
+                'u' => [ 'username' ]
+            ]
         ],
         'sessman_group' => [
             [
@@ -80,14 +89,22 @@ class dbdef {
                 'ldapcn'        => ['varchar',  1024,   true,   null],
                 'radiusattr'    => ['varchar',  1024,   true,   null]
             ],
-            []
+            [
+                'p' => [ 'id' ],
+                'u' => [ 'groupname' ]
+            ]
         ],
         'sessman_usergroups' => [
             [
                 'smuser'        => ['uuid',     null,   false,  null],
                 'smgroup'       => ['uuid',     null,   false,  null]
             ],
-            []
+            [
+                'p' => [ 'smuser', 'smgroup' ],
+                'f' => [
+                    'smuser'    =>  [ 'sessman_user', 'id' ]
+                ]
+            ]
         ],
         'sessman_usertoken' => [
             [
@@ -96,7 +113,12 @@ class dbdef {
                 'token'         => ['varchar',  128,    false,  null],
                 'expiry'        => ['timestamp',null,   false,  null]
             ],
-            []
+            [
+                'p' => [ 'id' ],
+                'f' => [
+                    'smuser'    =>  [ 'sessman_user', 'id' ]
+                ]
+            ]
         ],
         // NTree
         'ntree' => [
@@ -106,7 +128,12 @@ class dbdef {
                 'prio'          => ['int4',     null,   true,   null],
                 'name'          => ['varchar',  64,     false,  null]
             ],
-            []
+            [
+                'p' => [ 'id' ],
+                'f' => [
+                    'parent'    =>  [ 'ntree', 'id' ]
+                ]
+            ]
         ],
         // Object
         'obj' => [
@@ -114,14 +141,19 @@ class dbdef {
                 'id'            => ['uuid',     null,   false,  'uuiddef'],
                 'objtype'       => ['uuid',     null,   false,  null]
             ],
-            []
+            [
+                'p' => [ 'id', 'objtype' ]
+            ]
         ],
         'obj_obj' => [
             [
                 'obj'           => ['uuid',     null,   false,  null],
                 'obj_ref'       => ['uuid',     null,   false,  null]
             ],
-            []
+            [
+                'p' => [ 'obj', 'obj_ref' ],
+                'c' => [ 'obj > obj_ref' ]
+            ]
         ],
         'obj_log' => [
             [
@@ -141,7 +173,12 @@ class dbdef {
                 'short'         => ['int2',     null,   false,  false],
                 'map'           => ['uuid',     null,   false,  null]
             ],
-            []
+            [
+                'p' => [ 'id' ],
+                'f' => [
+                    'map'    =>  [ 'ntree', 'id' ]
+                ]
+            ]
         ],
         'objtype_acl' => [
             [
@@ -152,14 +189,23 @@ class dbdef {
                 'update'        => ['bool',     null,   true,   false],
                 'delete'        => ['bool',     null,   true,   false]
             ],
-            []
+            [
+                'p' => [ 'objtype', 'smgroup' ]
+            ]
         ],
         'objtype_objtype' => [
             [
                 'objtype'       => ['uuid',     null,   false,  null],
                 'objtype_ref'   => ['uuid',     null,   false,  null]
             ],
-            []
+            [
+                'p' => [ 'objtype', 'objtype_ref' ],
+                'c' => [ 'objtype >= objtype_ref' ],
+                'f' => [
+                    'objtype'       =>  [ 'objtype', 'id' ],
+                    'objtype_ref'   =>  [ 'objtype', 'id' ]
+                ]
+            ]
         ],
         'objtype_log' => [
             [
@@ -189,7 +235,12 @@ class dbdef {
                 'tbl_visible'   => ['bool',     null,   true,   null],
                 'tbl_orderable' => ['bool',     null,   true,   null]
             ],
-            []
+            [
+                'p' => [ 'id', 'objtype' ],
+                'f' => [
+                    'objtype'       =>  [ 'objtype', 'id' ]
+                ]
+            ]
         ],
         // Values
         'value_decimal' => [
@@ -198,7 +249,13 @@ class dbdef {
                 'objproperty'   => ['uuid',     null,   false,  null],
                 'value'         => ['numeric',  null,   true,   null]
             ],
-            []
+            [
+                'p' => [ 'obj', 'objproperty' ],
+                'f' => [
+                    'obj'           =>  [ 'obj', 'id' ],
+                    'objproperty'   =>  [ 'objproperty', 'id' ]
+                ]
+            ]
         ],
         'value_text' => [
             [
@@ -206,7 +263,13 @@ class dbdef {
                 'objproperty'   => ['uuid',     null,   false,  null],
                 'value'         => ['text',  null,   true,   null]
             ],
-            []
+            [
+                'p' => [ 'obj', 'objproperty' ],
+                'f' => [
+                    'obj'           =>  [ 'obj', 'id' ],
+                    'objproperty'   =>  [ 'objproperty', 'id' ]
+                ]
+            ]
         ],
         'value_timestamp' => [
             [
@@ -214,7 +277,13 @@ class dbdef {
                 'objproperty'   => ['uuid',     null,   false,  null],
                 'value'         => ['timestamp',null,   true,   null]
             ],
-            []
+            [
+                'p' => [ 'obj', 'objproperty' ],
+                'f' => [
+                    'obj'           =>  [ 'obj', 'id' ],
+                    'objproperty'   =>  [ 'objproperty', 'id' ]
+                ]
+            ]
         ],
         'value_uuid' => [
             [
@@ -222,7 +291,13 @@ class dbdef {
                 'objproperty'   => ['uuid',     null,   false,  null],
                 'value'         => ['uuid',     null,   true,   null]
             ],
-            []
+            [
+                'p' => [ 'obj', 'objproperty' ],
+                'f' => [
+                    'obj'           =>  [ 'obj', 'id' ],
+                    'objproperty'   =>  [ 'objproperty', 'id' ]
+                ]
+            ]
         ],
         'value_varchar' => [
             [
@@ -230,7 +305,13 @@ class dbdef {
                 'objproperty'   => ['uuid',     null,   false,  null],
                 'value'         => ['varchar',  1024,   true,   null]
             ],
-            []
+            [
+                'p' => [ 'obj', 'objproperty' ],
+                'f' => [
+                    'obj'           =>  [ 'obj', 'id' ],
+                    'objproperty'   =>  [ 'objproperty', 'id' ]
+                ]
+            ]
         ],
         'value_blob' => [
             [
@@ -239,7 +320,13 @@ class dbdef {
                 'value'         => ['varchar',  36,     false,  null],
                 'data'          => ['blob',     null,   false,  null]
             ],
-            []
+            [
+                'p' => [ 'obj', 'objproperty' ],
+                'f' => [
+                    'obj'           =>  [ 'obj', 'id' ],
+                    'objproperty'   =>  [ 'objproperty', 'id' ]
+                ]
+            ]
         ],
         // Value Map
         'valuemap' => [
@@ -248,7 +335,9 @@ class dbdef {
                 'name'          => ['varchar',  128,    false,  null],
                 'prio'          => ['bool',     null,   true,   null]
             ],
-            []
+            [
+                'p' => [ 'id' ]
+            ]
         ],
         'valuemap_value' => [
             [
@@ -257,7 +346,12 @@ class dbdef {
                 'prio'          => ['int4',     null,   true,   null],
                 'name'          => ['varchar',  128,    false,  null]
             ],
-            []
+            [
+                'p' => [ 'id', 'valuemap' ],
+                'f' => [
+                    'valuemap'      =>  [ 'valuemap', 'id' ]
+                ]
+            ]
         ]
     ];
   }

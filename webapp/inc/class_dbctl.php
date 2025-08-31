@@ -36,7 +36,7 @@ class dbctl {
       return (array_key_exists($value, $dbtrans)) ? $dbtrans[$value] : $value;
     };
 
-    // Read database structure (query)
+    // Define database structure queries
     $dbquery = null;
     if ($db->driver()->mysql) {
       $dbtmpn = 'database()';
@@ -58,12 +58,12 @@ class dbctl {
       ";
       $dbquery_constraints = "
       SELECT
-        tc.CONSTRAINT_NAME,
-        tc.CONSTRAINT_TYPE,
-        tc.TABLE_NAME,
-        kcu.COLUMN_NAME,
-        kcu.REFERENCED_TABLE_NAME,
-        kcu.REFERENCED_COLUMN_NAME
+        tc.CONSTRAINT_NAME as contraint_name,
+        tc.CONSTRAINT_TYPE as contraint_type,
+        tc.TABLE_NAME as table_name,
+        kcu.COLUMN_NAME as column_name,
+        kcu.REFERENCED_TABLE_NAME as referenced_table_name,
+        kcu.REFERENCED_COLUMN_NAME as referenced_column_name
       FROM
         information_schema.TABLE_CONSTRAINTS AS tc
       JOIN
@@ -78,6 +78,23 @@ class dbctl {
         tc.TABLE_NAME,
         kcu.COLUMN_NAME,
         tc.CONSTRAINT_TYPE desc
+      ";
+      $dbquery_checks = "
+        SELECT
+          cc.CONSTRAINT_NAME as contraint_name,
+          cc.TABLE_NAME as table_name,
+          cc.CHECK_CLAUSE as check_clause
+        FROM
+          information_schema.CHECK_CONSTRAINTS AS cc
+        JOIN
+          information_schema.TABLE_CONSTRAINTS AS tc
+          ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+          AND cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
+        WHERE
+          tc.CONSTRAINT_TYPE = 'CHECK'
+          AND cc.CONSTRAINT_SCHEMA = '$dbname'
+        ORDER BY
+          TABLE_NAME
       ";
     }
     else {
@@ -104,10 +121,10 @@ class dbctl {
       ";
       $dbquery_constraints = "
       SELECT
-        tc.CONSTRAINT_NAME,
-        tc.CONSTRAINT_TYPE,
-        tc.TABLE_NAME,
-        kcu.COLUMN_NAME,
+        tc.CONSTRAINT_NAME as contraint_name,
+        tc.CONSTRAINT_TYPE as contraint_type,
+        tc.TABLE_NAME as table_name,
+        kcu.COLUMN_NAME as column_name,
         ccu.TABLE_NAME AS referenced_table_name,
         ccu.COLUMN_NAME AS referenced_column_name
       FROM
@@ -130,9 +147,27 @@ class dbctl {
         kcu.COLUMN_NAME,
         tc.CONSTRAINT_TYPE desc
       ";
+      $dbquery_checks = "
+        SELECT
+          cc.constraint_name AS constraint_name,
+          tc.table_name AS table_name,
+          cc.check_clause AS check_clause
+        FROM
+          information_schema.check_constraints AS cc
+        JOIN
+          information_schema.table_constraints AS tc
+          ON cc.constraint_name = tc.constraint_name
+          AND cc.constraint_schema = tc.constraint_schema
+        WHERE
+          tc.constraint_type = 'CHECK'
+          AND cc.constraint_schema = '$dbschm'
+          AND tc.constraint_catalog = '$dbname'
+        ORDER BY
+          TABLE_NAME
+      ";
     }
 
-    // Read database structure (execute)
+    // Read database structure
     $dbschema = [];
     $ctab = null;
     foreach ($db->query($dbquery_schema, []) as $dbrec) {
@@ -146,13 +181,40 @@ class dbctl {
         ($dbrec->is_nullable == 'YES'),
         ($dbrec->column_default == 'NULL') ? null : $dbrec->column_default
       ];
-
     }
-
-
+    // -- Constraints
+    $dbconstraints = [];
+    $ctab = null;
+    foreach ($db->query($dbquery_constraints, []) as $dbrec) {
+      if ($dbrec->table_name != $ctab) {
+        $dbconstraints[$dbrec->table_name] = [];
+        $ctab = $dbrec->table_name;
+      }
+      $ctype = strtolower($dbrec->contraint_type[0]);
+      if (!isset($dbconstraints[$dbrec->table_name][$ctype])) {
+        $dbconstraints[$dbrec->table_name][$ctype] = [];
+      }
+      $dbconstraints[$dbrec->table_name][$ctype][] = [
+        $dbrec->column_name,
+        $dbrec->referenced_table_name,
+        $dbrec->referenced_column_name
+      ];
+    }
+    // -- Checks (as constraints)
+    $dbchecks = [];
+    $ctab = null;
+    foreach ($db->query($dbquery_checks, []) as $dbrec) {
+      if ($dbrec->table_name != $ctab) {
+        $dbchecks[$dbrec->table_name] = [];
+        $ctab = $dbrec->table_name;
+      }
+      $dbchecks[$dbrec->table_name][] = str_replace(['`','(',')'], '', $dbrec->check_clause);
+    }
 
     $clist = [];
     $ulist = [];
+
+    $dlist = []; //debug
 
     // Process new tables and columns
     foreach ($dbdef as $table => $config) {
@@ -182,7 +244,8 @@ class dbctl {
       // Create/Update columns
       if (!empty($dbcolumns)) {
         if ($isnew) {
-          $clist[$table] = "CREATE TABLE $table (".implode(', ', $dbcolumns).")";
+          $clist[$table] = [];
+          $clist[$table][] = "CREATE TABLE $table (".implode(', ', $dbcolumns).")";
         }
         else {
           $ulist[$table] = [];
@@ -191,10 +254,64 @@ class dbctl {
           }
         }
       }
-    }
+      // Create constraints
+      $tlist = [];
+      // -- Primary key
+      if (isset($constraints['p'])) {
+        $addkey = [];
+        foreach ($constraints['p'] as $pkey) {
+          $haspkey = false;
+          if (isset($dbconstraints[$table]['p'])) {
+            foreach ($dbconstraints[$table]['p'] as $constraint) {
+              if ($pkey == $constraint[0]) {
+                $haspkey = true;
+              }
+            }
+          }
+          if (!$haspkey) {
+            $addkey[] = $pkey;
+          }
+        }
+        if (count($addkey) > 0) {
+          $addkey = implode(',', $addkey);
+          $tlist[] = "ALTER TABLE $table ADD PRIMARY KEY ($addkey)";
+        }
+      }
+      // -- Foreign key
+      if (isset($constraints['f'])) {
+        foreach ($constraints['f'] as $pkey) {
+        }
+      }
+      // -- Unique
+      if (isset($constraints['u'])) {
+        foreach ($constraints['u'] as $pkey) {
+        }
+      }
+      // -- Check
+      if (isset($constraints['c'])) {
+        foreach ($constraints['c'] as $check) {
+          if (!in_array($check, $dbchecks[$table])) {
+            $tlist[] = "ALTER TABLE $table ADD CHECK ($check)";
+          }
+        }
+      }
 
-    ksort($clist);
-    ksort($ulist);
+      // Constraints to create/update lists
+      $dlist[$table] = [];
+      $dlist[$table][] = array_merge($dlist[$table], $tlist);
+      if (count($tlist) > 0)
+      {
+        if ($isnew) {
+          $clist[$table] = array_merge($clist[$table], $tlist);
+        }
+        else {
+          if (!isset($ulist[$table])) {
+            $ulist[$table] = [];
+          }
+          $ulist[$table] = array_merge($ulist[$table], $tlist);
+        }
+      }
+    }
 
     // Phased output (unbuffered)
     ob_clean();
@@ -223,9 +340,12 @@ class dbctl {
     flush();
 
     # Create new tables
-    foreach ($clist as $tname=>$query) {
+    foreach ($clist as $tname=>$queries) {
       echo("Create: {$tname}");
-      $db->query($query);
+      foreach ($queries as $query) {
+        // echo("\n{$query}<br>\n"); // debug
+        $db->query($query, []);
+      }
       echo("{$bfill}<br>\n");
       flush();
     }
@@ -234,10 +354,13 @@ class dbctl {
     foreach ($ulist as $tname=>$queries) {
       echo("Update: {$tname} <br>");
       foreach ($queries as $query) {
+        // echo("\n{$query}<br>\n"); // debug
         $db->query($query, []);
       }
       flush();
     }
+
+    var_dump($dbconstraints);
 
     # Finalize
     echo("<br>\nDone!");
