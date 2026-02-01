@@ -194,11 +194,22 @@ class dbctl {
       if (!isset($dbconstraints[$dbrec->table_name][$ctype])) {
         $dbconstraints[$dbrec->table_name][$ctype] = [];
       }
-      $dbconstraints[$dbrec->table_name][$ctype][] = [
-        $dbrec->column_name,
-        $dbrec->referenced_table_name,
-        $dbrec->referenced_column_name
-      ];
+      if ($ctype == "f") {
+        $dbconstraints[$dbrec->table_name][$ctype][$dbrec->column_name] = [
+          $dbrec->referenced_table_name,
+          $dbrec->referenced_column_name
+        ];
+      }
+      elseif ($ctype == "u") {
+        $dbconstraints[$dbrec->table_name][$ctype][] = [ $dbrec->column_name ];
+      }
+      else {
+        $dbconstraints[$dbrec->table_name][$ctype][] = [
+          $dbrec->column_name,
+          $dbrec->referenced_table_name,
+          $dbrec->referenced_column_name
+        ];
+      }
     }
     // -- Checks (as constraints)
     $dbchecks = [];
@@ -279,12 +290,37 @@ class dbctl {
       }
       // -- Foreign key
       if (isset($constraints['f'])) {
-        foreach ($constraints['f'] as $pkey) {
+        $fkid = 0;
+        foreach ($constraints['f'] as $fkey => $fref) {
+          if (!isset($dbconstraints[$table]['f'][$fkey]) || $dbconstraints[$table]['f'][$fkey] != $fref ) {
+            $cnam_fref = (strpos($table, '_') !== false || strpos($fref[0], '_') !== false) ? $table : $table . "_" . $fref[0];
+            $cname = $cname_fref . "_fk" . (($fkid > 0) ? "_$fkid" : "");
+            $tlist[] = "ALTER TABLE $table ADD CONSTRAINT $cname FOREIGN KEY ($fkey) REFERENCES $fref[0]($fref[1]);";
+          }
+          $fkid++;
         }
       }
       // -- Unique
       if (isset($constraints['u'])) {
-        foreach ($constraints['u'] as $pkey) {
+        foreach ($constraints['u'] as $ukey) {
+          // $constraints['u'] has format [ [key1,key2], [key3] ], but...
+          if (count($ukey) > 1) {
+            echo("ERROR: UNIQUE with multiple keys is not supported");
+            die();
+          }
+          else {
+            $ukey = $ukey[0];
+            $hasukey = false;
+            foreach ($dbconstraints[$table]['u'] as $dbkey) {
+              if ($dbkey[0] == $ukey) {
+                $hasukey = true;
+              }
+            }
+            if (!$hasukey) {
+              $cname = $table . "_" . $ukey . "_un";
+              $tlist[] = "ALTER TABLE $table ADD CONSTRAINT $cname UNIQUE ($ukey)";
+            }
+          }
         }
       }
       // -- Check
@@ -360,7 +396,11 @@ class dbctl {
       flush();
     }
 
-    var_dump($dbconstraints);
+    // $js = htmlspecialchars(json_encode($tlist, JSON_PRETTY_PRINT), ENT_QUOTES, 'UTF-8');
+    // echo("<pre style=\"background-color: #f4f4f9; padding: 10px; border-radius: 5px; overflow-x: auto; white-space: pre-wrap;\">$js</pre>");
+
+    // $js = htmlspecialchars(json_encode($dbconstraints, JSON_PRETTY_PRINT), ENT_QUOTES, 'UTF-8');
+    // echo("<pre style=\"background-color: #f4f4f9; padding: 10px; border-radius: 5px; overflow-x: auto; white-space: pre-wrap;\">$js</pre>");
 
     # Finalize
     echo("<br>\nDone!");
