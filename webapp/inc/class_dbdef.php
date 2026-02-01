@@ -49,7 +49,7 @@ class dbdef {
             ],
             [
                 'p' => [ 'id' ],
-                'u' => [ 'name' ]
+                'u' => [ ['name'] ]
             ]
         ],
         'setting_decimal' => [
@@ -60,7 +60,7 @@ class dbdef {
             ],
             [
                 'p' => [ 'id' ],
-                'u' => [ 'name' ]
+                'u' => [ ['name'] ]
             ]
         ],
         // Sessman
@@ -79,7 +79,7 @@ class dbdef {
             ],
             [
                 'p' => [ 'id' ],
-                'u' => [ 'username' ]
+                'u' => [ ['username'] ]
             ]
         ],
         'sessman_group' => [
@@ -91,7 +91,7 @@ class dbdef {
             ],
             [
                 'p' => [ 'id' ],
-                'u' => [ 'groupname' ]
+                'u' => [ ['groupname'] ]
             ]
         ],
         'sessman_usergroups' => [
@@ -109,6 +109,7 @@ class dbdef {
         'sessman_usertoken' => [
             [
                 'id'            => ['uuid',     null,   false,  'uuiddef'],
+                'smuser'        => ['uuid',     null,   false,  null],
                 'name'          => ['varchar',  128,    false,  null],
                 'token'         => ['varchar',  128,    false,  null],
                 'expiry'        => ['timestamp',null,   false,  null]
@@ -250,11 +251,7 @@ class dbdef {
                 'value'         => ['numeric',  null,   true,   null]
             ],
             [
-                'p' => [ 'obj', 'objproperty' ],
-                'f' => [
-                    'obj'           =>  [ 'obj', 'id' ],
-                    'objproperty'   =>  [ 'objproperty', 'id' ]
-                ]
+                'p' => [ 'obj', 'objproperty' ]
             ]
         ],
         'value_text' => [
@@ -264,11 +261,7 @@ class dbdef {
                 'value'         => ['text',  null,   true,   null]
             ],
             [
-                'p' => [ 'obj', 'objproperty' ],
-                'f' => [
-                    'obj'           =>  [ 'obj', 'id' ],
-                    'objproperty'   =>  [ 'objproperty', 'id' ]
-                ]
+                'p' => [ 'obj', 'objproperty' ]
             ]
         ],
         'value_timestamp' => [
@@ -278,11 +271,7 @@ class dbdef {
                 'value'         => ['timestamp',null,   true,   null]
             ],
             [
-                'p' => [ 'obj', 'objproperty' ],
-                'f' => [
-                    'obj'           =>  [ 'obj', 'id' ],
-                    'objproperty'   =>  [ 'objproperty', 'id' ]
-                ]
+                'p' => [ 'obj', 'objproperty' ]
             ]
         ],
         'value_uuid' => [
@@ -292,11 +281,7 @@ class dbdef {
                 'value'         => ['uuid',     null,   true,   null]
             ],
             [
-                'p' => [ 'obj', 'objproperty' ],
-                'f' => [
-                    'obj'           =>  [ 'obj', 'id' ],
-                    'objproperty'   =>  [ 'objproperty', 'id' ]
-                ]
+                'p' => [ 'obj', 'objproperty' ]
             ]
         ],
         'value_varchar' => [
@@ -306,11 +291,7 @@ class dbdef {
                 'value'         => ['varchar',  1024,   true,   null]
             ],
             [
-                'p' => [ 'obj', 'objproperty' ],
-                'f' => [
-                    'obj'           =>  [ 'obj', 'id' ],
-                    'objproperty'   =>  [ 'objproperty', 'id' ]
-                ]
+                'p' => [ 'obj', 'objproperty' ]
             ]
         ],
         'value_blob' => [
@@ -321,11 +302,7 @@ class dbdef {
                 'data'          => ['blob',     null,   false,  null]
             ],
             [
-                'p' => [ 'obj', 'objproperty' ],
-                'f' => [
-                    'obj'           =>  [ 'obj', 'id' ],
-                    'objproperty'   =>  [ 'objproperty', 'id' ]
-                ]
+                'p' => [ 'obj', 'objproperty' ]
             ]
         ],
         // Value Map
