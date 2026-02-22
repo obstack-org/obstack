@@ -22,6 +22,9 @@ frm['login'] = {
    * Generate login screen
    ******************************************************************/
   show: function() {
+    // Hide Popup, if any
+    $('.obPopup-overlay').remove();
+
     // Login form
     let loginform = new obForm([
       { id:'username', name:'Username', type:'string' },

@@ -39,7 +39,12 @@ session_start();
 
 // Database connection
 require_once 'inc/class_db.php';
-$db = new db($bcnf->get('db_connectionstring'), $bcnf->get('db_persistent'));
+try {
+  $db = new db($bcnf->get('db_connectionstring'), $bcnf->get('db_persistent'));
+}
+catch (Exception $e) {
+  $api->http_error(428, 'Error connecting to database<br><br>Please contact your administrator');
+}
 $db->debug = $debug;
 
 // Pre-process configuration and/or data (if any)
@@ -55,9 +60,17 @@ if (
 ) {
   $api->http_error(428, 'Error in configuration.<br><br>Please check the <a href="https://www.obstack.org/docs/?doc=general-configuration#upgrade-nodes" target=_blank>Upgrade nodes</a>');
 }
+$dbcver = 120;
 $dbfunc = ($db->driver()->mysql) ? 'database()' : 'CURRENT_SCHEMA()';
-if(count($db->query_buffered('stdec',"SELECT 1 FROM information_schema.tables WHERE table_schema = $dbfunc AND table_name = 'setting_decimal'")) == 0){
-  $api->http_error(428, 'Database check failed, contact your system administrator.<br><br>(Reference: <a href="https://www.obstack.org/docs/?doc=general-configuration#database" target=_blank>Database schema</a>)');
+if(count($db->query("SELECT 1 FROM information_schema.tables WHERE table_schema = $dbfunc AND table_name = 'setting_decimal'")) == 0) {
+  if (isset($_SESSION["obsinit"])) {
+    require_once 'inc/mod_dbctl.php';
+    exit(0);
+  }
+  else {
+    $_SESSION["obsinit"] = bin2hex(random_bytes(random_int(16, 20)));
+    $api->http_error(426, 'Update pending<br><br>Please contact your administrator');
+  }
 }
 
 // App configuration
@@ -105,6 +118,21 @@ else {
 
   // --> /auth
   require_once 'inc/api_auth.php';
+
+  // Update check
+  $dbversion = $db->select('value', 'setting_decimal', [':name'=>'db_version']);
+  if (empty($dbversion) || (isset($dbversion[0]->value) && (int)$dbversion[0]->value <> $dbcver)) {
+    if ($sessman->SA()) {
+      if (count($api->uri) >=2 && ($api->uri[1] == 'dbctl')) {
+        require_once 'inc/mod_dbctl.php';
+        exit(0);
+      }
+      $api->http_error(426, 'Update pending<br><br>Please contact your administrator');
+    }
+    else {
+      $api->http_error(428, 'Update pending<br><br>Please contact your administrator');
+    }
+  }
 
   // --> /auth/group  (extension to sessman)
   if (count($api->uri) >=3 && $api->uri[1] == 'auth' && $api->uri[2] == 'group') {
