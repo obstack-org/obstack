@@ -53,8 +53,7 @@ class db {
       }
     }
     catch (PDOException $e) {
-      print 'Error!: ' . $e->getMessage() . '<br/>';
-      die();
+      throw new RuntimeException('Error!: ' . $e->getMessage());
     }
 
     $this->driver = (object)[

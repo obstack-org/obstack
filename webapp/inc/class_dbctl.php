@@ -11,22 +11,7 @@ class dbctl {
 
   public static function run($db) {
 
-    // Base configuration
-    require_once '../config.php';
-    require_once 'class_conf.php';
-    $bcnf = new conf($obstack_conf);
-
-    // Verify base configuration
-    if ( count($bcnf->get()) == 0 || $bcnf->get('db_connectionstring') == null ) {
-      die('Error in configuration<br><br>Please check:<br><a href="https://www.obstack.org/docs/?doc=general-configuration" target=_blank>https://www.obstack.org/docs/?doc=general-configuration</a><br>For upgrading please check:<br><a href="https://www.obstack.org/docs/?doc=general-configuration#upgrade-nodes" target=_blank>https://www.obstack.org/docs/?doc=general-configuration#upgrade-nodes</a>');
-    }
-
-    // Database connection
-    require_once 'class_db.php';
-
-    $dbconnstr = $bcnf->get('db_connectionstring');
-    $dbconnstr = "pgsql:host=dev-psql;dbname=autodb;user=postgres;password=postgres";
-    $db = new db($dbconnstr, $bcnf->get('db_persistent'));
+    global $dbcver;
 
     require_once 'class_dbdef.php';
     $dbdef = dbdef::definitions();
@@ -225,8 +210,6 @@ class dbctl {
     $clist = [];
     $ulist = [];
 
-    $dlist = []; //debug
-
     // Process new tables and columns
     foreach ($dbdef as $table => $config) {
       $columns = $config[0];
@@ -293,7 +276,7 @@ class dbctl {
         $fkid = 0;
         foreach ($constraints['f'] as $fkey => $fref) {
           if (!isset($dbconstraints[$table]['f'][$fkey]) || $dbconstraints[$table]['f'][$fkey] != $fref ) {
-            $cnam_fref = (strpos($table, '_') !== false || strpos($fref[0], '_') !== false) ? $table : $table . "_" . $fref[0];
+            $cname_fref = (strpos($table, '_') !== false || strpos($fref[0], '_') !== false) ? $table : $table . "_" . $fref[0];
             $cname = $cname_fref . "_fk" . (($fkid > 0) ? "_$fkid" : "");
             $tlist[] = "ALTER TABLE $table ADD CONSTRAINT $cname FOREIGN KEY ($fkey) REFERENCES $fref[0]($fref[1]);";
           }
@@ -333,8 +316,6 @@ class dbctl {
       }
 
       // Constraints to create/update lists
-      $dlist[$table] = [];
-      $dlist[$table][] = array_merge($dlist[$table], $tlist);
       if (count($tlist) > 0)
       {
         if ($isnew) {
@@ -349,67 +330,62 @@ class dbctl {
       }
     }
 
-    // Phased output (unbuffered)
-    ob_clean();
-    header('Content-Type: text/html');
-    header('Cache-Control: no-cache');
-    header('X-Accel-Buffering: no');
-
-    ?><!DOCTYPE html>
-      <head>
-        <title>ObStack</title>
-        <link rel="icon" type="image/ico" href="../img/favicon.ico">
-        <link type="text/css" rel="stylesheet" href="../css/index.css">
-        <link type="text/css" rel="stylesheet" href="../css/setup.css">
-      </head>
-      <body>
-        <div class="info">
-          <span class="title">ObStack - Updating database...</span>
-          <div class="info-content">
-    <?php
-
-    while (ob_get_level() > 0) { ob_end_flush(); }
-    ob_implicit_flush(true);
-
-    $bfill = str_repeat(' ', 2048);
-    echo("{$bfill}<br>\n");
-    flush();
-
     # Create new tables
     foreach ($clist as $tname=>$queries) {
-      echo("Create: {$tname}");
+      echo("Create: {$tname}<br>");
       foreach ($queries as $query) {
         // echo("\n{$query}<br>\n"); // debug
         $db->query($query, []);
       }
-      echo("{$bfill}<br>\n");
+      echo(str_repeat(' ', 4096));
       flush();
     }
 
     # Update existing tables
     foreach ($ulist as $tname=>$queries) {
-      echo("Update: {$tname} <br>");
+      echo("Update: {$tname}<br>");
       foreach ($queries as $query) {
         // echo("\n{$query}<br>\n"); // debug
         $db->query($query, []);
       }
+      echo(str_repeat(' ', 4096));
       flush();
     }
 
-    // $js = htmlspecialchars(json_encode($tlist, JSON_PRETTY_PRINT), ENT_QUOTES, 'UTF-8');
-    // echo("<pre style=\"background-color: #f4f4f9; padding: 10px; border-radius: 5px; overflow-x: auto; white-space: pre-wrap;\">$js</pre>");
+    echo("<br>");
 
-    // $js = htmlspecialchars(json_encode($dbconstraints, JSON_PRETTY_PRINT), ENT_QUOTES, 'UTF-8');
-    // echo("<pre style=\"background-color: #f4f4f9; padding: 10px; border-radius: 5px; overflow-x: auto; white-space: pre-wrap;\">$js</pre>");
+    # Check base config
+    $chkdefs = [ 'db_version'=>$dbcver, 'session_timeout'=>600, 'totp_default_enabled'=>0 ];
+    foreach ($db->select('name', 'setting_decimal') as $dbrow) {
+      if (array_key_exists($dbrow->name, $chkdefs)) {
+        unset($chkdefs[$dbrow->name]);
+      }
+    }
+    if (count($chkdefs) > 0) {
+      echo("Create: [config:defaults]<br>");
+      echo(str_repeat(' ', 4096));
+      flush();
+      foreach($chkdefs as $cfname=>$cfvalue) {
+        $db->insert('setting_decimal', [':name'=>$cfname, ':value'=>$cfvalue]);
+      }
+    }
 
-    # Finalize
-    echo("<br>\nDone!");
-    flush();
+    # Check user admin
+    if (empty($db->select('username', 'sessman_user', [':username'=>'admin']))) {
+      echo("Create: [user:admin]<br>");
+      echo(str_repeat(' ', 4096));
+      flush();
+      $db->query("INSERT INTO sessman_user (username,secret,active,sa) VALUES ('admin', crypt('admin', gen_salt('bf')), true, true);");
+    }
 
-    exit();
+    # Update database version
+    if (!array_key_exists('db_version', $chkdefs)) {
+      echo("Update: [config:version]<br>");
+      echo(str_repeat(' ', 4096));
+      flush();
+      $db->update('setting_decimal', [':value'=>$dbcver], [':name'=>'db_version']);
+    }
 
   }
 
 }
-
-dbctl::run(null);

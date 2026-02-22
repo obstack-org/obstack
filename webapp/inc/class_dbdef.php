@@ -172,7 +172,7 @@ class dbdef {
                 'name'          => ['varchar',  128,    false,  null],
                 'log'           => ['bool',     null,   true,   false],
                 'short'         => ['int2',     null,   false,  false],
-                'map'           => ['uuid',     null,   false,  null]
+                'map'           => ['uuid',     null,   true,   null]
             ],
             [
                 'p' => [ 'id' ],
@@ -227,8 +227,8 @@ class dbdef {
                 'type'          => ['int4',     null,   false,  null],
                 'prio'          => ['int4',     null,   true,   null],
                 'required'      => ['bool',     null,   true,   null],
-                'validate_regex'=> ['varchar',  128,    false,  null],
-                'validate_msg'  => ['varchar',  128,    false,  null],
+                'validate_regex'=> ['varchar',  128,    true,   null],
+                'validate_msg'  => ['varchar',  128,    true,   null],
                 'type_objtype'  => ['uuid',     null,   true,   null],
                 'type_valuemap' => ['uuid',     null,   true,   null],
                 'frm_visible'   => ['bool',     null,   true,   null],

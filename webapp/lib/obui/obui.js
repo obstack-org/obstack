@@ -1123,7 +1123,6 @@ var obPopup2 = function(coptions) {
 
 
 function obAlert(msg, control={ Ok:null }) {
-
   $('body').append(
     new obPopup2({
       content: msg,
@@ -1131,6 +1130,47 @@ function obAlert(msg, control={ Ok:null }) {
       size: { width:500, height:110 },
       ontop: true
     }).html()
+  );
+  $('.obForm-field').each(function () {
+    $(this).blur();
+  });
+}
+
+
+function obUpgrade() {
+
+  $('<link>', {
+    rel: 'stylesheet',
+    type: 'text/css',
+    href: 'css/setup.css'
+  }).appendTo('head');
+
+  info = $('<div/>', { class:'info'});
+  info.append(
+    '&nbsp;<br>Upgrading database.<br>',
+    '&nbsp;<br>Make sure you have made a <b>backup</b> of your database before continuing!<br>',
+    '&nbsp;<br>',
+    $('<input/>', { class:'btn', type:'submit', value:'Proceed', style:'width:120px; height:35px; color:#eee; background:#da190b;' }).on('click', function() {
+
+      if (confirm("Upgrading database, make sure you have made a backup!\nAre you sure you want to continue?")) {
+        $.ajax({
+          url: 'api.php/v2/dbctl',
+          xhr: function () {
+              const xhr = new XMLHttpRequest();
+              xhr.onprogress = function () {
+                  info.html(xhr.responseText);
+              };
+              return xhr;
+          }
+        });
+      }
+    })
+  );
+
+  $('body').empty().append(
+
+    info
+
   );
 
 }
